@@ -265,6 +265,17 @@ describe('failures', () => {
     expect(made).toHaveLength(0)
   })
 
+  it('a transport that cannot even be created fails the job instead of hanging', async () => {
+    const made: number[] = []
+    const throwing = () => {
+      made.push(1)
+      throw new DOMException('Worker is blocked', 'SecurityError')
+    }
+    const evaluator = createEvaluator(LITE, DEPTH_12, ONE, memoryCache(), ENV, throwing)
+    expect(await outcome(evaluator.evaluate(recordedPosition('mate-in-1'), live()))).toMatchObject({ kind: 'crashed' })
+    expect(made).toHaveLength(2)
+  })
+
   it('an unreachable bridge fails as unavailable without a retry', async () => {
     const unreachable: LineTransport = {
       send: () => {},

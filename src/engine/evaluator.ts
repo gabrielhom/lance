@@ -83,7 +83,8 @@ export function createEvaluator(
     const onLoading = (loaded: number, total: number) => {
       for (const job of queue) job.onProgress({ kind: 'engine-loading', loaded, total })
     }
-    openSession(connect(d), pool, expectedFor(d), onLoading).then(
+    const opening = async () => openSession(connect(d), pool, expectedFor(d), onLoading)
+    opening().then(
       (session) => {
         booting--
         bootCrashes = 0
