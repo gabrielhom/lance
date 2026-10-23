@@ -1,5 +1,5 @@
-import { gameFromPgn, type Evaluator, type Services, type Settings } from '../domain'
-import { createEvaluator, probeBridge, runtimeEnv } from '../engine'
+import { gameFromPgn, type Evaluator, type MovePicker, type Services, type Settings } from '../domain'
+import { createEvaluator, createMovePicker, probeBridge, runtimeEnv } from '../engine'
 import { fetchRecentGames, parsePgnText } from '../import'
 import { loadBook } from '../openings'
 import { accuracyHistory, reviewGame } from '../review'
@@ -21,6 +21,16 @@ export async function createServices(): Promise<Services> {
     return current.evaluator
   }
 
+  let picker: { key: string; picker: MovePicker } | null = null
+  function pickerFor(s: Settings): MovePicker {
+    const key = JSON.stringify([s.engine, s.tuning])
+    if (picker?.key !== key) {
+      picker?.picker.dispose()
+      picker = { key, picker: createMovePicker(s.engine, s.tuning, env) }
+    }
+    return picker.picker
+  }
+
   return {
     loadSettings,
     saveSettings,
@@ -36,7 +46,7 @@ export async function createServices(): Promise<Services> {
     },
     accuracyHistory,
     probeBridge,
-    engineMove: () => Promise.reject(new Error('not wired yet')),
+    engineMove: (input, level, signal) => pickerFor(loadSettings()).pick(input, level, signal),
     loadPlay: () => null,
     savePlay: () => {},
   }
