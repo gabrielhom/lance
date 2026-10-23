@@ -32,7 +32,7 @@ function readLastUser(): { site: Site; username: string } {
   return { site: 'lichess', username: '' }
 }
 
-export function HomeScreen() {
+export function ImportScreen() {
   const services = useServices()
   const [settings] = useSettings()
   const openGame = (game: Game) => {

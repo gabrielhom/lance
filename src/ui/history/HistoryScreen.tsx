@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { AccuracyPoint, LibraryRecord } from '../../domain/types'
 import { formatPct } from '../format'
-import { LibraryList } from '../home/GameList'
+import { LibraryList } from '../import/GameList'
 import { useServices, useSettings } from '../services'
 import { AccuracyChart } from './AccuracyChart'
 
