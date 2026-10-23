@@ -39,7 +39,7 @@ export function createMovePicker(d: EngineDescriptor, tuning: EngineTuning, env:
   async function attempt(input: EngineInput, level: PlayLevel, signal: AbortSignal): Promise<Uci> {
     if (disposed || signal.aborted) throw abortError()
     const live = await engine()
-    const fresh = previous === null
+    const fresh = previous === null || !continues(previous, input)
     previous = input
     const options = { ...(live.options.has('MultiPV') ? { MultiPV: '1' } : {}), ...strengthOptions(level.strength, live.options) }
     const job = { input, turn: plyOf(input) % 2 === 0 ? 'w' : 'b', limit: { kind: 'movetime', ms: level.movetimeMs }, options, fresh } as const
@@ -98,4 +98,10 @@ function spin(n: number, range: Range): string {
 function plyOf({ root, tail }: EngineInput): number {
   const [, turn, , , , move] = root.split(' ')
   return 2 * (Number(move) - 1) + (turn === 'b' ? 1 : 0) + tail.length
+}
+
+/** Moves before a root are not in the input, so a later root can only be told from a new game by its ply. */
+function continues(previous: EngineInput, next: EngineInput): boolean {
+  if (next.root === previous.root) return previous.tail.every((move, i) => next.tail[i] === move)
+  return plyOf({ root: next.root, tail: [] }) > plyOf(previous)
 }

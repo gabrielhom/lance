@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import type { EngineDescriptor, EngineInput, EngineTuning, PlayLevel, RuntimeEnv, Strength } from '../domain/types'
+import type { EngineDescriptor, EngineInput, EngineTuning, Fen, PlayLevel, RuntimeEnv, Strength, Uci } from '../domain/types'
 import { EngineFailure } from './failure'
 import { createMovePicker } from './picker'
 import { fakeEngine, recordedPosition, type FakeEngine } from './testing/fake-engine'
@@ -8,6 +8,7 @@ import type { LineTransport } from './transport'
 const LITE: EngineDescriptor = { kind: 'wasm', flavor: 'lite' }
 const ENV: RuntimeEnv = { crossOriginIsolated: false, cores: 8 }
 const ONE: EngineTuning = { engines: 4, threadsPerEngine: 1, hashMb: 32 }
+const START = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1' as Fen
 
 const level = (strength: Strength, movetimeMs = 300): PlayLevel => ({ id: 1, name: 'Nível', rating: '~1500', strength, movetimeMs })
 const ELO_1500 = level({ kind: 'elo', elo: 1500 })
@@ -15,6 +16,7 @@ const MAX = level({ kind: 'max' })
 const BLACK = recordedPosition('black-to-move').input
 const TAIL = recordedPosition('tail').input
 const MATE = recordedPosition('mate-in-1').input
+const input = (root: Fen, tail: string[]): EngineInput => ({ root, tail: tail as Uci[] })
 
 const live = () => new AbortController().signal
 const outcome = (p: Promise<unknown>) => p.then(() => 'resolved', (e: unknown) => (e instanceof EngineFailure ? e.reason : (e as Error).name))
@@ -94,6 +96,26 @@ describe('pick', () => {
     expect(await sentFor(BLACK, ELO_1500)).toEqual(['setoption name UCI_LimitStrength value true'])
   })
 
+  it('starts a new game only when the position does not follow the previous one', async () => {
+    const engine = fakeEngine('lite', { hold: true })
+    const { picker } = setup([engine])
+    let goes = 0
+    const newGame = async (at: EngineInput) => {
+      const from = engine.sent.length
+      const picked = picker.pick(at, MAX, live())
+      await searching(engine, ++goes)
+      engine.emit('bestmove e2e4')
+      await picked
+      return engine.sent.slice(from).includes('ucinewgame')
+    }
+    const afterE4 = 'rnbqkb1r/pppppppp/5n2/8/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 0 2' as Fen
+    expect(await newGame(input(START, []))).toBe(true)
+    expect(await newGame(input(START, ['g1f3', 'g8f6']))).toBe(false)
+    expect(await newGame(input(afterE4, ['b8c6']))).toBe(false)
+    expect(await newGame(input(START, []))).toBe(true)
+    expect(await newGame(input(START, ['g1f3', 'g8f6']))).toBe(false)
+    expect(await newGame(input(START, ['b1c3', 'g8f6']))).toBe(true)
+  })
 })
 
 describe('abort and lifecycle', () => {
