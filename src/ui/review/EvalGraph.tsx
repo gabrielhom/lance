@@ -72,8 +72,9 @@ export function EvalGraph({ series, labels, moves, markers, classes, ply, onSele
     const w = series[i]
     const move = i > 0 ? moves[i - 1] : null
     const head = move ? `${moveNumberLabel(move.index)} ${move.san}` : 'Posição inicial'
+    const kind = i > 0 ? classes?.[i - 1] : undefined
     const val = w === null ? 'sem avaliação' : labels ? labels[i] : `${Math.round(w)}% brancas`
-    return `${head} · ${val}`
+    return [head, kind && CLASSIFICATION_LABEL[kind], val].filter(Boolean).join(' · ')
   }
   const done = series.every((v) => v !== null)
   const cls = ply > 0 ? classes?.[ply - 1] : undefined

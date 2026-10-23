@@ -10,20 +10,23 @@ async function startAgainstLowestLevel(page: Page) {
   await page.getByRole('button', { name: 'Jogar', exact: true }).click()
 }
 
+/** The scoresheet prints figurines and gives screen readers the piece letter, so its text holds both. */
+const sanOf = (cell: string) => cell.replace(/[\u2654-\u265f\s]/g, '')
+
 /** Plays up to `count` legal moves as the player, stopping early if the game ends. */
 async function playMoves(page: Page, count: number) {
   const over = page.locator('#fim-titulo')
-  const myTurn = page.getByText('Sua vez', { exact: true })
-  const moves = page.getByRole('list', { name: 'Lances da partida' })
+  const myTurn = page.getByText('sua vez', { exact: true })
+  const moves = page.getByRole('table', { name: 'Lances da partida' }).locator('.mv')
   for (let n = 0; n < count; n++) {
     await expect(myTurn.or(over)).toBeVisible({ timeout: 60_000 })
     if (await over.isVisible()) return
     const board = new Chess()
-    for (const san of await moves.locator('li > span:not(:first-child)').allInnerTexts()) if (san.trim()) board.move(san.trim())
+    for (const cell of await moves.allInnerTexts()) board.move(sanOf(cell))
     const legal = board.moves()
     await page.getByLabel('Digitar um lance').fill(legal[n % legal.length])
     await page.getByLabel('Digitar um lance').press('Enter')
-    await expect.poll(() => moves.locator('li > span:not(:first-child)').filter({ hasText: /\S/ }).count()).toBeGreaterThan(board.history().length)
+    await expect.poll(() => moves.count()).toBeGreaterThan(board.history().length)
   }
 }
 
@@ -41,7 +44,7 @@ test('plays the lowest level as White, resigns and shows both accuracies', async
   await resignIfPlaying(page)
   const accuracy = page.getByRole('group', { name: 'Precisão' })
   await expect(accuracy).toBeVisible({ timeout: 240_000 })
-  await expect(accuracy.getByText(/^\d+(,\d)?%$/)).toHaveCount(2)
+  await expect(accuracy.getByText(/^\d+,\d$/)).toHaveCount(2)
   await axe()
 })
 
@@ -57,6 +60,6 @@ test('a game left for a rematch before its review ends still reaches the history
   const game = page.getByRole('link').filter({ hasText: 'vs Stockfish (Iniciante)' })
   await expect(game).toBeVisible({ timeout: 240_000 })
   await expect(game).toContainText('Jogada no Lance')
-  await expect(game.getByText(/^\d+(,\d)?%$/)).toBeVisible()
+  await expect(game.getByText(/^\d+,\d$/)).toBeVisible()
   await expect(game).toContainText('sua precisão')
 })

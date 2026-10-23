@@ -22,8 +22,8 @@ test('reviews a pasted game with Stockfish 19 and explains the blunder', async (
   await review(page, scholar)
 
   const summary = page.getByLabel('Resumo')
-  await expect(summary).toContainText('você')
-  await expect(summary).toContainText("King's Pawn Game")
+  await expect(summary).toContainText('Você')
+  await expect(page.getByText(/King's Pawn Game/).first()).toBeVisible()
   await expect(summary.getByRole('row', { name: /Blunder/ })).toHaveText(/Blunder\s*0\s*1/)
 
   await page.getByRole('button', { name: 'Pretas: Nf6, Blunder' }).click()
@@ -35,7 +35,7 @@ test('reviews a pasted game with Stockfish 19 and explains the blunder', async (
 test('shows accuracy for both sides of a longer game and walks it by keyboard', async ({ page, axe }) => {
   await review(page, opera)
 
-  const accuracies = await page.getByLabel('Resumo').getByText(/^\d+(,\d)?%$/).allInnerTexts()
+  const accuracies = await page.getByLabel('Resumo').getByText(/^\d+,\d$/).allInnerTexts()
   expect(accuracies).toHaveLength(2)
   const [white, black] = accuracies.map((t) => Number.parseFloat(t.replace(',', '.')))
   expect(white).toBeGreaterThan(black)
@@ -54,6 +54,6 @@ test('lists reviewed games in the history after a reload', async ({ page, axe })
   await page.goto('/#/historico')
   await page.reload()
   await expect(page.getByRole('heading', { name: 'Histórico' })).toBeVisible()
-  await expect(page.getByRole('link', { name: /vs Oponente.*\d+(,\d)?% sua precisão/ })).toBeVisible()
+  await expect(page.getByRole('link', { name: /vs Oponente.*\d+,\d sua precisão/ })).toBeVisible()
   await axe()
 })
