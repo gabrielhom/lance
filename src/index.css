@@ -191,6 +191,7 @@
   --shadow-card: var(--shadow);
 }
 
+@layer base {
 html {
   background: var(--bg);
   color: var(--ink);
@@ -223,7 +224,9 @@ body {
     scroll-behavior: auto !important;
   }
 }
+}
 
+@layer components {
 .card {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -391,18 +394,6 @@ textarea.input { min-height: 160px; resize: vertical; font-family: ui-monospace,
 .move-btn:hover { background: var(--surface-2); }
 .move-btn[aria-current="true"] { background: var(--accent-soft); color: var(--ink); box-shadow: inset 0 0 0 1px var(--accent); }
 
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
-}
-
 kbd {
   font-family: inherit;
   font-size: 12px;
@@ -411,4 +402,5 @@ kbd {
   border: 1px solid var(--border-strong);
   background: var(--surface-2);
   color: var(--ink-2);
+}
 }
