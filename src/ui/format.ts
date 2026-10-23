@@ -12,8 +12,9 @@ export function formatShortDate(ms: number): string {
 
 const decimal = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
 
-export function formatPct(n: number | null): string {
-  return n === null ? '–' : `${decimal.format(n)}%`
+/** Accuracy as Lichess and chess books print it, '84,2', the label beside it saying what it is. */
+export function formatAccuracy(n: number | null): string {
+  return n === null ? '–' : decimal.format(n)
 }
 
 /** Joins the parts that are known, so a missing date or clock leaves no placeholder behind. */
@@ -81,7 +82,7 @@ export function formatBytes(n: number): string {
 
 export function moveNumberLabel(index: number): string {
   const n = Math.floor(index / 2) + 1
-  return index % 2 === 0 ? `${n}.` : `${n}...`
+  return index % 2 === 0 ? `${n}.` : `${n}…`
 }
 
 /** '5 + 0' with no-break spaces, as a clock setting reads; 'sem relógio' without one. */

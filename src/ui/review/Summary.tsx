@@ -1,106 +1,104 @@
 import { useId } from 'react'
-import type { Classification, Color, GameReview } from '../../domain/types'
+import type { ByColor, Classification, Color, GameReview } from '../../domain/types'
 import { CLASSIFICATIONS } from '../../domain/types'
-import { colorLabel, formatPct } from '../format'
-import { CLASSIFICATION_LABEL, CLASSIFICATION_MARK } from '../labels'
+import { colorLabel, formatAccuracy } from '../format'
+import { CLASSIFICATION_LABEL } from '../labels'
+import { Mark } from '../san'
 
-const ALWAYS_SHOWN: ReadonlySet<Classification> = new Set(['best', 'inaccuracy', 'mistake', 'blunder'])
+/** Brilliant to good, then book to miss: the two halves print side by side. */
+const HALVES: readonly (readonly Classification[])[] = [CLASSIFICATIONS.slice(0, 5), CLASSIFICATIONS.slice(5)]
+const other = (c: Color): Color => (c === 'w' ? 'b' : 'w')
 
-type Props = {
+type TablesProps = {
   review: GameReview
-  me: Color | null
+  columns: readonly Color[]
+  /** Column heads; without them the heads are only read, not shown. */
+  heads: Partial<ByColor<string>> | null
   /** With it, a count is a button to that player's first move of the class. */
   onJump?: (ply: number) => void
-  title?: string
-  /** 'counts' drops the accuracy cards for a screen that already shows them. */
-  variant?: 'full' | 'counts'
 }
 
-/** Accuracy cards and per-class counts share one table, so each count sits under its player. */
-export function Summary({ review, me, onJump, title = 'Resumo', variant = 'full' }: Props) {
-  const id = useId()
-  const shown = CLASSIFICATIONS.filter((c) => review.players.w.counts[c] + review.players.b.counts[c] > 0 || ALWAYS_SHOWN.has(c))
+export function ClassTables({ review, columns, heads, onJump }: TablesProps) {
   const first = (c: Color, k: Classification) => review.moves.find((r) => r.move.mover === c && r.classification === k)
-
-  const card = (c: Color) => {
-    const p = review.players[c]
-    const mine = me === c
-    if (variant === 'counts') {
-      return (
-        <th scope="col" className="pb-1 text-[13px] font-semibold text-ink-3">
-          {c === 'w' ? 'Brancas' : 'Pretas'}{mine ? ' · você' : ''}
-        </th>
-      )
-    }
-    return (
-      <th scope="col" className="p-0 pb-2 align-top font-normal">
-        <div className={`flex flex-col items-center rounded-lg px-1.5 py-3 ${mine ? 'bg-accent-soft' : 'bg-surface-2'}`}>
-          <span className="text-[13px] font-semibold text-ink-3">{c === 'w' ? 'Brancas' : 'Pretas'}{mine ? ' · você' : ''}</span>
-          <span className="text-[13px] font-medium max-w-full mt-0.5 text-center leading-tight line-clamp-2 break-words" title={p.player.name}>{p.player.name}</span>
-          <span className={`text-[28px] sm:text-[30px] leading-none font-semibold mt-2 tabular ${mine ? 'text-accent' : ''}`}>{formatPct(p.accuracy)}</span>
-          <span className="text-[12px] text-ink-3 mt-1">precisão</span>
-        </div>
-      </th>
-    )
-  }
-
-  const count = (c: Color, k: Classification) => {
-    const n = review.players[c].counts[k]
-    const target = onJump && n > 0 ? first(c, k) : undefined
-    const weight = me === c ? 'font-semibold' : 'text-ink-2'
-    return (
-      <td className={`text-center tabular ${weight}`}>
-        {target ? (
-          <button
-            type="button"
-            className="count-btn"
-            onClick={() => onJump!(target.move.index + 1)}
-            aria-label={`${n} ${CLASSIFICATION_LABEL[k].toLowerCase()} das ${colorLabel(c)}. Ir para o primeiro.`}
-          >
-            {n}
-          </button>
-        ) : (
-          n
-        )}
-      </td>
-    )
-  }
-
   return (
-    <section className="flex flex-col gap-3" aria-labelledby={`${id}-t`}>
-      <div className="flex items-baseline justify-between gap-3">
-        <h2 id={`${id}-t`} className="text-[16px] font-semibold">{title}</h2>
-        {review.opening && <span className="text-[13px] text-ink-2 text-right truncate min-w-0" title={`${review.opening.eco} ${review.opening.name}`}>{review.opening.name}</span>}
-      </div>
-      <table className="w-full table-fixed border-separate border-spacing-x-1 text-[14px]">
-        <caption className="sr-only">Precisão e lances por classificação</caption>
-        <colgroup>
-          <col />
-          <col className="w-[31%]" />
-          <col className="w-[31%]" />
-        </colgroup>
-        <thead>
-          <tr>
-            <td />
-            {card('w')}
-            {card('b')}
-          </tr>
-        </thead>
-        <tbody>
-          {shown.map((k) => (
-            <tr key={k} className="h-8">
-              <th scope="row" className="font-medium text-left">
-                <span className="inline-flex items-center gap-2 min-w-0">
-                  <span aria-hidden className="w-[2ch]">{CLASSIFICATION_MARK[k]}</span>
-                  <span className="truncate">{CLASSIFICATION_LABEL[k]}</span>
-                </span>
-              </th>
-              {count('w', k)}
-              {count('b', k)}
+    <div className="ctables">
+      {HALVES.map((half, h) => (
+        <table key={h} className="ctable">
+          <caption className="sr-only">Lances por classificação{h ? ', continuação' : ''}</caption>
+          <thead className={heads ? (h ? 'max-md:sr-only' : '') : 'sr-only'}>
+            <tr>
+              <th scope="col">Classe</th>
+              {columns.map((c) => <th key={c} scope="col">{heads?.[c] ?? (c === 'w' ? 'Brancas' : 'Pretas')}</th>)}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {half.map((k) => (
+              <tr key={k}>
+                <th scope="row">
+                  <span className="sw" style={{ background: `var(--c-${k})` }} aria-hidden />
+                  <span className="mk-slot"><Mark kind={k} /></span>
+                  {CLASSIFICATION_LABEL[k]}
+                </th>
+                {columns.map((c) => {
+                  const n = review.players[c].counts[k]
+                  const target = onJump && n > 0 ? first(c, k) : undefined
+                  return (
+                    <td key={c} className={n ? undefined : 'zero'}>
+                      {target ? (
+                        <button
+                          type="button"
+                          className="count"
+                          onClick={() => onJump!(target.move.index + 1)}
+                          aria-label={`${n} ${CLASSIFICATION_LABEL[k].toLowerCase()} das ${colorLabel(c)}. Ir para o primeiro.`}
+                        >
+                          {n}
+                        </button>
+                      ) : (
+                        n
+                      )}
+                    </td>
+                  )
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ))}
+    </div>
+  )
+}
+
+/** Both accuracies, the reader's own first and in full ink. */
+export function Accuracies({ review, me, names, size }: { review: GameReview; me: Color | null; names: ByColor<string>; size: 'hero' | 'summary' }) {
+  const order: readonly Color[] = me ? [me, other(me)] : ['w', 'b']
+  return (
+    <div className={`acc acc-${size}`} role="group" aria-label="Precisão">
+      {order.map((c) => (
+        <div key={c} className={me && c !== me ? 'them' : undefined}>
+          <p className="v">{formatAccuracy(review.players[c].accuracy)}</p>
+          <p className="l">{me === c ? (size === 'hero' ? <b>Sua precisão</b> : 'Você, precisão') : names[c]}</p>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+type Props = { review: GameReview; me: Color | null; onJump: (ply: number) => void }
+
+/** The review's closing table: both accuracies, then every class counted for both players. */
+export function Summary({ review, me, onJump }: Props) {
+  const id = useId()
+  const name = (c: Color) => review.players[c].player.name
+  const columns: readonly Color[] = me ? [me, other(me)] : ['w', 'b']
+  const heads = me ? { [me]: 'Você', [other(me)]: name(other(me)) } : { w: name('w'), b: name('b') }
+  const names: ByColor<string> = me ? { w: name('w'), b: name('b') } : { w: `${name('w')}, brancas`, b: `${name('b')}, pretas` }
+  return (
+    <section className="summary" aria-labelledby={`${id}-t`}>
+      <div>
+        <h2 id={`${id}-t`} className="font-serif font-semibold text-2xl mb-3">Resumo</h2>
+        <Accuracies review={review} me={me} names={names} size="summary" />
+      </div>
+      <ClassTables review={review} columns={columns} heads={heads} onJump={onJump} />
     </section>
   )
 }

@@ -4,6 +4,7 @@ import type { Color, PlaySetup, TimeControl } from '../../domain/types'
 import { LEVELS, levelById, loadChoice, resolveChoice, saveChoice } from '../../play'
 import type { SetupChoice } from '../../play'
 import { formatClock } from '../format'
+import { levelLabel } from './names'
 import { unlockAudio } from './sound'
 
 const MIN = 60_000
@@ -26,7 +27,7 @@ const sameTime = (a: TimeControl, b: TimeControl) =>
 
 function summary(choice: SetupChoice): string {
   const level = choice.opponent.kind === 'engine' ? levelById(choice.opponent.levelId) : null
-  const who = level ? [`${level.name} ${level.rating}`, COLORS.find((c) => c.value === choice.color)?.note] : ['Dois jogadores']
+  const who = level ? [levelLabel(level), COLORS.find((c) => c.value === choice.color)?.note] : ['Dois jogadores']
   return [...who, formatClock(choice.time)].join(', ')
 }
 

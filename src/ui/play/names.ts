@@ -1,7 +1,12 @@
-import type { ByColor, Identity, PlaySetup } from '../../domain/types'
+import type { ByColor, Identity, PlayLevel, PlaySetup } from '../../domain/types'
 import { levelById } from '../../play'
 
 export type Seat = { readonly name: string; readonly detail: string | null; readonly engine: boolean }
+
+/** 'Clube ~1400', 'Iniciante, abaixo de 1300'. */
+export function levelLabel(level: PlayLevel): string {
+  return level.rating.startsWith('~') ? `${level.name} ${level.rating}` : `${level.name}, ${level.rating}`
+}
 
 /** Who sits at each color. The player takes their first account name so the review and the history know the game is theirs. */
 export function seats(setup: PlaySetup, identity: Identity): ByColor<Seat> {
@@ -10,7 +15,7 @@ export function seats(setup: PlaySetup, identity: Identity): ByColor<Seat> {
   }
   const level = levelById(setup.opponent.levelId)
   const me: Seat = { name: identity.accounts[0]?.username ?? 'Você', detail: null, engine: false }
-  const engine: Seat = { name: 'Stockfish', detail: level ? `${level.name} · ${level.rating}` : null, engine: true }
+  const engine: Seat = { name: 'Stockfish', detail: level ? levelLabel(level) : null, engine: true }
   return setup.you === 'w' ? { w: me, b: engine } : { w: engine, b: me }
 }
 

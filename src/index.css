@@ -55,6 +55,8 @@
   --c-blunder: light-dark(#9b2c26, #e0726a);
   --c-miss: light-dark(#aa453a, #e88f84);
 }
+/* The board column: as wide as the prototype's, and short enough that both clocks fit on a laptop screen. */
+:root { --board-col: min(37.5rem, calc(100dvh - 14.5rem)); }
 :root[data-theme="light"] { color-scheme: light; }
 :root[data-theme="dark"] { color-scheme: dark; }
 
@@ -408,6 +410,110 @@
   @media (width >= 64rem) {
     .setup { grid-template-columns: minmax(0, 1.5fr) minmax(280px, 1fr); gap: 72px; }
     .setup-side { padding-top: 4.125rem; }
+  }
+
+  .dek { margin-top: 6px; color: var(--ink-2); }
+  .dek .sep { margin-inline: 6px; color: var(--ink-3); }
+  .kicker, .caption { font-family: var(--font-serif); font-style: italic; color: var(--ink-2); }
+  .kicker { font-size: var(--text-md); }
+  .caption { margin: 10px 0 0 22px; font-size: var(--text-sm); }
+
+  /* An alert set like a printed note: ruled above and below, words carrying the weight instead of color. */
+  .note { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; margin-top: 16px; padding: 10px 0; border-block: 1px solid var(--rule-strong); }
+
+  .meter { position: relative; height: 3px; background: var(--rule); }
+  .meter > span { position: absolute; inset: 0 auto 0 0; background: var(--accent); transition: width 200ms ease; }
+
+  .play { display: grid; gap: 28px; }
+  .play .sheet-box, .play .play-sheet { margin-top: 16px; }
+  .play-sheet { max-height: calc(38px * 6 + 31px); }
+  .player { display: flex; align-items: baseline; gap: 10px; padding: 6px 0 10px; }
+  .player-bottom { padding: 12px 0 0; }
+  .player .who { font-family: var(--font-serif); font-size: var(--text-lg); font-weight: 600; }
+  .player .meta { font-size: var(--text-sm); color: var(--ink-2); }
+  .player .turn { margin-left: auto; font-family: var(--font-serif); font-style: italic; color: var(--accent); }
+  .clock {
+    font-family: var(--font-serif);
+    font-size: var(--text-4xl);
+    font-weight: 500;
+    font-variant-numeric: tabular-nums lining-nums;
+    line-height: 0.9;
+    letter-spacing: -0.01em;
+    color: var(--ink-3);
+  }
+  .player .turn:empty + .clock { margin-left: 0; }
+  .clock.running { padding-bottom: 6px; box-shadow: inset 0 -3px 0 var(--accent); font-weight: 600; color: var(--ink); }
+  .clock.low { color: var(--ink); font-weight: 600; }
+  /* Low time on a running clock prints in reverse, louder than any color the palette could spare. */
+  .clock.running.low { padding: 4px 6px 6px; box-shadow: none; background: var(--ink); color: var(--paper); }
+
+  .thinking-dots::after {
+    content: "…";
+    display: inline-block;
+    width: 1.1em;
+    overflow: hidden;
+    vertical-align: bottom;
+    animation: thinking 1.2s steps(4, end) infinite;
+  }
+  @keyframes thinking { 0% { width: 0; } 100% { width: 1.1em; } }
+
+  .actions { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 28px; margin-top: 18px; }
+  .actions .grp { display: flex; flex-wrap: wrap; gap: 2px 26px; }
+
+  .over { display: grid; gap: 28px; }
+  .over > .over-board { order: 2; }
+  .over-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 30px; margin-top: 32px; }
+
+  .acc { display: grid; grid-template-columns: auto auto 1fr; column-gap: 24px; }
+  .acc > div + div { padding-left: 24px; border-left: 1px solid var(--rule); }
+  .acc .v { font-family: var(--font-serif); font-weight: 500; font-variant-numeric: lining-nums proportional-nums; letter-spacing: -0.02em; font-variation-settings: "opsz" 60; }
+  .acc .them .v { color: var(--ink-3); }
+  .acc .l { margin-top: 6px; color: var(--ink-2); }
+  .acc .l b { font-weight: 600; color: var(--ink); }
+  .acc-hero { margin: 22px 0 26px; padding: 22px 0 20px; border-top: 1px solid var(--rule-strong); border-bottom: 1px solid var(--rule); }
+  .acc-hero .v { font-size: var(--text-6xl); line-height: 0.95; }
+  .acc-summary { grid-template-columns: 1fr 1fr; }
+  .acc-summary > div + div { border: 0; }
+  .acc-summary .v { font-size: var(--text-5xl); line-height: 1; }
+  .acc-summary .l { font-size: var(--text-sm); }
+
+  .ctables { display: grid; column-gap: 40px; }
+  .ctable { width: 100%; border-collapse: collapse; }
+  .ctable thead th { padding: 0 0 6px; border-bottom: 1px solid var(--rule-strong); font-family: var(--font-serif); font-size: var(--text-sm); font-style: italic; font-weight: 400; text-align: right; color: var(--ink-3); }
+  .ctable thead th:first-child { text-align: left; }
+  .ctable tbody tr { height: 2.5rem; }
+  .ctable tbody th { padding: 0; border-bottom: 1px solid var(--rule); font-weight: 400; text-align: left; }
+  .ctable td { width: 4.5em; border-bottom: 1px solid var(--rule); font-family: var(--font-serif); font-size: var(--text-lg); font-variant-numeric: tabular-nums; text-align: right; }
+  .ctable td.zero { color: var(--ink-3); }
+  .sw { display: inline-block; width: 9px; height: 9px; margin-right: 10px; transform: translateY(-1px); }
+  .mk-slot { display: inline-block; min-width: 1.9em; font-size: var(--text-base); }
+  .count { padding: 0 2px; text-decoration: underline; text-decoration-color: var(--rule); text-underline-offset: 3px; cursor: pointer; }
+  .count:hover { text-decoration-color: currentColor; }
+
+  .summary { display: grid; gap: 24px; margin-top: 40px; padding-top: 18px; border-top: 1px solid var(--rule-strong); }
+
+  @media (width < 48rem) {
+    .ctables .ctable + .ctable { margin-top: -1px; }
+  }
+  @media (width >= 48rem) {
+    .clock { font-size: var(--text-5xl); }
+    .player { gap: 12px; padding: 10px 0 12px; }
+    .player-bottom { padding: 14px 0 0; }
+    .player .who { font-size: var(--text-xl); }
+    .player .meta { font-size: var(--text-sm); }
+    .acc { column-gap: 40px; }
+    .acc > div + div { padding-left: 40px; }
+    .acc-hero { margin: 30px 0 34px; }
+    .acc-hero .v { font-size: var(--text-7xl); }
+    .ctables { grid-template-columns: 1fr 1fr; }
+  }
+  @media (width >= 64rem) {
+    .play { grid-template-columns: minmax(0, var(--board-col)) minmax(300px, 1fr); gap: 72px; }
+    .play-sheet { max-height: calc(38px * 10.5 + 30px); }
+    .play .play-sheet { margin-top: 28px; }
+    .over { grid-template-columns: minmax(0, 440px) minmax(0, 1fr); gap: 72px; align-items: start; margin-top: 8px; }
+    .over > .over-board { order: 0; }
+    .summary { grid-template-columns: 260px 1fr; gap: 64px; margin-top: 56px; }
   }
 
   .dialog {

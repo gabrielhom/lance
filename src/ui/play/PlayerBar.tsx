@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { Color } from '../../domain/types'
+import { colorLabel } from '../format'
 import type { Seat } from './names'
 import { playSound } from './sound'
 
@@ -19,25 +20,24 @@ export type ClockProps = {
 type Props = {
   seat: Seat
   color: Color
-  toMove: boolean
-  /** The line under the name: the level, "pensando", whose turn it is. */
+  /** Whose turn it is or that the engine is thinking, set at the clock's side. */
   status: ReactNode
   /** Material ahead of the other side, in pawns; shown when positive. */
   lead: number
   clock: ClockProps | null
+  edge: 'top' | 'bottom'
 }
 
-export function PlayerBar({ seat, toMove, status, lead, clock }: Props) {
+export function PlayerBar({ seat, color, status, lead, clock, edge }: Props) {
   return (
-    <div className="flex items-center gap-2.5 px-3 sm:px-0 h-12">
-      <div className="min-w-0 flex-1 leading-tight">
-        <p className="text-[14px] font-semibold truncate">
-          {seat.name}
-          {lead > 0 && <span className="ml-1.5 text-[13px] font-medium text-ink-3 tabular">+{lead}</span>}
-        </p>
-        <p className="text-[12px] text-ink-3 truncate min-h-[1lh]">{status}</p>
-      </div>
-      {clock && <Clock {...clock} active={toMove} />}
+    <div className={`player player-${edge}`}>
+      <span className="who">{seat.name}</span>
+      <span className="meta">
+        {seat.detail ?? (seat.engine ? null : colorLabel(color).replace(/^./, (c) => c.toUpperCase()))}
+        {lead > 0 && <span className="num text-ink-3"> +{lead}</span>}
+      </span>
+      <span className="turn">{status}</span>
+      {clock && <Clock {...clock} />}
     </div>
   )
 }
@@ -48,7 +48,7 @@ function format(ms: number): string {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
 }
 
-function Clock({ baseMs, since, onFlag, warn, active }: ClockProps & { active: boolean }) {
+function Clock({ baseMs, since, onFlag, warn }: ClockProps) {
   const [now, setNow] = useState(Date.now)
   useEffect(() => {
     if (since === null) return
@@ -73,7 +73,7 @@ function Clock({ baseMs, since, onFlag, warn, active }: ClockProps & { active: b
 
   return (
     <span
-      className={`clock tabular ${active ? 'clock-active' : ''} ${low ? 'clock-low' : ''}`}
+      className={`clock ${since !== null ? 'running' : ''} ${low ? 'low' : ''}`}
       role="timer"
       aria-live="off"
       aria-label={`Relógio: ${format(ms)}`}

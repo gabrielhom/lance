@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import type { AccuracyPoint, LibraryRecord } from '../../domain/types'
-import { formatPct } from '../format'
+import { formatAccuracy } from '../format'
 import { LibraryList } from '../import/GameList'
 import { finishedReviews, subscribeReviews } from '../review/runs'
 import { useServices, useSettings } from '../services'
@@ -38,7 +38,7 @@ export function HistoryScreen() {
         </div>
       )}
       <section className="grid grid-cols-2 sm:grid-cols-4 gap-3" aria-label="Resumo">
-        <Stat label="Precisão média" value={avg === null ? '–' : formatPct(avg)} />
+        <Stat label="Precisão média" value={avg === null ? '–' : formatAccuracy(avg)} />
         <Stat label="Partidas revisadas" value={records ? String(records.length) : '–'} />
         <Stat label="Suas partidas" value={records ? String(points.length) : '–'} />
         <Stat label="V · E · D" value={records ? `${wins} · ${draws} · ${losses}` : '–'} />

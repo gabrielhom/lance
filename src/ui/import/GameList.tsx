@@ -1,6 +1,6 @@
 import type { Color, Game, Identity, LibraryRecord } from '../../domain/types'
 import { perspective } from '../../domain/identity'
-import { OUTCOME_LABEL, formatDate, formatPct, formatTimeControl, joinKnown, opponentOf, outcomeFor, playerLabel, resultLabel, sourceLabel } from '../format'
+import { OUTCOME_LABEL, formatDate, formatAccuracy, formatTimeControl, joinKnown, opponentOf, outcomeFor, playerLabel, resultLabel, sourceLabel } from '../format'
 import { href } from '../router'
 import { useSettings } from '../services'
 
@@ -85,7 +85,7 @@ export function LibraryList({ records, identity }: { records: readonly LibraryRe
               </span>
               <span className="text-right">
                 <span className="block text-[17px] font-semibold tabular whitespace-nowrap">
-                  {color ? formatPct(acc) : `${formatPct(r.summary.accuracy.w)} · ${formatPct(r.summary.accuracy.b)}`}
+                  {color ? formatAccuracy(acc) : `${formatAccuracy(r.summary.accuracy.w)} · ${formatAccuracy(r.summary.accuracy.b)}`}
                 </span>
                 <span className="block text-[12px] text-ink-3">{color ? 'sua precisão' : 'brancas · pretas'}</span>
               </span>

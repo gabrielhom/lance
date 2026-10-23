@@ -2,7 +2,7 @@ import { Chess } from 'chess.js'
 import { useEffect, useMemo, useState } from 'react'
 import { perspective } from '../../domain/identity'
 import type { Color, Game, GameId, GameReview, ReviewState, Square } from '../../domain/types'
-import { formatDate, formatEval, formatPct, formatTimeControl, joinKnown, playerLabel, resultLabel, sourceLabel } from '../format'
+import { formatDate, formatEval, formatAccuracy, formatTimeControl, joinKnown, playerLabel, resultLabel, sourceLabel } from '../format'
 import { ERROR_CLASSIFICATIONS } from '../labels'
 import { heldGame } from '../pending'
 import { useServices, useSettings } from '../services'
@@ -213,8 +213,8 @@ function ReviewStrip({ state, review, me, analyzing }: { state: ReviewState | nu
   if (review) {
     const { w, b } = review.players
     const text = me
-      ? `Você ${formatPct(review.players[me].accuracy)} · Oponente ${formatPct(review.players[me === 'w' ? 'b' : 'w'].accuracy)}`
-      : `Brancas ${formatPct(w.accuracy)} · Pretas ${formatPct(b.accuracy)}`
+      ? `Você ${formatAccuracy(review.players[me].accuracy)} · Oponente ${formatAccuracy(review.players[me === 'w' ? 'b' : 'w'].accuracy)}`
+      : `Brancas ${formatAccuracy(w.accuracy)} · Pretas ${formatAccuracy(b.accuracy)}`
     return <p className="lg:hidden text-[15px] font-semibold tabular">Precisão: {text}</p>
   }
   if (!analyzing) return null
