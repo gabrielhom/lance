@@ -23,7 +23,7 @@ test('reviews a game with a native engine through the local bridge', async ({ pa
   await page.getByRole('button', { name: 'Testar' }).click()
   await page.getByLabel('Stockfish 19', { exact: false }).last().check()
 
-  await page.goto('/')
+  await page.goto('/#/revisar')
   await page.getByLabel('PGN', { exact: true }).fill(readFileSync('e2e/fixtures/opera.pgn', 'utf8'))
   await page.getByRole('button', { name: 'Revisar partida' }).click()
   await expect(page.getByRole('heading', { name: 'Resumo' })).toBeVisible({ timeout: 120_000 })
