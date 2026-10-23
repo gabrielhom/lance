@@ -29,11 +29,12 @@ type Props = {
 }
 
 export function PlayerBar({ seat, color, status, lead, clock, edge }: Props) {
+  const side = colorLabel(color).replace(/^./, (c) => c.toUpperCase())
   return (
     <div className={`player player-${edge}`}>
       <span className="who">{seat.name}</span>
       <span className="meta">
-        {seat.detail ?? (seat.engine ? null : colorLabel(color).replace(/^./, (c) => c.toUpperCase()))}
+        {seat.detail ?? (seat.name === side ? null : side)}
         {lead > 0 && <span className="num text-ink-3"> +{lead}</span>}
       </span>
       <span className="turn">{status}</span>

@@ -30,9 +30,9 @@ export function HistoryScreen() {
     <div className="flex flex-col gap-10 md:gap-12">
       <h1 className="display text-3xl md:text-5xl">Histórico</h1>
       {noIdentity && (
-        <p className="note mt-0 flex-row! flex-wrap items-baseline gap-x-5">
-          <span>As partidas jogadas aqui já contam. Para contar as importadas, informe seus nomes de usuário.</span>
-          <a href="#/config" className="tl">Configurações</a>
+        <p className="-mt-4 md:-mt-6 text-ink-2">
+          As partidas jogadas aqui já contam. Para contar as importadas, informe seus nomes de usuário em{' '}
+          <a href="#/config" className="tl text-ink">Configurações</a>.
         </p>
       )}
       <section className="stats" aria-label="Resumo">

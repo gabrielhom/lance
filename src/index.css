@@ -161,7 +161,6 @@
     font-variant-numeric: tabular-nums lining-nums;
   }
 
-  /* Secondary actions are text, underlined by a hairline that inks on hover. */
   .tl {
     font-weight: 600;
     text-decoration: underline;
@@ -177,7 +176,6 @@
   .tl-danger { color: var(--oxblood); }
   .tl-accent { color: var(--accent); }
 
-  /* The one filled button per screen. */
   .btn {
     display: inline-flex;
     align-items: center;
@@ -355,7 +353,6 @@
   /* Display headings take the finest optical size, as the prototype set them. */
   .display { font-family: var(--font-serif); font-weight: 600; letter-spacing: -0.015em; font-variation-settings: "opsz" 60; }
 
-  /* A section head: serif, with the ruled content right under it. */
   .sec { padding: 0; margin-bottom: 8px; font-family: var(--font-serif); font-size: var(--text-lg); font-weight: 600; }
 
   .setup { display: grid; gap: 28px; }
@@ -427,7 +424,7 @@
 
   .play { display: grid; gap: 28px; }
   .play .sheet-box, .play .play-sheet { margin-top: 16px; }
-  .play-sheet { max-height: calc(38px * 6 + 31px); }
+  .play-sheet { max-height: calc(38px * 6 + 34px); }
   .player { display: flex; align-items: baseline; gap: 10px; padding: 6px 0 10px; }
   .player-bottom { padding: 12px 0 0; }
   .player .who { font-family: var(--font-serif); font-size: var(--text-lg); font-weight: 600; }
@@ -592,7 +589,6 @@
   .ruled { padding-top: 12px; border-top: 1px solid var(--rule-strong); }
   .field.pgn { min-height: 180px; resize: vertical; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: var(--text-xs); line-height: 1.5; }
 
-  /* A game in a list: a ruled row, the whole row the link. */
   .rows > li { border-bottom: 1px solid var(--rule); }
   .ruled > .rows { margin-top: -12px; }
   .row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 16px; width: calc(100% + 16px); margin-inline: -8px; padding: 12px 8px 11px; text-align: left; text-decoration: none; cursor: pointer; }
