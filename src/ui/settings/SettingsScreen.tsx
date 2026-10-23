@@ -197,7 +197,7 @@ function BridgeFields({ engine, onChange }: { engine: Extract<EngineDescriptor, 
       </div>
       <div>
         <p className="label">Para iniciar o bridge</p>
-        <pre className="rounded-md bg-surface border border-border p-3 text-[12px] overflow-x-auto"><code>npm run bridge -- --engine sf19=/caminho/para/stockfish</code></pre>
+        <pre className="rounded-md bg-surface border border-border p-3 text-[12px] whitespace-pre-wrap break-all"><code>npm run bridge -- --engine sf19=/caminho/para/stockfish</code></pre>
         <p className="hint mt-1">Troque o caminho pelo binário da sua engine. Pode repetir --engine para registrar mais de uma.</p>
       </div>
     </div>

@@ -49,6 +49,10 @@ export function HomeScreen() {
 
   return (
     <div className="flex flex-col gap-6">
+      <header>
+        <h1 className="text-[22px] font-semibold tracking-tight">Revisar uma partida</h1>
+        <p className="hint">Veja sua precisão, os momentos-chave e o que a engine jogaria em cada lance.</p>
+      </header>
       <section className="grid gap-4 lg:grid-cols-2">
         <PastePanel onParsed={openGame} />
         <FetchPanel onPick={openGame} />

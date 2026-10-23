@@ -101,11 +101,10 @@ export function EvalGraph({ series, labels, moves, markers, ply, onSelect }: Pro
                 <rect x={0} y={mid} width={width} height={H - mid} />
               </clipPath>
             </defs>
-            <rect x={0} y={0} width={width} height={mid} fill="var(--graph-black)" opacity={0.28} />
             <path d={areaPath} fill="var(--graph-white)" clipPath={`url(#${id}-top)`} />
             <path d={areaPath} fill="var(--graph-black)" clipPath={`url(#${id}-bottom)`} />
             <line x1={0} x2={width} y1={mid} y2={mid} stroke="var(--graph-grid)" strokeWidth={1} />
-            <path d={linePath} fill="none" stroke="var(--graph-line)" strokeWidth={1.5} strokeLinejoin="round" strokeLinecap="round" opacity={0.55} />
+            <path d={linePath} fill="none" stroke="var(--graph-line)" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" opacity={0.6} />
             {markers.map((m) => {
               const w = series[m.index]
               if (w === null) return null

@@ -16,8 +16,13 @@ type Props = {
 export function MoveList({ moves, reviews, ply, onSelect }: Props) {
   const listRef = useRef<HTMLOListElement>(null)
   useEffect(() => {
-    const el = listRef.current?.querySelector<HTMLElement>('[aria-current="true"]')
-    el?.scrollIntoView({ block: 'nearest' })
+    const list = listRef.current
+    const el = list?.querySelector<HTMLElement>('[aria-current="true"]')
+    if (!list || !el) return
+    const top = el.offsetTop - list.offsetTop
+    const bottom = top + el.offsetHeight
+    if (top < list.scrollTop) list.scrollTop = top - 4
+    else if (bottom > list.scrollTop + list.clientHeight) list.scrollTop = bottom - list.clientHeight + 4
   }, [ply])
 
   const rows: { n: number; w: PlayedMove | undefined; b: PlayedMove | undefined }[] = []
@@ -43,7 +48,7 @@ export function MoveList({ moves, reviews, ply, onSelect }: Props) {
   }
 
   return (
-    <ol ref={listRef} className="grid grid-cols-[2.5rem_1fr_1fr] gap-y-0.5 max-h-[320px] lg:max-h-[420px] overflow-y-auto pr-1" aria-label="Lista de lances">
+    <ol ref={listRef} className="relative grid grid-cols-[2.5rem_1fr_1fr] gap-y-0.5 max-h-[320px] lg:max-h-[420px] overflow-y-auto pr-1" aria-label="Lista de lances">
       {rows.map((row) => (
         <li key={row.n} className="contents">
           <span className="text-[13px] text-ink-3 tabular self-center pl-1">{row.n}.</span>

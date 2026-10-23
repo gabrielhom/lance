@@ -14,27 +14,16 @@ export function formatPct(n: number | null, digits = 1): string {
   return n === null ? '–' : `${n.toFixed(digits)}%`
 }
 
-/** '600+5' -> '10+5', '180' -> '3 min', '1/86400' -> 'por correspondência'. */
+/** '600+5' -> 'Rápida 10+5', '180' -> 'Blitz 3 min', '1/86400' -> 'Correspondência', '-' -> 'Sem relógio'. */
 export function formatTimeControl(tc: string | null): string {
-  if (!tc) return 'sem relógio'
-  if (tc === '-') return 'sem relógio'
-  if (tc.includes('/')) return 'correspondência'
-  const [base, inc] = tc.split('+').map(Number)
-  if (!Number.isFinite(base)) return tc
-  const min = base % 60 === 0 ? `${base / 60}` : (base / 60).toFixed(1)
-  return inc ? `${min}+${inc}` : `${min} min`
-}
-
-export function timeControlCategory(tc: string | null): string {
   if (!tc || tc === '-') return 'Sem relógio'
   if (tc.includes('/')) return 'Correspondência'
   const [base, inc = 0] = tc.split('+').map(Number)
-  if (!Number.isFinite(base)) return 'Outro'
+  if (!Number.isFinite(base)) return tc
   const estimate = base + 40 * inc
-  if (estimate < 180) return 'Bullet'
-  if (estimate < 480) return 'Blitz'
-  if (estimate < 1500) return 'Rápida'
-  return 'Clássica'
+  const category = estimate < 180 ? 'Bullet' : estimate < 480 ? 'Blitz' : estimate < 1500 ? 'Rápida' : 'Clássica'
+  const min = base % 60 === 0 ? `${base / 60}` : (base / 60).toFixed(1)
+  return `${category} ${inc ? `${min}+${inc}` : `${min} min`}`
 }
 
 export type Outcome = 'win' | 'loss' | 'draw' | 'unknown'

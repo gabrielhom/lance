@@ -1,7 +1,7 @@
 import { ChevronRight } from 'lucide-react'
 import type { Color, Game, Identity, LibraryRecord } from '../../domain/types'
 import { perspective } from '../../domain/identity'
-import { OUTCOME_LABEL, formatDate, formatPct, formatTimeControl, opponentOf, outcomeFor, playerLabel, resultLabel, sourceLabel, timeControlCategory } from '../format'
+import { OUTCOME_LABEL, formatDate, formatPct, formatTimeControl, opponentOf, outcomeFor, playerLabel, resultLabel, sourceLabel } from '../format'
 import { href } from '../router'
 import { useSettings } from '../services'
 
@@ -44,7 +44,7 @@ export function GameList({ games, onPick, highlight }: { games: readonly Game[];
                 </span>
                 <span className="block text-[13px] text-ink-3 mt-0.5">
                   {color ? `de ${color === 'w' ? 'brancas' : 'pretas'} · ` : ''}
-                  {formatDate(g.playedAt)} · {timeControlCategory(g.timeControl)} {formatTimeControl(g.timeControl)} · {g.moves.length} lances
+                  {formatDate(g.playedAt)} · {formatTimeControl(g.timeControl)} · {g.moves.length} lances
                 </span>
               </span>
               <ChevronRight size={18} className="text-ink-3" aria-hidden />
@@ -94,8 +94,10 @@ export function LibraryList({ records, identity }: { records: readonly LibraryRe
                 </span>
               </span>
               <span className="text-right">
-                <span className="block text-[17px] font-semibold tabular">{formatPct(acc)}</span>
-                <span className="block text-[12px] text-ink-3">{color ? 'sua precisão' : 'precisão'}</span>
+                <span className="block text-[17px] font-semibold tabular whitespace-nowrap">
+                  {color ? formatPct(acc) : `${formatPct(r.summary.accuracy.w)} · ${formatPct(r.summary.accuracy.b)}`}
+                </span>
+                <span className="block text-[12px] text-ink-3">{color ? 'sua precisão' : 'brancas · pretas'}</span>
               </span>
               <ChevronRight size={18} className="text-ink-3" aria-hidden />
             </a>

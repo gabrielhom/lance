@@ -27,8 +27,10 @@ export function Board({ fen, orientation, lastMove, badge, bestArrow }: BoardPro
   }, [lastMove])
   const badgeSize = Math.max(16, Math.round((width / 8) * 0.42))
 
+  // The board is a picture of the position; the move list and the live region carry it for assistive tech.
+  // `inert` also drops dnd-kit's 32 unnamed focusable piece wrappers out of the tab order.
   return (
-    <div ref={ref} className="w-full select-none" style={{ touchAction: 'manipulation' }}>
+    <div ref={ref} className="w-full select-none" style={{ touchAction: 'manipulation' }} inert aria-hidden>
       <Chessboard
         options={{
           id: 'revisao',

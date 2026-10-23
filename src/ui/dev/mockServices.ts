@@ -459,9 +459,10 @@ export function createMockServices(): Services {
       if (u === 'limite') return { ok: false, error: { kind: 'rate-limited', retryAfterS: 60 } }
       if (u === 'rede') return { ok: false, error: { kind: 'network', detail: 'Failed to fetch' } }
       if (u === 'ruim') return { ok: false, error: { kind: 'bad-response', detail: 'HTTP 502 Bad Gateway' } }
-      const games = SEEDS.slice(0, max).map((s, i) =>
-        gameFromSeed({ ...s, white: i % 2 ? s.white : username, black: i % 2 ? username : s.black, source: site }, i + 100, now),
-      )
+      const games = SEEDS.slice(0, max).map((s, i) => {
+        const other = s.white === USER ? s.black : s.white
+        return gameFromSeed({ ...s, white: i % 2 ? other : username, black: i % 2 ? username : other, source: site }, i + 100, now)
+      })
       return { ok: true, value: { games, rejected: [] } }
     },
     gameFromRecord(record) {

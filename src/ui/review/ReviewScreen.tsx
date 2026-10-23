@@ -113,7 +113,7 @@ function Review({ game }: { game: Game }) {
     : <AnalyzingPanel state={state?.phase === 'analyzing' ? state : null} onCancel={cancel} />
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4 max-w-[1180px] mx-auto">
       <header className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
         <h1 className="text-[20px] font-semibold tracking-tight">
           {playerLabel(game.players.w)} <span className="text-ink-3 font-normal">vs</span> {playerLabel(game.players.b)}
@@ -124,13 +124,13 @@ function Review({ game }: { game: Game }) {
       </header>
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(340px,420px)] items-start">
         <div className="flex flex-col gap-3 min-w-0">
-          <div className="flex gap-2 items-stretch w-full max-w-[640px]">
+          <div className="flex gap-2 items-stretch w-full max-w-[720px] mb-3">
             <EvalBar whiteWin={whiteWin} label={evalLabel} orientation={orientation} />
             <div className="flex-1 min-w-0">
               <Board fen={position.fen} orientation={orientation} lastMove={lastMove ? { from: lastMove.from, to: lastMove.to } : null} badge={badge} bestArrow={bestArrow} />
             </div>
           </div>
-          <div className="flex items-center gap-1 flex-wrap max-w-[640px]" role="toolbar" aria-label="Navegação da partida">
+          <div className="flex items-center gap-1 flex-wrap max-w-[720px]" role="toolbar" aria-label="Navegação da partida">
             <button type="button" className="btn btn-icon" onClick={() => go(0)} disabled={ply === 0} aria-label="Primeiro lance (Home)" title="Home">
               <ChevronFirst size={18} aria-hidden />
             </button>
@@ -154,7 +154,7 @@ function Review({ game }: { game: Game }) {
               {lastMove ? `Lance ${ply}: ${lastMove.san}` : 'Posição inicial'}
             </span>
           </div>
-          <div className="max-w-[640px]">
+          <div className="max-w-[720px]">
             <MoveCard review={review} ply={ply} />
           </div>
         </div>
