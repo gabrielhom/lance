@@ -603,6 +603,19 @@
   .row-meta { display: block; margin-top: 2px; font-size: var(--text-sm); color: var(--ink-2); }
   .row-acc { display: block; font-family: var(--font-serif); font-size: var(--text-2xl); line-height: 1.1; white-space: nowrap; }
 
+  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 20px 0; padding: 18px 0; border-block: 1px solid var(--rule-strong); }
+  .stats > div { padding-inline: 0 16px; }
+  .stats > div:nth-child(even) { padding-left: 20px; border-left: 1px solid var(--rule); }
+  .stats .v { font-family: var(--font-serif); font-size: var(--text-4xl); font-weight: 500; line-height: 1; letter-spacing: -0.02em; white-space: nowrap; font-variant-numeric: lining-nums proportional-nums; }
+  .stats .l { margin-top: 6px; font-size: var(--text-sm); color: var(--ink-2); }
+  @media (width >= 48rem) {
+    .stats { grid-template-columns: repeat(4, auto); justify-content: start; }
+    .stats > div { padding: 0 40px; }
+    .stats > div:first-child { padding-left: 0; }
+    .stats > div + div { border-left: 1px solid var(--rule); }
+    .stats .v { font-size: var(--text-5xl); }
+  }
+
   .dialog {
     width: min(420px, calc(100vw - 32px));
     margin: auto;

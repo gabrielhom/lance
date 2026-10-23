@@ -27,35 +27,37 @@ export function HistoryScreen() {
   const noIdentity = settings.identity.accounts.length === 0
 
   return (
-    <div className="flex flex-col gap-6">
-      <header>
-        <h1 className="text-[22px] font-semibold tracking-tight">Histórico</h1>
-      </header>
+    <div className="flex flex-col gap-10 md:gap-12">
+      <h1 className="display text-3xl md:text-5xl">Histórico</h1>
       {noIdentity && (
-        <div className="flex flex-wrap items-center gap-3 justify-between">
-          <p className="text-[14px]">As partidas jogadas aqui já contam. Para contar as importadas, informe seus nomes de usuário.</p>
-          <a href="#/config" className="btn btn-sm">Configurações</a>
-        </div>
+        <p className="note mt-0 flex-row! flex-wrap items-baseline gap-x-5">
+          <span>As partidas jogadas aqui já contam. Para contar as importadas, informe seus nomes de usuário.</span>
+          <a href="#/config" className="tl">Configurações</a>
+        </p>
       )}
-      <section className="grid grid-cols-2 sm:grid-cols-4 gap-3" aria-label="Resumo">
+      <section className="stats" aria-label="Resumo">
         <Stat label="Precisão média" value={avg === null ? '–' : formatAccuracy(avg)} />
         <Stat label="Partidas revisadas" value={records ? String(records.length) : '–'} />
         <Stat label="Suas partidas" value={records ? String(points.length) : '–'} />
-        <Stat label="V · E · D" value={records ? `${wins} · ${draws} · ${losses}` : '–'} />
+        <Stat label="Vitórias, empates, derrotas" value={records ? `${wins} · ${draws} · ${losses}` : '–'} />
       </section>
       <section aria-labelledby="grafico-titulo">
-        <h2 id="grafico-titulo" className="text-[16px] font-semibold mb-3">Precisão ao longo do tempo</h2>
-        {records === null ? (
-          <p className="hint" aria-busy="true">Carregando…</p>
-        ) : points.length === 0 ? (
-          <p className="hint py-8 text-center">Nenhuma partida sua foi revisada ainda.</p>
-        ) : (
-          <AccuracyChart points={points} />
-        )}
+        <h2 id="grafico-titulo" className="sec">Precisão ao longo do tempo</h2>
+        <div className="ruled">
+          {records === null ? (
+            <p className="caption" aria-busy="true">Carregando…</p>
+          ) : points.length === 0 ? (
+            <p className="caption py-6">Nenhuma partida sua foi revisada ainda.</p>
+          ) : (
+            <AccuracyChart points={points} />
+          )}
+        </div>
       </section>
       <section aria-labelledby="lista-titulo">
-        <h2 id="lista-titulo" className="text-[16px] font-semibold mb-3">Partidas</h2>
-        <LibraryList records={records} identity={settings.identity} />
+        <h2 id="lista-titulo" className="sec">Partidas</h2>
+        <div className="ruled">
+          <LibraryList records={records} identity={settings.identity} />
+        </div>
       </section>
     </div>
   )
@@ -64,8 +66,8 @@ export function HistoryScreen() {
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <p className="text-[12px] text-ink-3 font-medium">{label}</p>
-      <p className="text-[24px] sm:text-[28px] font-semibold leading-tight mt-1 whitespace-nowrap">{value}</p>
+      <p className="v">{value}</p>
+      <p className="l">{label}</p>
     </div>
   )
 }
