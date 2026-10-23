@@ -71,3 +71,17 @@ export function probeErrorText(e: BridgeProbeError): string {
     case 'not-uci': return `A resposta não parece UCI: ${e.detail}`
   }
 }
+
+/** The chess-book annotation each class prints after the move. Routine moves print none. */
+export const CLASSIFICATION_MARK: Readonly<Record<Classification, string>> = {
+  brilliant: '!!',
+  great: '!',
+  best: '',
+  excellent: '',
+  good: '',
+  book: '',
+  inaccuracy: '?!',
+  mistake: '?',
+  blunder: '??',
+  miss: '×',
+}

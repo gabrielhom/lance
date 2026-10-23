@@ -1,4 +1,3 @@
-import { Bot, User } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { Color } from '../../domain/types'
@@ -28,17 +27,9 @@ type Props = {
   clock: ClockProps | null
 }
 
-export function PlayerBar({ seat, color, toMove, status, lead, clock }: Props) {
-  const Icon = seat.engine ? Bot : User
+export function PlayerBar({ seat, toMove, status, lead, clock }: Props) {
   return (
     <div className="flex items-center gap-2.5 px-3 sm:px-0 h-12">
-      <span
-        className="grid place-items-center w-8 h-8 rounded-md flex-none border border-border-strong"
-        style={{ background: color === 'w' ? '#f4f3ef' : '#2c2b31', color: color === 'w' ? '#2c2b31' : '#f4f3ef' }}
-        aria-hidden
-      >
-        <Icon size={18} />
-      </span>
       <div className="min-w-0 flex-1 leading-tight">
         <p className="text-[14px] font-semibold truncate">
           {seat.name}

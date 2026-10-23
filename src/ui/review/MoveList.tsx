@@ -1,7 +1,6 @@
 import { useEffect, useRef } from 'react'
 import type { Classification, MoveReview, PlayedMove } from '../../domain/types'
-import { CLASSIFICATION_LABEL } from '../labels'
-import { ClassificationBadge } from './ClassificationBadge'
+import { CLASSIFICATION_LABEL, CLASSIFICATION_MARK } from '../labels'
 
 /** Classifications that tint the SAN; routine moves stay in ink so the list reads calm. */
 const TINTED: ReadonlySet<Classification> = new Set(['brilliant', 'great', 'inaccuracy', 'mistake', 'blunder', 'miss'])
@@ -42,8 +41,10 @@ export function MoveList({ moves, reviews, ply, onSelect }: Props) {
         onClick={() => onSelect(m.index + 1)}
         aria-label={`${m.mover === 'w' ? 'Brancas' : 'Pretas'}: ${m.san}${cls ? `, ${CLASSIFICATION_LABEL[cls]}` : ''}`}
       >
-        {cls ? <ClassificationBadge kind={cls} size={16} /> : <span style={{ width: 16 }} />}
-        <span style={cls && TINTED.has(cls) && !current ? { color: `var(--cls-${cls})` } : undefined}>{m.san}</span>
+        <span>
+          {m.san}
+          {cls && <span style={TINTED.has(cls) ? { color: `var(--cls-${cls})` } : undefined}>{CLASSIFICATION_MARK[cls]}</span>}
+        </span>
       </button>
     )
   }

@@ -1,5 +1,4 @@
 import { Chess } from 'chess.js'
-import { ChevronFirst, ChevronLast, ChevronLeft, ChevronRight, FlipVertical2, SkipBack, SkipForward } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { perspective } from '../../domain/identity'
 import type { Color, Game, GameId, GameReview, ReviewState, Square } from '../../domain/types'
@@ -43,15 +42,12 @@ export function ReviewScreen({ id }: { id: GameId }) {
 
   if (slot.kind === 'loading') {
     return (
-      <div className="flex flex-col gap-4" aria-busy="true">
-        <div className="skeleton h-8 w-64" />
-        <div className="skeleton w-full max-w-[560px] aspect-square" />
-      </div>
+      <p className="hint" aria-busy="true">Abrindo a partida…</p>
     )
   }
   if (slot.kind === 'missing') {
     return (
-      <div className="card p-6 max-w-lg">
+      <div className="max-w-lg">
         <h1 className="text-[18px] font-semibold">Partida não encontrada</h1>
         <p className="hint mt-1">Ela não está na biblioteca. Importe-a de novo em Revisar.</p>
         <a href="#/revisar" className="btn btn-primary mt-4">Ir para Revisar</a>
@@ -167,33 +163,31 @@ function Review({ game, startPly }: { game: Game; startPly: number }) {
           </div>
           <div className="flex items-center gap-1 flex-wrap w-full max-w-[min(752px,calc(100dvh-232px))]" role="toolbar" aria-label="Navegação da partida">
             <button type="button" className="btn btn-icon hidden sm:inline-flex" onClick={() => go(0)} disabled={ply === 0} aria-label="Primeiro lance (Home)" title="Home">
-              <ChevronFirst size={18} aria-hidden />
+              <span aria-hidden>⇤</span>
             </button>
             <button type="button" className="btn btn-icon" onClick={() => go(ply - 1)} disabled={ply === 0} aria-label="Lance anterior (seta para a esquerda)" title="←">
-              <ChevronLeft size={18} aria-hidden />
+              <span aria-hidden>←</span>
             </button>
             <button type="button" className="btn btn-icon" onClick={() => go(ply + 1)} disabled={ply === n} aria-label="Próximo lance (seta para a direita)" title="→">
-              <ChevronRight size={18} aria-hidden />
+              <span aria-hidden>→</span>
             </button>
             <button type="button" className="btn btn-icon hidden sm:inline-flex" onClick={() => go(n)} disabled={ply === n} aria-label="Último lance (End)" title="End">
-              <ChevronLast size={18} aria-hidden />
+              <span aria-hidden>⇥</span>
             </button>
             {review && errors.length === 0 ? (
               <span className="text-[14px] text-ink-3 px-2">{myColor ? 'Nenhum erro seu' : 'Nenhum erro'}</span>
             ) : (
               <>
-                <button type="button" className="btn btn-icon sm:w-auto sm:px-3.5" onClick={() => prevError && go(prevError.move.index + 1)} disabled={!prevError} aria-label="Erro anterior" title="Erro anterior">
-                  <SkipBack size={16} aria-hidden />
-                  <span className="hidden sm:inline">Erro anterior</span>
+                <button type="button" className="btn" onClick={() => prevError && go(prevError.move.index + 1)} disabled={!prevError}>
+                  Erro anterior
                 </button>
                 <button type="button" className="btn" onClick={() => nextError && go(nextError.move.index + 1)} disabled={!nextError} title={myColor ? 'Próxima imprecisão, erro, blunder ou chance perdida sua' : 'Próxima imprecisão, erro, blunder ou chance perdida'}>
-                  <SkipForward size={16} aria-hidden />
                   Próximo erro
                 </button>
               </>
             )}
-            <button type="button" className="btn btn-icon ml-auto" onClick={() => setFlipped((f) => !f)} aria-label="Girar o tabuleiro" aria-pressed={flipped} title="Girar o tabuleiro">
-              <FlipVertical2 size={18} aria-hidden />
+            <button type="button" className="btn ml-auto" onClick={() => setFlipped((f) => !f)} aria-pressed={flipped}>
+              Girar tabuleiro
             </button>
             <span className="sr-only" aria-live="polite">
               {previewBoard ? `Melhor sequência, lance ${shownPreview!.plies}: ${line[shownPreview!.plies - 1]}` : lastMove ? `Lance ${ply}: ${lastMove.san}` : 'Posição inicial'}
@@ -202,10 +196,10 @@ function Review({ game, startPly }: { game: Game; startPly: number }) {
         </div>
         <aside className="flex flex-col gap-4 min-w-0">
           {ply === 0 ? <>{status}{card}</> : <>{card}{status}</>}
-          <section className="card p-3" aria-label="Lances">
+          <section aria-label="Lances">
             <MoveList moves={game.moves} reviews={review?.moves ?? null} ply={ply} onSelect={go} />
           </section>
-          <section className="card p-4" aria-label="Gráfico de avaliação">
+          <section aria-label="Gráfico de avaliação">
             <EvalGraph series={series} labels={labels} moves={game.moves} markers={markers} ply={ply} onSelect={go} />
           </section>
         </aside>

@@ -1,4 +1,3 @@
-import { CheckCircle2, ChevronDown, Cpu, Gauge, SlidersHorizontal, Users, XCircle } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import type { BridgeEngine, BridgeProbeError, EngineDescriptor, SearchLimit, Settings } from '../../domain/types'
 import { WASM_FLAVORS } from '../../domain/types'
@@ -35,11 +34,8 @@ export function SettingsScreen() {
         <p className="hint">Tudo é salvo na hora.</p>
       </header>
 
-      <section className="card p-4 sm:p-5 flex flex-col gap-4" aria-labelledby="contas-titulo">
-        <div className="flex items-center gap-2">
-          <Users size={18} className="text-accent" aria-hidden />
-          <h2 id="contas-titulo" className="text-[16px] font-semibold">Suas contas</h2>
-        </div>
+      <section className="flex flex-col gap-4" aria-labelledby="contas-titulo">
+        <h2 id="contas-titulo" className="text-[16px] font-semibold">Suas contas</h2>
         <p className="hint">Com seus nomes de usuário o app sabe de que lado você jogou e destaca sua precisão.</p>
         <div className="grid sm:grid-cols-2 gap-3">
           <AccountField site="lichess" label="Lichess" value={account('lichess')} onCommit={(v) => setAccount('lichess', v)} />
@@ -47,11 +43,8 @@ export function SettingsScreen() {
         </div>
       </section>
 
-      <section className="card p-4 sm:p-5 flex flex-col gap-4" aria-labelledby="engine-titulo">
-        <div className="flex items-center gap-2">
-          <Cpu size={18} className="text-accent" aria-hidden />
-          <h2 id="engine-titulo" className="text-[16px] font-semibold">Engine</h2>
-        </div>
+      <section className="flex flex-col gap-4" aria-labelledby="engine-titulo">
+        <h2 id="engine-titulo" className="text-[16px] font-semibold">Engine</h2>
         <fieldset className="flex flex-col gap-2">
           <legend className="label">Qual engine analisa as partidas</legend>
           <EngineOption
@@ -79,11 +72,8 @@ export function SettingsScreen() {
         </fieldset>
       </section>
 
-      <section className="card p-4 sm:p-5 flex flex-col gap-4" aria-labelledby="analise-titulo">
-        <div className="flex items-center gap-2">
-          <Gauge size={18} className="text-accent" aria-hidden />
-          <h2 id="analise-titulo" className="text-[16px] font-semibold">Análise</h2>
-        </div>
+      <section className="flex flex-col gap-4" aria-labelledby="analise-titulo">
+        <h2 id="analise-titulo" className="text-[16px] font-semibold">Análise</h2>
         <div>
           <p className="label" id="prof-label">Profundidade</p>
           <div className="seg" role="radiogroup" aria-labelledby="prof-label">
@@ -97,13 +87,11 @@ export function SettingsScreen() {
         </div>
       </section>
 
-      <details ref={advanced} open={advancedAtStart} className="card group">
-        <summary className="flex items-center gap-2 p-4 sm:p-5 cursor-pointer list-none [&::-webkit-details-marker]:hidden rounded-[var(--radius)]">
-          <SlidersHorizontal size={18} className="text-accent" aria-hidden />
-          <h2 className="text-[16px] font-semibold">Avançado</h2>
-          <ChevronDown size={18} className="ml-auto text-ink-3 transition-transform group-open:rotate-180" aria-hidden />
+      <details ref={advanced} open={advancedAtStart}>
+        <summary className="cursor-pointer">
+          <h2 className="inline text-[16px] font-semibold">Avançado</h2>
         </summary>
-        <div className="flex flex-col gap-5 px-4 pb-4 sm:px-5 sm:pb-5">
+        <div className="flex flex-col gap-5 pt-4">
           <div className="flex flex-col gap-2">
             <h3 className="text-[14px] font-semibold">Engine local</h3>
             {settings.engine.kind === 'bridge' ? (
@@ -204,7 +192,6 @@ function BridgeFields({ engine, onChange }: { engine: Extract<EngineDescriptor, 
         {probe.kind === 'ok' && (
           <div className="flex flex-col gap-2">
             <p className="flex items-center gap-2 text-[14px] text-good font-medium">
-              <CheckCircle2 size={16} aria-hidden />
               Bridge respondeu com {probe.engines.length === 1 ? '1 engine' : `${probe.engines.length} engines`}
             </p>
             <fieldset>
@@ -223,7 +210,6 @@ function BridgeFields({ engine, onChange }: { engine: Extract<EngineDescriptor, 
         )}
         {probe.kind === 'failed' && (
           <p className="flex items-start gap-2 text-[14px] text-bad font-medium">
-            <XCircle size={16} className="mt-0.5 flex-none" aria-hidden />
             {probeErrorText(probe.error)}
           </p>
         )}

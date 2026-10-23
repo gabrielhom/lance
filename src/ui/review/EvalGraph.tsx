@@ -122,7 +122,7 @@ export function EvalGraph({ series, labels, moves, markers, ply, onSelect }: Pro
         )}
         {hover !== null && width > 0 && (
           <div
-            className="pointer-events-none absolute top-2 rounded-md bg-surface text-ink text-[12px] font-medium px-2 py-1 shadow-card border border-border whitespace-nowrap"
+            className="pointer-events-none absolute top-2 rounded-md bg-surface text-ink text-[12px] font-medium px-2 py-1 border border-border whitespace-nowrap"
             style={{ left: Math.min(Math.max(x(hover) + 8, 4), Math.max(4, width - 150)) }}
           >
             {describe(hover)}

@@ -30,10 +30,9 @@ export function HistoryScreen() {
     <div className="flex flex-col gap-6">
       <header>
         <h1 className="text-[22px] font-semibold tracking-tight">Histórico</h1>
-        <p className="hint">Sua precisão nas partidas revisadas, da mais antiga para a mais recente.</p>
       </header>
       {noIdentity && (
-        <div className="card p-4 flex flex-wrap items-center gap-3 justify-between">
+        <div className="flex flex-wrap items-center gap-3 justify-between">
           <p className="text-[14px]">As partidas jogadas aqui já contam. Para contar as importadas, informe seus nomes de usuário.</p>
           <a href="#/config" className="btn btn-sm">Configurações</a>
         </div>
@@ -44,10 +43,10 @@ export function HistoryScreen() {
         <Stat label="Suas partidas" value={records ? String(points.length) : '–'} />
         <Stat label="V · E · D" value={records ? `${wins} · ${draws} · ${losses}` : '–'} />
       </section>
-      <section className="card p-4" aria-labelledby="grafico-titulo">
+      <section aria-labelledby="grafico-titulo">
         <h2 id="grafico-titulo" className="text-[16px] font-semibold mb-3">Precisão ao longo do tempo</h2>
         {records === null ? (
-          <div className="skeleton h-[200px]" aria-busy="true" />
+          <p className="hint" aria-busy="true">Carregando…</p>
         ) : points.length === 0 ? (
           <p className="hint py-8 text-center">Nenhuma partida sua foi revisada ainda.</p>
         ) : (
@@ -64,7 +63,7 @@ export function HistoryScreen() {
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="card p-3 sm:p-4">
+    <div>
       <p className="text-[12px] text-ink-3 font-medium">{label}</p>
       <p className="text-[24px] sm:text-[28px] font-semibold leading-tight mt-1 whitespace-nowrap">{value}</p>
     </div>

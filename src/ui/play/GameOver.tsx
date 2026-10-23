@@ -1,4 +1,3 @@
-import { AlertTriangle, Check, Copy, Flag, Handshake, Loader2, Plus, Repeat2, Trophy } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { gameFromPgn } from '../../domain'
@@ -17,11 +16,6 @@ import { resultTitle } from './result'
 
 type Over = Extract<PlayState, { phase: 'over' }>
 type Props = { state: Over; seats: ByColor<Seat>; onNew: () => void; onRematch: () => void }
-const TONE = {
-  win: { icon: Trophy, className: 'bg-good-soft text-good' },
-  loss: { icon: Flag, className: 'bg-bad-soft text-bad' },
-  draw: { icon: Handshake, className: 'bg-surface-3 text-ink-2' },
-} as const
 
 export function GameOver({ state, seats, onNew, onRematch }: Props) {
   const [settings] = useSettings()
@@ -31,8 +25,7 @@ export function GameOver({ state, seats, onNew, onRematch }: Props) {
     const r = gameFromPgn(pgn, { kind: 'played', id: state.id, you: state.setup.you })
     return r.ok ? r.value : null
   }, [pgn, state.id, state.setup.you])
-  const { title, detail, tone } = resultTitle(state, you)
-  const { icon: Icon, className } = TONE[tone]
+  const { title, detail } = resultTitle(state, you)
   const opponent = you ? seats[you === 'w' ? 'b' : 'w'] : null
   const open = (ply = 0) => {
     if (!game) return
@@ -48,10 +41,7 @@ export function GameOver({ state, seats, onNew, onRematch }: Props) {
   }, [])
 
   const head = (
-    <div className="flex items-start gap-3">
-      <span className={`grid place-items-center w-10 h-10 rounded-full flex-none ${className}`} aria-hidden>
-        <Icon size={20} />
-      </span>
+    <div>
       <div className="min-w-0">
         <h2 id="fim-titulo" className="text-[18px] font-semibold leading-tight">{title}</h2>
         <p className="text-[13px] text-ink-3 mt-0.5">
@@ -66,18 +56,16 @@ export function GameOver({ state, seats, onNew, onRematch }: Props) {
         Ver revisão completa
       </button>
       <button type="button" className="btn" onClick={onRematch}>
-        <Repeat2 size={16} aria-hidden />
         Revanche
       </button>
       <button type="button" className="btn" onClick={onNew}>
-        <Plus size={16} aria-hidden />
         Nova partida
       </button>
       <CopyPgn pgn={pgn} />
     </div>
   )
   const card = (body: ReactNode) => (
-    <section ref={ref} className="card p-4 flex flex-col gap-3 scroll-mt-18" aria-labelledby="fim-titulo">
+    <section ref={ref} className="flex flex-col gap-3" aria-labelledby="fim-titulo">
       {head}
       {body}
       {actions}
@@ -98,7 +86,6 @@ function Reviewed({ game, me, seats, card, onJump }: { game: Game; me: Color | n
     const t = engineFailureText(state.failure)
     body = (
       <div role="alert" className="flex gap-2 rounded-lg bg-bad-soft p-3 text-[14px]">
-        <AlertTriangle size={18} className="text-bad flex-none mt-0.5" aria-hidden />
         <div>
           <p className="font-semibold">{t.title}</p>
           <p className="text-ink-2 mt-0.5">{t.detail}</p>
@@ -111,7 +98,6 @@ function Reviewed({ game, me, seats, card, onJump }: { game: Game; me: Color | n
     body = (
       <div className="flex flex-col gap-2 rounded-lg bg-surface-2 p-3">
         <div className="flex items-center gap-2 text-[14px] font-medium">
-          <Loader2 size={16} className="text-accent motion-safe:animate-spin" aria-hidden />
           {me ? 'Calculando sua precisão' : 'Calculando a precisão'}
           <span className="ml-auto tabular">{pct}%</span>
         </div>
@@ -159,7 +145,6 @@ function CopyPgn({ pgn }: { pgn: string }) {
       className="btn btn-ghost col-span-2"
       onClick={() => (navigator.clipboard?.writeText(pgn) ?? Promise.reject(new Error('sem área de transferência'))).then(() => setCopied('done'), () => setCopied('failed'))}
     >
-      {copied === 'done' ? <Check size={16} aria-hidden /> : <Copy size={16} aria-hidden />}
       <span aria-live="polite">{copied === 'done' ? 'PGN copiado' : copied === 'failed' ? 'Não deu para copiar' : 'Copiar PGN'}</span>
     </button>
   )

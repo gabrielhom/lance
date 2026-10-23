@@ -2,8 +2,7 @@ import { useId } from 'react'
 import type { Classification, Color, GameReview } from '../../domain/types'
 import { CLASSIFICATIONS } from '../../domain/types'
 import { colorLabel, formatPct } from '../format'
-import { CLASSIFICATION_LABEL } from '../labels'
-import { ClassificationBadge } from './ClassificationBadge'
+import { CLASSIFICATION_LABEL, CLASSIFICATION_MARK } from '../labels'
 
 const ALWAYS_SHOWN: ReadonlySet<Classification> = new Set(['best', 'inaccuracy', 'mistake', 'blunder'])
 
@@ -28,7 +27,7 @@ export function Summary({ review, me, onJump, title = 'Resumo', variant = 'full'
     const mine = me === c
     if (variant === 'counts') {
       return (
-        <th scope="col" className="pb-1 text-[12px] font-semibold uppercase tracking-wide text-ink-3">
+        <th scope="col" className="pb-1 text-[13px] font-semibold text-ink-3">
           {c === 'w' ? 'Brancas' : 'Pretas'}{mine ? ' · você' : ''}
         </th>
       )
@@ -36,7 +35,7 @@ export function Summary({ review, me, onJump, title = 'Resumo', variant = 'full'
     return (
       <th scope="col" className="p-0 pb-2 align-top font-normal">
         <div className={`flex flex-col items-center rounded-lg px-1.5 py-3 ${mine ? 'bg-accent-soft' : 'bg-surface-2'}`}>
-          <span className="text-[12px] font-semibold uppercase tracking-wide text-ink-3">{c === 'w' ? 'Brancas' : 'Pretas'}{mine ? ' · você' : ''}</span>
+          <span className="text-[13px] font-semibold text-ink-3">{c === 'w' ? 'Brancas' : 'Pretas'}{mine ? ' · você' : ''}</span>
           <span className="text-[13px] font-medium max-w-full mt-0.5 text-center leading-tight line-clamp-2 break-words" title={p.player.name}>{p.player.name}</span>
           <span className={`text-[28px] sm:text-[30px] leading-none font-semibold mt-2 tabular ${mine ? 'text-accent' : ''}`}>{formatPct(p.accuracy)}</span>
           <span className="text-[12px] text-ink-3 mt-1">precisão</span>
@@ -68,7 +67,7 @@ export function Summary({ review, me, onJump, title = 'Resumo', variant = 'full'
   }
 
   return (
-    <section className="card p-4 flex flex-col gap-3" aria-labelledby={`${id}-t`}>
+    <section className="flex flex-col gap-3" aria-labelledby={`${id}-t`}>
       <div className="flex items-baseline justify-between gap-3">
         <h2 id={`${id}-t`} className="text-[16px] font-semibold">{title}</h2>
         {review.opening && <span className="text-[13px] text-ink-2 text-right truncate min-w-0" title={`${review.opening.eco} ${review.opening.name}`}>{review.opening.name}</span>}
@@ -92,7 +91,7 @@ export function Summary({ review, me, onJump, title = 'Resumo', variant = 'full'
             <tr key={k} className="h-8">
               <th scope="row" className="font-medium text-left">
                 <span className="inline-flex items-center gap-2 min-w-0">
-                  <ClassificationBadge kind={k} size={18} />
+                  <span aria-hidden className="w-[2ch]">{CLASSIFICATION_MARK[k]}</span>
                   <span className="truncate">{CLASSIFICATION_LABEL[k]}</span>
                 </span>
               </th>

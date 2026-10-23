@@ -3,8 +3,7 @@ import { useMemo } from 'react'
 import type { CSSProperties } from 'react'
 import type { Classification, Color, Square } from '../../domain/types'
 import { BOARD_STYLE } from '../boardStyle'
-import { useElementWidth } from '../useElementWidth'
-import { ClassificationBadge } from './ClassificationBadge'
+import { CLASSIFICATION_MARK } from '../labels'
 
 const REDUCED_MOTION = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
 
@@ -17,7 +16,6 @@ export type BoardProps = {
 }
 
 export function Board({ fen, orientation, lastMove, badge, bestArrow }: BoardProps) {
-  const [ref, width] = useElementWidth<HTMLDivElement>()
   const squareStyles = useMemo(() => {
     const s: Record<string, CSSProperties> = {}
     if (lastMove) {
@@ -26,12 +24,11 @@ export function Board({ fen, orientation, lastMove, badge, bestArrow }: BoardPro
     }
     return s
   }, [lastMove])
-  const badgeSize = Math.max(16, Math.round((width / 8) * 0.42))
 
   // The board is a picture of the position; the move list and the live region carry it for assistive tech.
   // `inert` also drops dnd-kit's 32 unnamed focusable piece wrappers out of the tab order.
   return (
-    <div ref={ref} className="w-full select-none" style={{ touchAction: 'manipulation' }} inert aria-hidden>
+    <div className="w-full select-none" style={{ touchAction: 'manipulation' }} inert aria-hidden>
       <Chessboard
         options={{
           ...BOARD_STYLE,
@@ -46,8 +43,8 @@ export function Board({ fen, orientation, lastMove, badge, bestArrow }: BoardPro
           squareRenderer: ({ square, children }) => (
             <div style={{ width: '100%', height: '100%', position: 'relative', ...squareStyles[square] }}>
               {children}
-              {badge && badge.square === square && (
-                <ClassificationBadge kind={badge.kind} size={badgeSize} style={{ position: 'absolute', top: -badgeSize * 0.22, right: -badgeSize * 0.22, zIndex: 2 }} />
+              {badge && badge.square === square && CLASSIFICATION_MARK[badge.kind] && (
+                <span style={{ position: 'absolute', top: 2, right: 3, zIndex: 2, fontWeight: 700 }}>{CLASSIFICATION_MARK[badge.kind]}</span>
               )}
             </div>
           ),

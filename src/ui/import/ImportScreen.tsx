@@ -1,4 +1,3 @@
-import { AlertCircle, ClipboardPaste, Globe, Upload } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import type { DragEvent } from 'react'
 import type { FetchFailure, Game, ImportResult, LibraryRecord } from '../../domain/types'
@@ -65,7 +64,6 @@ export function ImportScreen() {
     <div className="flex flex-col gap-6">
       <header>
         <h1 className="text-[22px] font-semibold tracking-tight">Revisar uma partida</h1>
-        <p className="hint">Cole um PGN ou traga suas partidas do Lichess e do Chess.com para ver precisão, momentos-chave e o que a engine jogaria.</p>
       </header>
       {libraryFirst && librarySection}
       <section className="grid gap-4 lg:grid-cols-2" aria-label="Importar partidas">
@@ -104,7 +102,7 @@ function PastePanel({ onParsed }: { onParsed: (g: Game) => void }) {
 
   return (
     <div
-      className={`card p-4 sm:p-5 flex flex-col gap-3 ${dragging ? 'ring-2 ring-accent' : ''}`}
+      className={`flex flex-col gap-3 ${dragging ? 'ring-2 ring-accent' : ''}`}
       onDragOver={(e) => {
         e.preventDefault()
         setDragging(true)
@@ -112,10 +110,7 @@ function PastePanel({ onParsed }: { onParsed: (g: Game) => void }) {
       onDragLeave={() => setDragging(false)}
       onDrop={onDrop}
     >
-      <div className="flex items-center gap-2">
-        <ClipboardPaste size={18} className="text-accent" aria-hidden />
-        <h2 className="text-[16px] font-semibold">Colar PGN</h2>
-      </div>
+      <h2 className="text-[16px] font-semibold">Colar PGN</h2>
       <p className="hint">Cole o texto de uma ou mais partidas, ou solte um arquivo .pgn aqui.</p>
       <label className="label" htmlFor="pgn-text">PGN</label>
       <textarea
@@ -131,7 +126,6 @@ function PastePanel({ onParsed }: { onParsed: (g: Game) => void }) {
           Revisar partida
         </button>
         <button type="button" className="btn" onClick={() => fileRef.current?.click()}>
-          <Upload size={16} aria-hidden />
           Abrir arquivo .pgn
         </button>
         <input ref={fileRef} type="file" accept=".pgn,text/plain" className="sr-only" aria-label="Arquivo PGN" onChange={(e) => readFile(e.target.files?.[0])} />
@@ -147,7 +141,6 @@ function ParsedResult({ result, onPick }: { result: ImportResult; onPick: (g: Ga
     <div className="flex flex-col gap-3">
       {result.rejected.length > 0 && (
         <div role="alert" className="flex gap-2 rounded-lg bg-bad-soft text-ink p-3 text-[14px]">
-          <AlertCircle size={18} className="text-bad flex-none mt-0.5" aria-hidden />
           <div>
             <p className="font-semibold">{result.rejected.length === 1 ? 'Uma partida não pôde ser lida' : `${result.rejected.length} partidas não puderam ser lidas`}</p>
             <ul className="mt-1 list-disc pl-5 text-ink-2">
@@ -212,11 +205,8 @@ function FetchPanel({ onPick }: { onPick: (g: Game) => void }) {
   }
 
   return (
-    <div className="card p-4 sm:p-5 flex flex-col gap-3">
-      <div className="flex items-center gap-2">
-        <Globe size={18} className="text-accent" aria-hidden />
-        <h2 className="text-[16px] font-semibold">Buscar partidas recentes</h2>
-      </div>
+    <div className="flex flex-col gap-3">
+      <h2 className="text-[16px] font-semibold">Buscar partidas recentes</h2>
       <div className="seg self-start" role="tablist" aria-label="Site">
         {(['lichess', 'chesscom'] as const).map((s) => (
           <button key={s} type="button" role="tab" aria-selected={site === s} onClick={() => setSite(s)}>
@@ -252,16 +242,12 @@ function FetchBody({ state, onPick, onRetry }: { state: FetchState; onPick: (g: 
       return (
         <div role="status" aria-live="polite" className="flex flex-col gap-2">
           <p className="hint">Buscando partidas de {state.username}…</p>
-          {[0, 1, 2].map((i) => (
-            <div key={i} className="skeleton h-12" />
-          ))}
         </div>
       )
     case 'failed': {
       const t = fetchFailureText(state.failure, state.username)
       return (
         <div role="alert" className="flex gap-2 rounded-lg bg-bad-soft p-3 text-[14px]">
-          <AlertCircle size={18} className="text-bad flex-none mt-0.5" aria-hidden />
           <div className="flex-1">
             <p className="font-semibold">{t.title}</p>
             <p className="text-ink-2 mt-0.5">{t.detail}</p>

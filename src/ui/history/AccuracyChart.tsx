@@ -56,7 +56,7 @@ export function AccuracyChart({ points }: { points: readonly AccuracyPoint[] }) 
           </svg>
         )}
         {p && shown !== null && (
-          <div className="pointer-events-none absolute top-1 rounded-md bg-surface border border-border shadow-card px-2 py-1 text-[12px] whitespace-nowrap" style={{ left: Math.min(Math.max(x(shown) + 10, 0), Math.max(0, width - 190)) }}>
+          <div className="pointer-events-none absolute top-1 rounded-md bg-surface border border-border px-2 py-1 text-[12px] whitespace-nowrap" style={{ left: Math.min(Math.max(x(shown) + 10, 0), Math.max(0, width - 190)) }}>
             <span className="font-semibold text-[14px] tabular">{formatPct(p.accuracy)}</span>
             <span className="text-ink-2"> · {OUTCOME_LABEL[outcomeFor(p.result, p.color)]} de {colorLabel(p.color)}</span>
             <br />

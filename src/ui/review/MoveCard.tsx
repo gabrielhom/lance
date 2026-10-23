@@ -1,8 +1,7 @@
 import { useState } from 'react'
 import type { GameReview, MoveReview } from '../../domain/types'
 import { moveNumberLabel } from '../format'
-import { CLASSIFICATION_LABEL } from '../labels'
-import { ClassificationBadge } from './ClassificationBadge'
+import { CLASSIFICATION_LABEL, CLASSIFICATION_MARK } from '../labels'
 
 /** Shown after the class label, so it adds what the label does not say instead of repeating it. */
 function sentence(r: MoveReview): string {
@@ -40,7 +39,7 @@ export function MoveCard({ review, ply, labels, preview, onPreview }: Props) {
   const expanded = expandedAt === ply
   if (ply === 0 || !review) {
     return (
-      <div className="card p-4 min-h-[88px] flex flex-col justify-center">
+      <div className="min-h-[88px] flex flex-col justify-center">
         {ply === 0 ? (
           <>
             <p className="font-semibold">Posição inicial</p>
@@ -59,12 +58,11 @@ export function MoveCard({ review, ply, labels, preview, onPreview }: Props) {
   const evalBefore = labels?.[ply - 1]
   const evalAfter = labels?.[ply]
   return (
-    <div className="card p-4 flex flex-col gap-3">
+    <div className="flex flex-col gap-3">
       <div className="flex items-start gap-3" aria-live="polite">
-        <ClassificationBadge kind={r.classification} size={28} />
         <div className="min-w-0 flex-1">
           <p className="font-semibold text-[15px] leading-tight">
-            {moveNumberLabel(r.move.index)} {r.move.san}
+            {moveNumberLabel(r.move.index)} {r.move.san}{CLASSIFICATION_MARK[r.classification]}
             <span className="font-normal text-ink-2"> · {CLASSIFICATION_LABEL[r.classification]}</span>
           </p>
           <p className="text-[14px] text-ink-2 mt-0.5">{sentence(r)}</p>
@@ -82,7 +80,7 @@ export function MoveCard({ review, ply, labels, preview, onPreview }: Props) {
       {showLine && (
         <div>
           <div className="flex items-center justify-between gap-2 mb-1">
-            <p className="text-[12px] font-semibold uppercase tracking-wide text-ink-3">Melhor sequência</p>
+            <h3 className="text-[14px] font-semibold">Melhor sequência</h3>
             {preview !== null && (
               <button type="button" className="btn btn-sm" onClick={() => onPreview(null)}>
                 Voltar à partida

@@ -1,4 +1,3 @@
-import { AlertTriangle, Loader2 } from 'lucide-react'
 import type { EngineFailureReason, ReviewState } from '../../domain/types'
 import { formatBytes } from '../format'
 import { engineFailureText } from '../labels'
@@ -14,9 +13,8 @@ export function AnalyzingPanel({ state, onCancel }: { state: Analyzing | null; o
     : engine?.kind === 'searching' ? `Avaliando posição ${Math.min(state.done + 1, state.total)} de ${state.total}`
     : 'Lendo avaliações já salvas'
   return (
-    <section className="card p-4 flex flex-col gap-3" aria-labelledby="analise-titulo" aria-live="polite">
+    <section className="flex flex-col gap-3" aria-labelledby="analise-titulo" aria-live="polite">
       <div className="flex items-center gap-2">
-        <Loader2 size={18} className="text-accent motion-safe:animate-spin" aria-hidden />
         <h2 id="analise-titulo" className="text-[16px] font-semibold">Analisando a partida</h2>
         <span className="ml-auto text-[20px] font-semibold tabular">{pct}%</span>
       </div>
@@ -34,9 +32,8 @@ export function AnalyzingPanel({ state, onCancel }: { state: Analyzing | null; o
 export function FailedPanel({ failure, onRetry }: { failure: EngineFailureReason; onRetry: () => void }) {
   const t = engineFailureText(failure)
   return (
-    <section className="card p-4 flex flex-col gap-3" role="alert">
-      <div className="flex items-start gap-2">
-        <AlertTriangle size={20} className="text-bad flex-none mt-0.5" aria-hidden />
+    <section className="flex flex-col gap-3" role="alert">
+      <div>
         <div>
           <h2 className="text-[16px] font-semibold">{t.title}</h2>
           <p className="text-[14px] text-ink-2 mt-1">{t.detail}</p>
@@ -52,7 +49,7 @@ export function FailedPanel({ failure, onRetry }: { failure: EngineFailureReason
 
 export function CancelledPanel({ onRetry }: { onRetry: () => void }) {
   return (
-    <section className="card p-4 flex flex-col gap-3" role="status">
+    <section className="flex flex-col gap-3" role="status">
       <h2 className="text-[16px] font-semibold">Análise cancelada</h2>
       <p className="hint">Você ainda pode percorrer os lances. As avaliações aparecem quando a análise terminar.</p>
       <div>

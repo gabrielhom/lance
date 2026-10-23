@@ -1,4 +1,3 @@
-import { AlertTriangle, Flag, FlipVertical2, Plus, Undo2, Volume2, VolumeX } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Dispatch, SetStateAction } from 'react'
 import type { Color, EngineInput, PlayEvent, PlayState, TimeControl, Uci } from '../../domain/types'
@@ -138,8 +137,7 @@ export function GameView({ state, setPlay, onNew }: { state: PlayState; setPlay:
         </header>
         {state.phase === 'over' && <GameOver state={state} seats={seat} onNew={onNew} onRematch={() => setPlay(newPlay({ ...setup, you: other(setup.you) }, Date.now()))} />}
         {failure && (
-          <div role="alert" className="card p-3 flex gap-2 items-start">
-            <AlertTriangle size={18} className="text-bad flex-none mt-0.5" aria-hidden />
+          <div role="alert" className="flex gap-2 items-start">
             <div className="flex-1 min-w-0">
               <p className="font-semibold text-[14px]">{failure.title}</p>
               <p className="text-[13px] text-ink-2">{failure.detail}</p>
@@ -148,32 +146,27 @@ export function GameView({ state, setPlay, onNew }: { state: PlayState; setPlay:
           </div>
         )}
         {playing && (
-          <div className="toolbar" role="toolbar" aria-label="Ações da partida">
+          <div className="flex flex-wrap gap-1" role="group" aria-label="Ações da partida">
             {vsEngine && (
-              <button type="button" className="tool-btn" onClick={() => dispatch({ kind: 'takeback', at: Date.now() })} disabled={!canTakeBack}>
-                <Undo2 size={20} aria-hidden />
+              <button type="button" className="btn btn-ghost" onClick={() => dispatch({ kind: 'takeback', at: Date.now() })} disabled={!canTakeBack}>
                 Desfazer
               </button>
             )}
-            <button type="button" className="tool-btn" onClick={() => setConfirm('resign')}>
-              <Flag size={20} aria-hidden />
+            <button type="button" className="btn btn-ghost" onClick={() => setConfirm('resign')}>
               Abandonar
             </button>
-            <button type="button" className="tool-btn" onClick={() => (state.moves.length > 0 ? setConfirm('new') : onNew())}>
-              <Plus size={20} aria-hidden />
+            <button type="button" className="btn btn-ghost" onClick={() => (state.moves.length > 0 ? setConfirm('new') : onNew())}>
               Nova partida
             </button>
-            <button type="button" className="tool-btn" onClick={() => setFlipped((f) => !f)} aria-pressed={flipped}>
-              <FlipVertical2 size={20} aria-hidden />
+            <button type="button" className="btn btn-ghost" onClick={() => setFlipped((f) => !f)} aria-pressed={flipped}>
               Girar
             </button>
-            <button type="button" className="tool-btn" onClick={() => setMuted(!muted)} aria-pressed={!muted} aria-label="Som">
-              {muted ? <VolumeX size={20} aria-hidden /> : <Volume2 size={20} aria-hidden />}
+            <button type="button" className="btn btn-ghost" onClick={() => setMuted(!muted)} aria-pressed={!muted} aria-label="Som">
               <span aria-hidden>{muted ? 'Sem som' : 'Som'}</span>
             </button>
           </div>
         )}
-        <section className="card p-3 hidden lg:block" aria-label="Lances">
+        <section className="hidden lg:block" aria-label="Lances">
           <MoveStrip sans={position.sans} layout="table" />
         </section>
         {playing && <MoveInput fen={position.fen} disabled={!myTurn} onMove={move} />}
