@@ -12,6 +12,7 @@ import {
   type Game,
   type GameId,
   type GameReview,
+  type GameSource,
   type PositionKey,
   type SearchedEval,
   type Uci,
@@ -30,10 +31,15 @@ const EVAL: SearchedEval = {
   ],
 }
 
-function review(id: string, playedAt: number | null, accuracy: { w: number | null; b: number | null } = { w: 91.5, b: 73.2 }): GameReview {
+function review(
+  id: string,
+  playedAt: number | null,
+  accuracy: { w: number | null; b: number | null } = { w: 91.5, b: 73.2 },
+  source: GameSource = { kind: 'lichess', id: id.slice(8), url: `https://lichess.org/${id.slice(8)}` },
+): GameReview {
   const game: Game = {
     id: id as GameId,
-    source: { kind: 'lichess', id: id.slice(8), url: `https://lichess.org/${id.slice(8)}` },
+    source,
     players: { w: { name: 'gabriel', rating: 1712 }, b: { name: 'rival', rating: null } },
     result: '1-0',
     playedAt,
@@ -143,6 +149,30 @@ describe('library', () => {
     await library.remove('lichess:abcd1234' as GameId)
     expect(await library.get('lichess:abcd1234' as GameId)).toBeNull()
     expect(await library.list()).toEqual([])
+  })
+
+  it.each<[string, GameSource]>([
+    ['played in Lance', { kind: 'played', id: 'k3x9', you: 'b' }],
+    ['pasted PGN', { kind: 'pgn' }],
+    ['chess.com', { kind: 'chesscom', uuid: 'u-1', url: 'https://www.chess.com/game/live/1' }],
+  ])('reads back the source of a game %s', async (_, source) => {
+    const { library } = await openStore()
+    await library.put(review('x:1', 1000, undefined, source), 2000)
+    expect((await (await openStore()).library.get('x:1' as GameId))?.source).toEqual(source)
+  })
+
+  it.each([
+    ['without a side', { kind: 'played', id: 'k3x9' }],
+    ['with an unknown side', { kind: 'played', id: 'k3x9', you: 'white' }],
+    ['without an id', { kind: 'played', id: '', you: 'w' }],
+  ])('misses a played game stored %s', async (_, source) => {
+    const { library } = await openStore()
+    await library.put(review('played:k3x9', 1000, undefined, { kind: 'played', id: 'k3x9', you: 'w' }), 2000)
+    const db = await openDB('lance', 1)
+    const row = await db.get('games', 'played:k3x9')
+    await db.put('games', { ...row, source })
+    db.close()
+    expect(await library.get('played:k3x9' as GameId)).toBeNull()
   })
 
   it('skips a corrupted row in the list and misses it on get', async () => {

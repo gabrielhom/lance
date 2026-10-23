@@ -130,6 +130,8 @@ function gameId(source: GameSource, history: readonly Move[], start: string, h: 
       return `lichess:${source.id}` as GameId
     case 'chesscom':
       return `chesscom:${source.uuid}` as GameId
+    case 'played':
+      return `played:${source.id}` as GameId
     case 'pgn': {
       const movetext = history.map((m) => m.san).join(' ')
       return `pgn:${cyrb53([start, movetext, h.White, h.Black, h.Date].join('|'))}` as GameId

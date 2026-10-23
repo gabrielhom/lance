@@ -159,7 +159,7 @@ export function gameFromPgn(pgn: string, source: GameSource): Result<Game, GameR
   })
   const result = (['1-0', '0-1', '1/2-1/2'].includes(headers.Result) ? headers.Result : '*') as GameResult
   const playedAt = parseDate(headers.UTCDate ?? headers.Date, headers.UTCTime ?? headers.StartTime)
-  const id = (source.kind === 'lichess' ? `lichess:${source.id}` : source.kind === 'chesscom' ? `chesscom:${source.uuid}` : `pgn:${hash(moves.map((m) => m.san).join(' ') + headers.White + headers.Black + headers.Date).toString(36)}`) as GameId
+  const id = (source.kind === 'lichess' ? `lichess:${source.id}` : source.kind === 'chesscom' ? `chesscom:${source.uuid}` : source.kind === 'played' ? `played:${source.id}` : `pgn:${hash(moves.map((m) => m.san).join(' ') + headers.White + headers.Black + headers.Date).toString(36)}`) as GameId
   return {
     ok: true,
     value: {

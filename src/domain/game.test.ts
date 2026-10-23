@@ -72,6 +72,10 @@ describe("gameFromPgn on scholar's mate", () => {
     expect(parse(game.pgn).id).toBe(game.id)
     expect(parse(game.pgn.replace('Oponente', 'Outro')).id).not.toBe(game.id)
   })
+
+  it('names a game played in Lance by its play id, whatever its moves', () => {
+    expect(parse(game.pgn, { kind: 'played', id: 'k3x9', you: 'w' }).id).toBe('played:k3x9')
+  })
 })
 
 describe('repetition keys', () => {

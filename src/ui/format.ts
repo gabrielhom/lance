@@ -59,6 +59,7 @@ export function sourceLabel(source: GameSource): string {
     case 'lichess': return 'Lichess'
     case 'chesscom': return 'Chess.com'
     case 'pgn': return 'PGN'
+    case 'played': return 'Jogada no Lance'
   }
 }
 

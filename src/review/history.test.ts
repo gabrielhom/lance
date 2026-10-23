@@ -59,4 +59,10 @@ describe('accuracyHistory', () => {
     const [point] = accuracyHistory([record('p', 'gabrielhom', 'x', { playedAt: null, reviewedAt: 7777 })], identity)
     expect(point.playedAt).toBe(7777)
   })
+
+  it('counts a game played in Lance with no account set', () => {
+    const played: GameSource = { kind: 'played', id: 'k3x9', you: 'b' }
+    const points = accuracyHistory([record('k3x9', 'Stockfish (Iniciante)', 'Você', { source: played, acc: [99, 64] })], { accounts: [] })
+    expect(points).toMatchObject([{ gameId: 'played:k3x9', color: 'b', accuracy: 64, opponent: { name: 'Stockfish (Iniciante)' } }])
+  })
 })

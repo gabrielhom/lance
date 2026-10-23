@@ -49,6 +49,8 @@ export type GameSource =
   | { readonly kind: 'lichess'; readonly id: string; readonly url: string }
   | { readonly kind: 'chesscom'; readonly uuid: string; readonly url: string }
   | { readonly kind: 'pgn' }
+  /** Played in Lance. `id` is the PlayState id; `you` is the bottom side of the board, so the game is mine with no account set. */
+  | { readonly kind: 'played'; readonly id: string; readonly you: Color }
 export type PlayerTag = { readonly name: string; readonly rating: number | null }
 export type GameResult = '1-0' | '0-1' | '1/2-1/2' | '*'
 export type Game = {

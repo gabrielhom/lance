@@ -80,6 +80,7 @@ function parseSource(x: unknown): GameSource | null {
   if (!isObj(x)) return null
   if (x.kind === 'lichess' && isStr(x.id) && isStr(x.url)) return { kind: 'lichess', id: x.id, url: x.url }
   if (x.kind === 'chesscom' && isStr(x.uuid) && isStr(x.url)) return { kind: 'chesscom', uuid: x.uuid, url: x.url }
+  if (x.kind === 'played' && isStr(x.id) && (x.you === 'w' || x.you === 'b')) return { kind: 'played', id: x.id, you: x.you }
   return x.kind === 'pgn' ? { kind: 'pgn' } : null
 }
 
