@@ -55,8 +55,6 @@
   --c-blunder: light-dark(#9b2c26, #e0726a);
   --c-miss: light-dark(#aa453a, #e88f84);
 }
-/* The board column: as wide as the prototype's, and short enough that both clocks fit on a laptop screen. */
-:root { --board-col: min(37.5rem, calc(100dvh - 14.5rem)); }
 :root[data-theme="light"] { color-scheme: light; }
 :root[data-theme="dark"] { color-scheme: dark; }
 
@@ -105,6 +103,7 @@
   --text-7xl--line-height: 0.95;
 
   --container-page: 75rem;
+  --container-wide: 105rem;
 }
 
 @layer base {
@@ -249,17 +248,18 @@
   }
   .theme-toggle:hover { color: var(--ink); text-decoration-color: currentColor; }
   @media (width >= 48rem) {
-    .mast { flex-wrap: nowrap; gap: 44px; padding: 18px 0 14px; border-bottom: 1px solid var(--rule-strong); }
+    .mast { flex-wrap: nowrap; gap: 44px; padding: 10px 0 8px; border-bottom: 1px solid var(--rule-strong); }
     .wordmark { font-size: var(--text-3xl); }
     .nav { order: 0; width: auto; gap: 28px; padding: 0; border: 0; font-size: var(--text-base); }
     .nav a { padding-bottom: 4px; }
     .theme-toggle { order: 0; }
   }
 
+  /* --board is the side of the board, set by each screen from the space it has. */
   .diagram {
     display: grid;
-    grid-template-columns: 1rem minmax(0, 1fr);
-    grid-template-rows: auto 1.25rem;
+    grid-template-columns: 1rem var(--board);
+    grid-template-rows: auto 1rem;
     column-gap: 6px;
   }
   .ranks, .files {
@@ -270,6 +270,11 @@
     color: var(--ink-3);
   }
   .ranks { display: grid; grid-template-rows: repeat(8, 1fr); align-items: center; text-align: right; }
+  /* On a phone the ranks sit in the page gutter, so the board itself spans the whole content width. */
+  @media (width < 48rem) {
+    .diagram { margin-left: -16px; column-gap: 0; }
+    .diagram .ranks { padding-right: 4px; }
+  }
   .files { grid-column: 2; display: grid; grid-template-columns: repeat(8, 1fr); align-items: end; text-align: center; }
   .frame { position: relative; outline: 1.5px solid var(--frame); }
 
@@ -422,11 +427,11 @@
   .meter { position: relative; height: 3px; background: var(--rule); }
   .meter > span { position: absolute; inset: 0 auto 0 0; background: var(--accent); transition: width 200ms ease; }
 
-  .play { display: grid; gap: 28px; }
+  .play { --board: min(100cqw, 100dvh - 13rem); display: grid; gap: 24px; }
   .play .sheet-box, .play .play-sheet { margin-top: 16px; }
   .play-sheet { max-height: calc(38px * 6 + 34px); }
-  .player { display: flex; align-items: baseline; gap: 10px; padding: 6px 0 10px; }
-  .player-bottom { padding: 12px 0 0; }
+  .player { display: flex; align-items: baseline; gap: 10px; padding: 2px 0 8px; }
+  .player-bottom { padding: 6px 0 0; }
   .player .who { font-family: var(--font-serif); font-size: var(--text-lg); font-weight: 600; }
   .player .meta { font-size: var(--text-sm); color: var(--ink-2); }
   .player .turn { margin-left: auto; font-family: var(--font-serif); font-style: italic; color: var(--accent); }
@@ -458,7 +463,7 @@
   .actions { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 28px; margin-top: 18px; }
   .actions .grp { display: flex; flex-wrap: wrap; gap: 2px 26px; }
 
-  .over { display: grid; gap: 28px; }
+  .over { --board: min(100cqw, 26rem); display: grid; gap: 28px; }
   .over > .over-board { order: 2; }
   .over-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 30px; margin-top: 32px; }
 
@@ -495,9 +500,9 @@
     .ctables .ctable + .ctable { margin-top: -1px; }
   }
   @media (width >= 48rem) {
-    .clock { font-size: var(--text-5xl); }
-    .player { gap: 12px; padding: 10px 0 12px; }
-    .player-bottom { padding: 14px 0 0; }
+    .play { --board: min(100cqw - 22px, 100dvh - 12rem); }
+    .over { --board: min(100cqw - 22px, 26rem); }
+    .player { gap: 12px; }
     .player .who { font-size: var(--text-xl); }
     .player .meta { font-size: var(--text-sm); }
     .acc { column-gap: 40px; }
@@ -507,7 +512,13 @@
     .ctables { grid-template-columns: 1fr 1fr; }
   }
   @media (width >= 64rem) {
-    .play { grid-template-columns: minmax(0, var(--board-col)) minmax(300px, 1fr); gap: 72px; }
+    /* The aside keeps 20rem; the board takes the rest of the width, or the screen height minus the chrome around it. */
+    .play {
+      --board: min(100cqw - 22px - 40px - 20rem, 100dvh - 11.25rem);
+      grid-template-columns: calc(var(--board) + 22px) minmax(20rem, 26rem);
+      justify-content: start;
+      gap: 40px;
+    }
     .play-sheet { max-height: calc(38px * 10.5 + 30px); }
     .play .play-sheet { margin-top: 28px; }
     .over { grid-template-columns: minmax(0, 440px) minmax(0, 1fr); gap: 72px; align-items: start; margin-top: 8px; }
@@ -515,9 +526,11 @@
     .summary { grid-template-columns: 260px 1fr; gap: 64px; margin-top: 56px; }
   }
 
-  .review { display: flex; flex-direction: column; margin-top: 20px; }
+  .review { --board: min(100cqw - 10px, 100dvh - 13rem); display: flex; flex-direction: column; }
   .rv-left, .rv-right { display: contents; }
-  .boardwrap { order: 1; display: grid; grid-template-columns: 12px minmax(0, 1fr); gap: 10px; }
+  .rv-head { order: 0; }
+  .boardwrap { order: 1; display: grid; grid-template-columns: 8px auto; justify-content: start; gap: 4px; margin: 20px 0 0 -16px; }
+  .boardwrap .diagram { margin-left: 0; grid-template-columns: 14px var(--board); }
   .rvnav { order: 2; }
   .rv-flip { order: 3; }
   .rv-right > .status { order: 4; margin-top: 22px; }
@@ -526,7 +539,7 @@
   .rv-graph { order: 7; margin-top: 26px; }
   .rv-sheet { order: 8; margin-top: 26px; }
 
-  .evalbar { position: relative; height: calc(100% - 1.25rem); border: 1px solid var(--frame); background: var(--bar-black); overflow: hidden; }
+  .evalbar { position: relative; height: calc(100% - 1rem); border: 1px solid var(--frame); background: var(--bar-black); overflow: hidden; }
   .evalbar > div { position: absolute; inset-inline: 0; background: var(--bar-white); transition: height 240ms ease; }
 
   .rvnav { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 14px; padding-left: 22px; }
@@ -575,11 +588,24 @@
 
   @media (width >= 48rem) {
     .annot .san { font-size: var(--text-6xl); }
+    .review { --board: min(100cqw - 44px, 100dvh - 12rem); }
+    .boardwrap { grid-template-columns: 12px auto; gap: 10px; margin-left: 0; }
+    .boardwrap .diagram { grid-template-columns: 1rem var(--board); column-gap: 6px; }
   }
   @media (width >= 64rem) {
-    .review { flex-direction: row; align-items: flex-start; gap: 64px; margin-top: 24px; }
-    .rv-left { display: block; flex: 0 1 600px; min-width: 0; }
-    .rv-right { display: block; flex: 1 1 340px; min-width: 0; }
+    .review {
+      --board: min(100cqw - 44px - 40px - 20rem, 100dvh - 11.25rem);
+      display: grid;
+      grid-template-columns: calc(var(--board) + 44px) minmax(20rem, 30rem);
+      grid-template-rows: auto 1fr;
+      justify-content: start;
+      align-items: start;
+      gap: 20px 40px;
+    }
+    .rv-head { grid-column: 2; grid-row: 1; }
+    .rv-left { display: block; grid-column: 1; grid-row: 1 / span 2; min-width: 0; }
+    .rv-right { display: block; grid-column: 2; grid-row: 2; min-width: 0; }
+    .boardwrap { margin-top: 0; }
     .rv-right > .status, .rv-right > .annot { margin-top: 0; }
     .rv-right > .status + .annot { margin-top: 22px; }
     .rv-graph { padding-left: 22px; }
@@ -624,6 +650,17 @@
 
   .advanced > summary { cursor: pointer; }
   .advanced > summary::marker { color: var(--ink-3); }
+
+  /* The board screens measure their board against the main column, through container units, and take a wider
+     page with less room under the masthead, so the board can have the height. */
+  .shell-main { container-type: inline-size; padding-block: 16px 56px; }
+  .page { max-width: var(--container-page); }
+  .shell:has(:is(.play, .over, .review)) .page { max-width: var(--container-wide); }
+  @media (width >= 48rem) {
+    .shell-main { padding-block: 28px 72px; }
+    .shell:has(:is(.play, .over, .review)) .shell-main { padding-top: 12px; }
+    .shell:has(.play) .shell-main { padding-bottom: 8px; }
+  }
 
   .dialog {
     width: min(420px, calc(100vw - 32px));

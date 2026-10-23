@@ -21,11 +21,11 @@ export function AppShell({ children }: { children: ReactNode }) {
     window.scrollTo(0, 0)
   }, [where])
   return (
-    <div className="min-h-dvh flex flex-col">
+    <div className="shell min-h-dvh flex flex-col">
       <a href="#conteudo" className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 btn">
         Ir para o conteúdo
       </a>
-      <header className="mx-auto w-full max-w-page px-4 md:px-10">
+      <header className="page mx-auto w-full px-4 md:px-10">
         <div className="mast">
           <a href="#/" className="wordmark">Lance</a>
           <nav aria-label="Principal" className="nav">
@@ -38,7 +38,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <ThemeToggle />
         </div>
       </header>
-      <main id="conteudo" className="mx-auto w-full max-w-page px-4 md:px-10 pt-4 pb-14 md:pt-7 md:pb-18 flex-1">
+      <main id="conteudo" className="page shell-main mx-auto w-full px-4 md:px-10 flex-1">
         {children}
       </main>
     </div>

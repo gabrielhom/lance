@@ -144,7 +144,8 @@ function Review({ game, startPly }: { game: Game; startPly: number }) {
 
   return (
     <div>
-      <header>
+      <div className="review">
+      <header className="rv-head">
         <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
           <h1 className="display text-2xl md:text-4xl">{player('w')} – {player('b')}</h1>
           <span className="num text-xl md:text-2xl text-ink-2">{resultLabel(game.result)}</span>
@@ -156,7 +157,6 @@ function Review({ game, startPly }: { game: Game; startPly: number }) {
         </p>
         {review && <ReviewStrip review={review} me={myColor} />}
       </header>
-      <div className="review">
         <div className="rv-left">
           <div className="boardwrap">
             <EvalBar whiteWin={whiteWin ?? null} label={evalLabel} orientation={orientation} />
