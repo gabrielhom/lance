@@ -22,7 +22,7 @@ export interface Session {
 }
 
 /** Silence means a hung engine: a live Stockfish prints at least every few seconds while it searches. */
-export const TIMEOUTS = { silenceMs: 30_000, stopMs: 10_000 }
+export const TIMEOUTS = { silenceMs: 60_000, stopMs: 10_000 }
 
 type Pending<T> = { readonly resolve: (value: T) => void; readonly reject: (error: unknown) => void }
 type State =
