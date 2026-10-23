@@ -4,7 +4,8 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
 import type { Color, Square } from '../../domain/types'
 import type { PlayPosition } from '../../play'
-import { BOARD_STYLE } from '../boardStyle'
+import { BOARD_STYLE, tint } from '../boardStyle'
+import { Diagram } from '../Diagram'
 
 const REDUCED_MOTION = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
 const PROMOTIONS = [
@@ -73,12 +74,12 @@ export function PlayBoard({ position, orientation, interactive, onMove }: Props)
   const highlight = useMemo(() => {
     const s: Record<string, string[]> = {}
     const add = (sq: string, layer: string) => (s[sq] ??= []).push(layer)
-    if (position.check) add(position.kingSquare, 'radial-gradient(circle, rgba(255,40,40,0.95) 0%, rgba(230,0,0,0.55) 40%, rgba(170,0,0,0) 72%)')
+    if (position.check) add(position.kingSquare, 'radial-gradient(circle, var(--hl-check) 0%, transparent 70%)')
+    if (active) add(active, tint('var(--hl-sel)'))
     if (position.lastMove) {
-      add(position.lastMove.from, 'linear-gradient(var(--board-last), var(--board-last))')
-      add(position.lastMove.to, 'linear-gradient(var(--board-last), var(--board-last))')
+      add(position.lastMove.from, tint('var(--hl)'))
+      add(position.lastMove.to, tint('var(--hl)'))
     }
-    if (active) add(active, 'linear-gradient(var(--board-selected), var(--board-selected))')
     return s
   }, [position, active])
   const targetSet = new Set(targets.map((t) => t.to))
@@ -95,8 +96,8 @@ export function PlayBoard({ position, orientation, interactive, onMove }: Props)
   }
 
   return (
-    <div className="relative w-full select-none" style={{ touchAction: 'manipulation' }}>
-      <div ref={boardRef} aria-hidden>
+    <Diagram orientation={orientation}>
+      <div ref={boardRef} className="select-none" style={{ touchAction: 'manipulation' }} aria-hidden>
         <Chessboard
           options={{
             ...BOARD_STYLE,
@@ -115,7 +116,7 @@ export function PlayBoard({ position, orientation, interactive, onMove }: Props)
             onPieceDrop: ({ sourceSquare, targetSquare }: PieceDropHandlerArgs) =>
               !!targetSquare && latest.current.interactive && latest.current.attempt(sourceSquare as Square, targetSquare as Square),
             onSquareClick,
-            dropSquareStyle: { boxShadow: 'inset 0 0 0 4px rgba(255,255,255,0.65)' },
+            dropSquareStyle: { boxShadow: 'inset 0 0 0 3px var(--accent)' },
             squareRenderer,
           }}
         />
@@ -132,7 +133,7 @@ export function PlayBoard({ position, orientation, interactive, onMove }: Props)
           onCancel={() => setPromotion(null)}
         />
       )}
-    </div>
+    </Diagram>
   )
 }
 
@@ -144,8 +145,7 @@ function PromotionPicker({ to, color, orientation, onPick, onCancel }: { to: Squ
   const fromTop = (color === 'w') === (orientation === 'w')
   return (
     <div
-      className="absolute inset-0 z-20 rounded-[8px]"
-      style={{ background: 'rgba(0,0,0,0.45)' }}
+      className="promo"
       role="dialog"
       aria-modal="true"
       aria-label="Promover o peão para"
@@ -170,7 +170,7 @@ function PromotionPicker({ to, color, orientation, onPick, onCancel }: { to: Squ
           )
         })}
       </div>
-      <button type="button" className="sr-only focus:not-sr-only focus:absolute focus:bottom-2 focus:left-1/2 focus:-translate-x-1/2 btn btn-sm" onClick={onCancel}>
+      <button type="button" className="sr-only focus:not-sr-only focus:absolute focus:bottom-2 focus:left-1/2 focus:-translate-x-1/2 tl bg-paper px-3" onClick={onCancel}>
         Cancelar
       </button>
     </div>

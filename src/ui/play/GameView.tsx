@@ -9,8 +9,9 @@ import { engineFailureText } from '../labels'
 import { useServices, useSettings } from '../services'
 import { ConfirmDialog } from './ConfirmDialog'
 import { GameOver } from './GameOver'
-import { MoveInput } from './MoveInput'
-import { MoveStrip } from './MoveStrip'
+import { useMoveEntry } from './MoveInput'
+import { Scoresheet } from '../Scoresheet'
+import { San } from '../san'
 import { seats } from './names'
 import { resultTitle } from './result'
 import { PlayBoard } from './PlayBoard'
@@ -120,12 +121,13 @@ export function GameView({ state, setPlay, onNew }: { state: PlayState; setPlay:
   }
   const bar = (c: Color) => <PlayerBar seat={seat[c]} color={c} toMove={playing && position.turn === c} status={status(c)} lead={lead(c)} clock={clock(c)} />
   const lastSan = position.sans.at(-1)
+  const entryAt = vsEngine && !myTurn ? position.sans.length + 1 : position.sans.length
+  const entry = useMoveEntry({ fen: position.fen, disabled: !myTurn, placeholder: vsEngine ? 'seu lance' : 'lance', onMove: move })
   const failure = engine.failed === null ? null : failureText(engine.failed)
 
   return (
     <div className="-mx-4 -mt-3 sm:mx-0 sm:mt-0 lg:grid lg:grid-cols-[auto_minmax(320px,380px)] lg:gap-6 lg:justify-center lg:items-start" onPointerDown={unlockAudio}>
       <div className="flex flex-col w-full max-w-[calc(100dvh-250px)] mx-auto lg:mx-0 lg:max-w-none lg:w-[min(760px,calc(100dvh-210px))]">
-        <MoveStrip sans={position.sans} className="lg:hidden" />
         {bar(other(bottom))}
         <PlayBoard position={position} orientation={bottom} interactive={myTurn} onMove={move} />
         {bar(bottom)}
@@ -166,10 +168,15 @@ export function GameView({ state, setPlay, onNew }: { state: PlayState; setPlay:
             </button>
           </div>
         )}
-        <section className="hidden lg:block" aria-label="Lances">
-          <MoveStrip sans={position.sans} layout="table" />
-        </section>
-        {playing && <MoveInput fen={position.fen} disabled={!myTurn} onMove={move} />}
+        <Scoresheet
+          label="Lances da partida"
+          count={position.sans.length}
+          move={(i) => <span className="mv" aria-current={i === position.sans.length - 1 ? 'true' : undefined}><San san={position.sans[i]} /></span>}
+          extra={playing ? { [entryAt]: entry.field, ...(entryAt > position.sans.length ? { [position.sans.length]: <span className="waiting" aria-hidden>…</span> } : null) } : undefined}
+          focus={playing ? entryAt : position.sans.length - 1}
+          minRows={10}
+        />
+        {playing && entry.error}
         <p className="sr-only" aria-live="polite">
           {lastSan ? `${state.moves.length % 2 === 1 ? 'Brancas' : 'Pretas'} jogaram ${lastSan}.` : ''}
           {engine.thinking ? ' Stockfish está pensando.' : ''}
