@@ -2,6 +2,7 @@ import { gameFromPgn, type Evaluator, type Services, type Settings } from '../do
 import { createEvaluator, probeBridge, runtimeEnv } from '../engine'
 import { fetchRecentGames, parsePgnText } from '../import'
 import { loadBook } from '../openings'
+import { loadPlay, savePlay } from '../play'
 import { accuracyHistory, reviewGame } from '../review'
 import { loadSettings, openStore, saveSettings } from '../storage'
 
@@ -37,7 +38,7 @@ export async function createServices(): Promise<Services> {
     accuracyHistory,
     probeBridge,
     engineMove: () => Promise.reject(new Error('not wired yet')),
-    loadPlay: () => null,
-    savePlay: () => {},
+    loadPlay,
+    savePlay,
   }
 }
