@@ -26,7 +26,8 @@ async function playMoves(page: Page, count: number) {
     const legal = board.moves()
     await page.getByLabel('Digitar um lance').fill(legal[n % legal.length])
     await page.getByLabel('Digitar um lance').press('Enter')
-    await expect.poll(() => moves.count()).toBeGreaterThan(board.history().length)
+    // A move that ends the game swaps the scoresheet for the result, so the game ending also counts as the move landing.
+    await expect.poll(async () => (await over.isVisible()) || (await moves.count()) > board.history().length).toBe(true)
   }
 }
 
