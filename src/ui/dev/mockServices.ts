@@ -443,6 +443,9 @@ export function createMockServices(): Services {
   }
 
   return {
+    engineMove: () => Promise.reject(new Error('not mocked yet')),
+    loadPlay: () => null,
+    savePlay: () => {},
     loadSettings,
     saveSettings(s) {
       localStorage.setItem(SETTINGS_KEY, JSON.stringify(s))

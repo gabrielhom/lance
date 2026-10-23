@@ -36,5 +36,8 @@ export async function createServices(): Promise<Services> {
     },
     accuracyHistory,
     probeBridge,
+    engineMove: () => Promise.reject(new Error('not wired yet')),
+    loadPlay: () => null,
+    savePlay: () => {},
   }
 }

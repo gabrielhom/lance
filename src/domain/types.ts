@@ -269,4 +269,64 @@ export interface Services {
   reviewGame(game: Game, signal: AbortSignal): AsyncIterable<ReviewState>
   accuracyHistory(records: readonly LibraryRecord[], identity: Identity): readonly AccuracyPoint[]
   probeBridge(url: string, signal: AbortSignal): Promise<Result<readonly BridgeEngine[], BridgeProbeError>>
+  /** Uses the engine from the current settings. */
+  engineMove(input: EngineInput, level: PlayLevel, signal: AbortSignal): Promise<Uci>
+  /** The game in progress survives a reload. null clears it. */
+  loadPlay(): PlayState | null
+  savePlay(state: PlayState | null): void
 }
+
+/** How strong the engine plays. Engines without UCI_Elo fall back to Skill Level, and without both play at full strength. */
+export type Strength =
+  | { readonly kind: 'skill'; readonly level: number }
+  | { readonly kind: 'elo'; readonly elo: number }
+  | { readonly kind: 'max' }
+export type PlayLevel = {
+  readonly id: number
+  readonly name: string
+  /** Approximate rating shown to the player, e.g. '~1500'. */
+  readonly rating: string
+  readonly strength: Strength
+  readonly movetimeMs: number
+}
+/** Picks moves for play. Separate workers from the Evaluator, MultiPV 1, never cached. Rejects like Evaluator. */
+export interface MovePicker {
+  pick(input: EngineInput, level: PlayLevel, signal: AbortSignal): Promise<Uci>
+  dispose(): void
+}
+
+export type TimeControl =
+  | { readonly kind: 'none' }
+  | { readonly kind: 'clock'; readonly initialMs: number; readonly incrementMs: number }
+export type Opponent = { readonly kind: 'engine'; readonly levelId: number } | { readonly kind: 'local' }
+export type PlaySetup = {
+  readonly opponent: Opponent
+  /** The side at the bottom of the board. Against the engine it is the player's side. */
+  readonly you: Color
+  readonly time: TimeControl
+}
+export type Termination =
+  | 'checkmate' | 'stalemate' | 'repetition' | 'fifty-move' | 'insufficient-material' | 'resignation' | 'timeout'
+/** Clock times are remaining ms when the side to move started thinking; `turnStartedAt` is a Date.now() stamp. */
+type PlayBase = {
+  readonly id: string
+  readonly setup: PlaySetup
+  readonly startedAt: number
+  readonly moves: readonly Uci[]
+  readonly clocks: ByColor<number> | null
+}
+export type PlayState =
+  | (PlayBase & { readonly phase: 'playing'; readonly turnStartedAt: number })
+  | (PlayBase & {
+      readonly phase: 'over'
+      readonly endedAt: number
+      readonly result: Exclude<GameResult, '*'>
+      readonly termination: Termination
+    })
+export type PlayEvent =
+  | { readonly kind: 'move'; readonly uci: Uci; readonly at: number }
+  | { readonly kind: 'resign'; readonly by: Color; readonly at: number }
+  /** Sent by the UI timer; the reducer ends the game only if the side to move really ran out. */
+  | { readonly kind: 'flag'; readonly at: number }
+  /** Undoes the player's last move and the engine's reply. Only while playing and only against the engine. */
+  | { readonly kind: 'takeback'; readonly at: number }
