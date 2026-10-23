@@ -11,9 +11,11 @@ export type PvInfo = {
   readonly bound: Bound
   readonly pv: NonEmpty<Uci>
 }
+/** An option the engine advertises. `min` and `max` bound a spin option. */
+export type UciOption = { readonly name: string; readonly default: string | null; readonly min: number | null; readonly max: number | null }
 export type UciMessage =
   | { readonly kind: 'id-name'; readonly name: string }
-  | { readonly kind: 'option'; readonly name: string; readonly default: string | null }
+  | ({ readonly kind: 'option' } & UciOption)
   | { readonly kind: 'uciok' }
   | { readonly kind: 'readyok' }
   | PvInfo
@@ -48,11 +50,13 @@ export function parseUciLine(line: string): UciMessage {
 function parseOption(tokens: readonly string[]): UciMessage {
   const type = tokens.indexOf('type')
   if (tokens[1] !== 'name' || type < 3) return IGNORED
-  const name = tokens.slice(2, type).join(' ')
-  const at = tokens.indexOf('default', type)
-  if (at < 0) return { kind: 'option', name, default: null }
-  const end = tokens.findIndex((t, i) => i > at && OPTION_FIELDS.has(t))
-  return { kind: 'option', name, default: tokens.slice(at + 1, end < 0 ? undefined : end).join(' ') }
+  const field = (key: string) => {
+    const at = tokens.indexOf(key, type)
+    if (at < 0) return null
+    const end = tokens.findIndex((t, i) => i > at && OPTION_FIELDS.has(t))
+    return tokens.slice(at + 1, end < 0 ? undefined : end).join(' ')
+  }
+  return { kind: 'option', name: tokens.slice(2, type).join(' '), default: field('default'), min: int(field('min') ?? undefined), max: int(field('max') ?? undefined) }
 }
 
 function parseInfo(tokens: readonly string[]): UciMessage {
@@ -151,6 +155,8 @@ export function lineCollector(turn: Color) {
     },
   }
 }
+
+export type LineCollector = ReturnType<typeof lineCollector>
 
 export function positionCommand(input: EngineInput): string {
   return `position fen ${input.root}${input.tail.length > 0 ? ` moves ${input.tail.join(' ')}` : ''}`

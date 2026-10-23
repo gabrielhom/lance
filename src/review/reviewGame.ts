@@ -24,6 +24,10 @@ export type ReviewDeps = {
   readonly library: Library
 }
 
+/** Search time grows about 1.5 times per depth (lite-single near depth 18, measured), so a search that reached depth d
+ *  of D has done about 1.5^(d-D) of its work. Counting depths linearly put the bar near the end long before it was. */
+const DEPTH_COST = 1.5
+
 type Event =
   | { readonly kind: 'progress'; readonly p: PlayablePosition; readonly e: EvalProgress }
   | { readonly kind: 'evaluated'; readonly p: PlayablePosition; readonly eval: SearchedEval }
@@ -57,15 +61,18 @@ export async function* reviewGame(game: Game, deps: ReviewDeps, signal: AbortSig
   signal.addEventListener('abort', onAbort, { once: true })
 
   const fraction = (job: { depth: number; since: number }) =>
-    limit.kind === 'depth' ? job.depth / limit.depth : (Date.now() - job.since) / limit.ms
+    limit.kind === 'depth' ? DEPTH_COST ** (job.depth - limit.depth) : (Date.now() - job.since) / limit.ms
+  // Never moves back: a retried search starts over at depth 1, and the sum shifts by rounding as searches finish.
+  let shown = 0
   const analyzing = (): ReviewState => {
     let partial = 0
     for (const job of searching.values()) partial += Math.min(1, fraction(job))
+    shown = Math.max(shown, Math.min(1, (found.size + partial) / playable.length))
     return {
       phase: 'analyzing',
       done: found.size,
       total: playable.length,
-      progress: Math.min(1, (found.size + partial) / playable.length),
+      progress: shown,
       engine,
       series: [...series],
     }

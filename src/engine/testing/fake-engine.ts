@@ -13,10 +13,14 @@ export type FakeEngine = LineTransport & {
 /**
  * Answers like the recorded engine: its handshake on `uci`, `readyok` on `isready`, and the recorded search for the
  * last recorded position on `go`. `hold` leaves every search line, bestmove included, to the test.
- * `crashOnGo` closes the pipe instead of searching, `silent` never answers anything.
+ * `crashOnGo` closes the pipe instead of searching, `silent` never answers anything. `without` drops options from the handshake.
  */
-export function fakeEngine(recorded: Recorded = 'lite', opts: { hold?: boolean; crashOnGo?: boolean; silent?: boolean } = {}): FakeEngine {
-  const { handshake, scenarios } = transcripts[recorded]
+export function fakeEngine(
+  recorded: Recorded = 'lite',
+  opts: { hold?: boolean; crashOnGo?: boolean; silent?: boolean; without?: readonly string[] } = {},
+): FakeEngine {
+  const { scenarios } = transcripts[recorded]
+  const handshake = transcripts[recorded].handshake.filter((line) => !opts.without?.some((name) => line.startsWith(`option name ${name} type `)))
   const sent: string[] = []
   let on: (e: TransportEvent) => void = () => {}
   let closed = false

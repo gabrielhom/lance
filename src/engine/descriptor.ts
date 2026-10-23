@@ -1,4 +1,5 @@
 import { WASM_FLAVORS, type EngineDescriptor, type EngineId, type EngineTuning, type Result, type RuntimeEnv } from '../domain/types'
+import type { Expected } from './session'
 
 export function runtimeEnv(): RuntimeEnv {
   return {
@@ -10,6 +11,10 @@ export function runtimeEnv(): RuntimeEnv {
 /** Static, so a cache lookup never needs a live engine. The session checks the live engine against it. */
 export function engineId(d: EngineDescriptor): EngineId {
   return (d.kind === 'wasm' ? `sf19/${WASM_FLAVORS[d.flavor].net}` : `uci/${d.idName}`) as EngineId
+}
+
+export function expectedFor(d: EngineDescriptor): Expected {
+  return d.kind === 'wasm' ? { kind: 'eval-file', evalFile: `${WASM_FLAVORS[d.flavor].net}.nnue` } : { kind: 'id-name', idName: d.idName }
 }
 
 export function availability(d: EngineDescriptor, env: RuntimeEnv): Result<void, 'needs-cross-origin-isolation'> {
