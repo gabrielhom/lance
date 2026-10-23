@@ -18,8 +18,9 @@ import {
   type San,
   type Uci,
   type WinPct,
+  type OpeningBook,
 } from '../domain'
-import { bookPrefix, type Book } from '../openings'
+import { bookPrefix } from '../openings'
 import { gameAccuracy, moveAccuracy, winPct } from './accuracy'
 import { CLASSIFIER_VERSION, classify, moveFacts } from './classify'
 import type { CompleteEvals } from './evals'
@@ -27,7 +28,7 @@ import type { CompleteEvals } from './evals'
 const KEY_MOMENTS = { limit: 5, turningSwing: 15 } as const
 const NOTABLE: ReadonlySet<Classification> = new Set(['brilliant', 'great', 'miss', 'mistake', 'blunder'])
 
-export function buildReview(game: Game, evals: CompleteEvals, book: Book, who: Perspective, profile: AnalysisProfile): GameReview {
+export function buildReview(game: Game, evals: CompleteEvals, book: OpeningBook, who: Perspective, profile: AnalysisProfile): GameReview {
   const shown = bookPrefix(book, game.moves.map((m) => m.after.fen))
   const moves: MoveReview[] = []
   let prev: { move: PlayedMove; loss: number } | null = null

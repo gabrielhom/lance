@@ -12,8 +12,9 @@ import {
   type Score,
   type SearchedEval,
   type Uci,
+  type OpeningBook,
 } from '../domain'
-import { bookFrom, loadBook, type Book } from '../openings'
+import { bookFrom, loadBook } from '../openings'
 import { buildReview, completeEvals, isSacrifice } from '.'
 
 const PROFILE: AnalysisProfile = { engine: 'sf19/nn-61e7af4bb97d' as EngineId, limit: { kind: 'depth', depth: 18 } }
@@ -33,7 +34,7 @@ function parse(pgn: string): Game {
 }
 
 /** Every position defaults to an even eval whose line 1 is the move actually played. */
-function review(pgn: string, evals: Readonly<Record<number, SearchedEval>>, book: Book = NO_BOOK) {
+function review(pgn: string, evals: Readonly<Record<number, SearchedEval>>, book: OpeningBook = NO_BOOK) {
   const game = parse(pgn)
   const found = new Map<PositionKey, SearchedEval>()
   for (const p of game.positions) {
@@ -46,7 +47,7 @@ function review(pgn: string, evals: Readonly<Record<number, SearchedEval>>, book
   return buildReview(game, complete.value, book, { kind: 'spectator' }, PROFILE)
 }
 
-const labelOf = (pgn: string, index: number, evals: Readonly<Record<number, SearchedEval>>, book?: Book) =>
+const labelOf = (pgn: string, index: number, evals: Readonly<Record<number, SearchedEval>>, book?: OpeningBook) =>
   review(pgn, evals, book).moves[index].classification
 
 describe('rule 1: book', () => {

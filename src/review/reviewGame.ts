@@ -13,12 +13,12 @@ import {
   type ReviewState,
   type SearchedEval,
   type WinPct,
+  type OpeningBook,
 } from '../domain'
-import type { Book } from '../openings'
 
 export type ReviewDeps = {
   readonly evaluator: Evaluator
-  readonly book: Book
+  readonly book: OpeningBook
   readonly identity: Identity
   readonly library: Library
 }

@@ -12,8 +12,9 @@ import {
   type Score,
   type SearchedEval,
   type Uci,
+  type OpeningBook,
 } from '../domain'
-import { bookFrom, loadBook, type Book } from '../openings'
+import { bookFrom, loadBook } from '../openings'
 import { buildReview, CLASSIFIER_VERSION, completeEvals, pvSan } from '.'
 
 const PROFILE: AnalysisProfile = { engine: 'sf19/nn-61e7af4bb97d' as EngineId, limit: { kind: 'depth', depth: 18 } }
@@ -30,7 +31,7 @@ function parse(pgn: string): Game {
   return r.value
 }
 
-function review(pgn: string, evals: Readonly<Record<number, SearchedEval>> = {}, book: Book = bookFrom({})) {
+function review(pgn: string, evals: Readonly<Record<number, SearchedEval>> = {}, book: OpeningBook = bookFrom({})) {
   const game = parse(pgn)
   const found = new Map<PositionKey, SearchedEval>()
   for (const p of game.positions) {

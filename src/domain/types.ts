@@ -133,7 +133,9 @@ export type GameReview = {
   readonly opening: Opening | null
 }
 
+/** `lookup` answers only for named positions. `has` also knows the unnamed positions between them. */
 export interface OpeningBook {
+  has(fen: Fen): boolean
   lookup(fen: Fen): Opening | null
 }
 

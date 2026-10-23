@@ -1,18 +1,13 @@
 import type { Fen, Opening, OpeningBook } from '../domain'
 
-/** `lookup` answers only for named positions. `has` also knows the unnamed positions between them. */
-export interface Book extends OpeningBook {
-  has(fen: Fen): boolean
-}
-
 type Table = Readonly<Partial<Record<string, readonly string[] | null>>>
 
-export async function loadBook(): Promise<Book> {
+export async function loadBook(): Promise<OpeningBook> {
   const { default: table } = await import('./openings.json')
   return bookFrom(table)
 }
 
-export function bookFrom(table: Table): Book {
+export function bookFrom(table: Table): OpeningBook {
   const entry = (fen: Fen) => table[fen.split(' ').slice(0, 4).join(' ')]
   return {
     has: (fen) => entry(fen) !== undefined,
@@ -25,7 +20,7 @@ export function bookFrom(table: Table): Book {
 
 /** The opening shown after each book move, so its length is the number of book moves. Book is a contiguous
  *  prefix: returning to theory after leaving it does not count. An unnamed position shows its latest named ancestor. */
-export function bookPrefix(book: Book, after: readonly Fen[]): readonly (Opening | null)[] {
+export function bookPrefix(book: OpeningBook, after: readonly Fen[]): readonly (Opening | null)[] {
   const shown: (Opening | null)[] = []
   let named: Opening | null = null
   for (const fen of after) {
