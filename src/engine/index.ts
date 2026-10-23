@@ -1,0 +1,4 @@
+export { probeBridge } from './bridge'
+export { availability, effectiveTuning, engineId, runtimeEnv } from './descriptor'
+export { createEvaluator } from './evaluator'
+export { abortError, EngineFailure } from './failure'
