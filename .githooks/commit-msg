@@ -1,0 +1,17 @@
+#!/usr/bin/env node
+// Same rules as the unvibe guard. The user is the only author of every commit.
+import { readFileSync } from 'node:fs'
+
+const rules = [
+  [/co-authored-by:/i, 'Co-Authored-By trailer'],
+  [/generated (with|by) .{0,40}(claude|codex|copilot|cursor|gpt|gemini|\bai\b)/i, "'Generated with' line"],
+  [/\u{1F916}/u, 'robot emoji'],
+  [/noreply@anthropic\.com|noreply@openai\.com/i, 'AI author email'],
+  [/—|&mdash;/i, 'em dash'],
+]
+const text = readFileSync(process.argv[2], 'utf8')
+const found = rules.filter(([rx]) => rx.test(text)).map(([, name]) => name)
+if (found.length) {
+  console.error(`unvibe: remove ${found.join(', ')} from the commit message.`)
+  process.exit(1)
+}
