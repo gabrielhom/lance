@@ -1,6 +1,14 @@
 # Lance
 
-Revisão de partidas de xadrez no navegador. Você cola um PGN ou busca suas partidas no Lichess ou no Chess.com, e o Stockfish 19 analisa cada posição. O app mostra sua precisão, classifica cada lance (brilhante, ótimo, melhor, excelente, bom, teoria, imprecisão, erro, blunder, chance perdida) e diz qual era o melhor lance e a melhor sequência. As revisões ficam salvas no navegador e o histórico mostra sua precisão ao longo do tempo.
+Xadrez no navegador contra o Stockfish 19, com revisão de cada partida no fim. Você joga, e o app mostra sua precisão, classifica cada lance (brilhante, ótimo, melhor, excelente, bom, teoria, imprecisão, erro, blunder, chance perdida) e diz qual era o melhor lance e a melhor sequência. Também revisa partidas de fora, coladas como PGN ou buscadas no Lichess e no Chess.com. As revisões ficam salvas no navegador e o histórico mostra sua precisão ao longo do tempo.
+
+## Jogar
+
+- **Contra a engine.** Dez níveis, de Iniciante a Máximo. Os dois mais fracos usam o Skill Level do Stockfish e não têm rating calibrado. Do Clube (~1400) ao Elite (~3190) o nível fixa o `UCI_Elo`. O Máximo joga com força total. Você escolhe brancas, pretas ou aleatório e pode desfazer o último lance.
+- **Relógio.** Sem relógio, 3+2, 5+0, 10+0, 15+10 ou 30+0. Quem fica sem tempo perde. Se o outro lado não tiver material para dar mate, é empate.
+- **Dois jogadores neste aparelho.** Sem engine. Vocês passam o aparelho a cada lance, e a revisão conta como sua o lado que estava embaixo no tabuleiro.
+
+A partida em andamento sobrevive a um recarregamento, com os relógios onde estavam. No fim, a revisão começa sozinha e mostra a precisão dos dois lados. Ela continua rodando se você pedir revanche ou começar outra partida, e a partida vai para a biblioteca e para o histórico quando a revisão termina. Partidas jogadas aqui contam como suas sem nenhuma conta configurada.
 
 ## Rodar
 
@@ -9,7 +17,7 @@ npm install
 npm run dev
 ```
 
-O `npm install` copia o Stockfish 19 (WASM) para `public/engine`. Abra http://localhost:5173 e, em Configurações, informe seus usuários do Lichess e do Chess.com para o app saber de que lado você jogou.
+O `npm install` copia o Stockfish 19 (WASM) para `public/engine`. Abra http://localhost:5173 e jogue. Para revisar partidas do Lichess, do Chess.com ou de um PGN, informe seus usuários em Configurações para o app saber de que lado você jogou nelas.
 
 ## Engines
 
@@ -24,6 +32,8 @@ O `npm install` copia o Stockfish 19 (WASM) para `public/engine`. Abra http://lo
   A ponte só escuta em 127.0.0.1, só aceita páginas das origens permitidas (`--origin` acrescenta outras) e só roda os executáveis passados na linha de comando. Em Configurações, escolha "Engine local", informe `http://127.0.0.1:7777` e clique em Testar.
 
   O Stockfish nativo é bem mais rápido que o WASM. Os binários oficiais estão em https://github.com/official-stockfish/Stockfish/releases.
+
+A mesma engine escolhida em Configurações joga e revisa. Para jogar ela roda em workers separados dos da análise.
 
 Cada avaliação fica em cache no IndexedDB, por engine, profundidade e posição. Reabrir uma partida já revisada não liga a engine.
 
@@ -60,6 +70,7 @@ O e2e usa a engine nativa em `engines/stockfish-19` para testar a ponte e pula e
 - `src/engine`: protocolo UCI, workers, pool e a conexão com a ponte.
 - `src/storage`: IndexedDB e configurações.
 - `src/import`: PGN, Lichess e Chess.com.
-- `src/review`: orquestra a análise de uma partida.
+- `src/play`: as regras da partida jogada aqui, relógios, níveis, PGN e a partida em andamento salva.
+- `src/review`: orquestra a análise de uma partida e o histórico de precisão.
 - `src/ui`: a interface em React.
 - `bridge/server.mjs`: a ponte para engines nativas.
