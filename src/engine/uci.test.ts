@@ -26,15 +26,16 @@ describe('parseUciLine on recorded Stockfish 19 output', () => {
   ] as const)('reads the %s handshake: id name, the EvalFile net, uciok', (recorded, idName, evalFile) => {
     const messages = TRANSCRIPTS[recorded].handshake.map(parseUciLine)
     expect(messages).toContainEqual({ kind: 'id-name', name: idName })
-    expect(messages).toContainEqual({ kind: 'option', name: 'EvalFile', default: evalFile })
-    expect(messages).toContainEqual({ kind: 'option', name: 'MultiPV', default: '1' })
+    expect(messages).toContainEqual({ kind: 'option', name: 'EvalFile', default: evalFile, min: null, max: null })
+    expect(messages).toContainEqual({ kind: 'option', name: 'MultiPV', default: '1', min: 1, max: 256 })
+    expect(messages).toContainEqual({ kind: 'option', name: 'UCI_Elo', default: '1320', min: 1320, max: 3190 })
     expect(messages.at(-1)).toEqual({ kind: 'uciok' })
   })
 
-  it('reads option names with spaces and options without a default', () => {
-    expect(parseUciLine('option name Clear Hash type button')).toEqual({ kind: 'option', name: 'Clear Hash', default: null })
-    expect(parseUciLine('option name Debug Log File type string default <empty>')).toEqual({ kind: 'option', name: 'Debug Log File', default: '<empty>' })
-    expect(parseUciLine('option name Hash type spin default 16 min 1 max 33554432')).toEqual({ kind: 'option', name: 'Hash', default: '16' })
+  it('reads option names with spaces, options without a default, and the bounds of a spin', () => {
+    expect(parseUciLine('option name Clear Hash type button')).toEqual({ kind: 'option', name: 'Clear Hash', default: null, min: null, max: null })
+    expect(parseUciLine('option name Debug Log File type string default <empty>')).toEqual({ kind: 'option', name: 'Debug Log File', default: '<empty>', min: null, max: null })
+    expect(parseUciLine('option name Skill Level type spin default 20 min 0 max 20')).toEqual({ kind: 'option', name: 'Skill Level', default: '20', min: 0, max: 20 })
   })
 
   it('reads a native pv line with seldepth, nodes, tbhits and the side-to-move score', () => {
