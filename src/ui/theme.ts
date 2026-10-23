@@ -1,7 +1,6 @@
 import { useSyncExternalStore } from 'react'
 
 export type Theme = 'system' | 'light' | 'dark'
-const THEMES: readonly Theme[] = ['system', 'light', 'dark']
 const KEY = 'lance.theme'
 const listeners = new Set<() => void>()
 
@@ -29,10 +28,6 @@ export function setTheme(theme: Theme) {
   }
   apply(theme)
   for (const l of listeners) l()
-}
-
-export function nextTheme(t: Theme): Theme {
-  return THEMES[(THEMES.indexOf(t) + 1) % THEMES.length]
 }
 
 export function useTheme(): Theme {

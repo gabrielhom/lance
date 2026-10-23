@@ -2,8 +2,8 @@ import { useEffect } from 'react'
 import type { ReactNode } from 'react'
 import { href, useRoute } from '../router'
 import type { Route } from '../router'
-import { nextTheme, setTheme, useTheme } from '../theme'
-import type { Theme } from '../theme'
+import { setTheme, useTheme } from '../theme'
+import { useMediaQuery } from '../useMediaQuery'
 
 const NAV: readonly { route: Route; label: string }[] = [
   { route: { name: 'play' }, label: 'Jogar' },
@@ -12,11 +12,8 @@ const NAV: readonly { route: Route; label: string }[] = [
   { route: { name: 'settings' }, label: 'Configurações' },
 ]
 
-const THEME_LABEL: Readonly<Record<Theme, string>> = { system: 'Tema: automático', light: 'Tema: claro', dark: 'Tema: escuro' }
-
 export function AppShell({ children }: { children: ReactNode }) {
   const route = useRoute()
-  const theme = useTheme()
   const current = route.name === 'review' ? 'import' : route.name
   // Hash routing keeps the scroll offset of the previous screen, which lands a new screen mid-page.
   const where = route.name === 'review' ? `review:${route.id}` : route.name
@@ -25,29 +22,41 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, [where])
   return (
     <div className="min-h-dvh flex flex-col">
-      <a href="#conteudo" className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 btn btn-primary">
+      <a href="#conteudo" className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 btn">
         Ir para o conteúdo
       </a>
-      <header className="border-b border-border">
-        <div className="mx-auto flex flex-wrap max-w-[1400px] items-center gap-2 px-4 min-h-14">
-          <a href="#/" className="font-semibold text-[17px] text-ink mr-2">
-            Lance
-          </a>
-          <nav aria-label="Principal" className="flex flex-wrap items-center gap-1">
+      <header className="mx-auto w-full max-w-page px-4 md:px-10">
+        <div className="mast">
+          <a href="#/" className="wordmark">Lance</a>
+          <nav aria-label="Principal" className="nav">
             {NAV.map(({ route: r, label }) => (
-              <a key={r.name} href={href(r)} className="nav-link" aria-current={current === r.name ? 'page' : undefined}>
+              <a key={r.name} href={href(r)} aria-current={current === r.name ? 'page' : undefined}>
                 {label}
               </a>
             ))}
           </nav>
-          <button type="button" className="btn btn-ghost ml-auto" onClick={() => setTheme(nextTheme(theme))}>
-            {THEME_LABEL[theme]}
-          </button>
+          <ThemeToggle />
         </div>
       </header>
-      <main id="conteudo" className="mx-auto w-full max-w-[1400px] px-4 py-6 flex-1">
+      <main id="conteudo" className="mx-auto w-full max-w-page px-4 md:px-10 pt-4 pb-14 md:pt-7 md:pb-18 flex-1">
         {children}
       </main>
     </div>
+  )
+}
+
+/** Flips what is on screen. Landing back on the system's own choice clears the override, so the app follows the system again. */
+function ThemeToggle() {
+  const theme = useTheme()
+  const systemDark = useMediaQuery('(prefers-color-scheme: dark)')
+  const dark = theme === 'dark' || (theme === 'system' && systemDark)
+  const toggle = () => {
+    const next = dark ? 'light' : 'dark'
+    setTheme(next === (systemDark ? 'dark' : 'light') ? 'system' : next)
+  }
+  return (
+    <button type="button" className="theme-toggle" onClick={toggle}>
+      {dark ? 'Tema claro' : 'Tema escuro'}
+    </button>
   )
 }
