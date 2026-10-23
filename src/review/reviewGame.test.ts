@@ -4,6 +4,7 @@ import {
   gameFromPgn,
   type AnalysisProfile,
   type EngineId,
+  type EvalProgress,
   type Evaluator,
   type Game,
   type GameReview,
@@ -61,6 +62,25 @@ function fakeEvaluator(game: Game, opts: { cached?: boolean; failAt?: number } =
     dispose() {},
   }
   return { evaluator, signals }
+}
+
+/** Every search waits for the test, which deepens it and then finishes it. */
+function steeredEvaluator(game: Game, depth: number) {
+  const jobs = new Map<number, { readonly onProgress: (e: EvalProgress) => void; readonly finish: () => void; reached: number }>()
+  const evaluator: Evaluator = {
+    profile: { ...PROFILE, limit: { kind: 'depth', depth } },
+    evaluate: (p, _signal, onProgress = () => {}) =>
+      new Promise((resolve) => {
+        const pv = [game.moves[p.index]?.uci ?? ('0000' as Uci)] as const
+        jobs.set(p.index, { onProgress, finish: () => resolve({ depth, lines: [{ score: { kind: 'cp', white: 0 }, pv }] }), reached: 0 })
+      }),
+    dispose() {},
+  }
+  const reach = (index: number, through: number) => {
+    const job = jobs.get(index)
+    for (; job && job.reached < through; job.reached++) job.onProgress({ kind: 'depth', depth: job.reached + 1 })
+  }
+  return { evaluator, reach, finish: (index: number) => jobs.get(index)?.finish() }
 }
 
 function memoryLibrary(fails = false) {
@@ -122,6 +142,38 @@ describe('reviewGame', () => {
     expect(last.review.moves).toHaveLength(7)
     expect(last.review.perspective).toEqual({ kind: 'me', color: 'w' })
     expect(last.review.profile).toBe(PROFILE)
+  })
+
+  it('weighs a search by the work its depth stands for, so half the positions done and the rest at half depth is about half', async () => {
+    const opening = parse('1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 4. Ba4 *')
+    const { evaluator, reach, finish } = steeredEvaluator(opening, 18)
+    const progress: number[] = []
+    const states = collect(reviewGame(opening, deps(evaluator, memoryLibrary().library), new AbortController().signal), (s) => {
+      if (s.phase === 'analyzing') progress.push(s.progress)
+    })
+    const settled = async () => {
+      for (let seen = -1; seen !== progress.length; ) {
+        seen = progress.length
+        await tick()
+      }
+    }
+    await settled()
+    for (const index of [0, 1, 2, 3]) {
+      reach(index, 18)
+      finish(index)
+    }
+    for (const index of [4, 5, 6, 7]) reach(index, 9)
+    await settled()
+    expect(progress.at(-1)).toBeGreaterThanOrEqual(0.5)
+    expect(progress.at(-1)).toBeLessThanOrEqual(0.6)
+
+    for (const index of [4, 5, 6, 7]) {
+      reach(index, 18)
+      finish(index)
+    }
+    expect((await states).at(-1)?.phase).toBe('done')
+    expect(progress.at(-1)).toBe(1)
+    for (let i = 1; i < progress.length; i++) expect(progress[i]).toBeGreaterThanOrEqual(progress[i - 1]!)
   })
 
   it('never reports the engine when every position is cached', async () => {
