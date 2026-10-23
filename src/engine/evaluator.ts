@@ -15,11 +15,13 @@ import {
 } from '../domain/types'
 import { availability, effectiveTuning, engineId } from './descriptor'
 import { abortError, EngineFailure } from './failure'
-import { openSession, type Expected, type SearchJob, type Session } from './session'
+import { openSession, type Expected, type SearchJob, type SearchOutcome, type Session } from './session'
 import { connect as connectTransport, type Connect } from './transport'
 
 type Job = {
   readonly search: SearchJob
+  /** min(2, legal moves): Stockfish prints one row per legal move at most. */
+  readonly expected: 1 | 2
   readonly key: EvalKey
   readonly signal: AbortSignal
   readonly onProgress: (e: EvalProgress) => void
@@ -32,6 +34,8 @@ export function evalKey(profile: AnalysisProfile, position: PositionKey): EvalKe
   const limit = profile.limit.kind === 'depth' ? `d${profile.limit.depth}` : `t${profile.limit.ms}`
   return `c1|${profile.engine}|${limit}|mpv2|${position}` as EvalKey
 }
+
+const ANALYSIS = { options: { MultiPV: '2' }, fresh: false } as const
 
 function expectedFor(d: EngineDescriptor): Expected {
   return d.kind === 'wasm' ? { kind: 'eval-file', evalFile: `${WASM_FLAVORS[d.flavor].net}.nnue` } : { kind: 'id-name', idName: d.idName }
@@ -104,7 +108,7 @@ export function createEvaluator(
   function run(session: Session, job: Job) {
     busy.add(session)
     const onDepth = (depth: number) => job.onProgress({ kind: 'depth', depth })
-    session.search(job.search, job.signal, onDepth).then(
+    session.search(job.search, job.signal, onDepth).then((outcome) => answer(outcome, job.expected)).then(
       (result) => {
         cache.put(job.key, result).catch(() => {})
         job.resolve(result)
@@ -124,6 +128,12 @@ export function createEvaluator(
     })
   }
 
+  function answer(outcome: SearchOutcome, expected: 1 | 2): SearchedEval {
+    const found = outcome.lines.pick(expected, limit)
+    if (!found) throw new EngineFailure({ kind: 'protocol', detail: `no depth with ${expected} exact lines` })
+    return found
+  }
+
   return {
     profile,
     async evaluate(p, signal, onProgress = () => {}) {
@@ -141,7 +151,8 @@ export function createEvaluator(
           reject(abortError())
         }
         const job: Job = {
-          search: { input: p.input, turn: p.turn, expected: p.legalMoves >= 2 ? 2 : 1, limit },
+          search: { input: p.input, turn: p.turn, limit, ...ANALYSIS },
+          expected: p.legalMoves >= 2 ? 2 : 1,
           key,
           signal,
           onProgress,

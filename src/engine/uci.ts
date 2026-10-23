@@ -156,6 +156,8 @@ export function lineCollector(turn: Color) {
   }
 }
 
+export type LineCollector = ReturnType<typeof lineCollector>
+
 export function positionCommand(input: EngineInput): string {
   return `position fen ${input.root}${input.tail.length > 0 ? ` moves ${input.tail.join(' ')}` : ''}`
 }

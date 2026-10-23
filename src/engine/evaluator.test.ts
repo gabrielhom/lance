@@ -57,11 +57,17 @@ describe('evaluate', () => {
       'uci',
       'setoption name Threads value 2',
       'setoption name Hash value 64',
+      'isready',
       'setoption name MultiPV value 2',
       'isready',
       'position fen rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 moves g1f3 g8f6 f3g1 f6g8',
       'go depth 12',
     ])
+  })
+
+  it('fails as a protocol error when the engine cannot show two lines', async () => {
+    const { evaluator } = setup({ engines: [fakeEngine('lite', { without: ['MultiPV'] })] })
+    expect(await outcome(evaluator.evaluate(recordedPosition('mate-in-1'), live()))).toEqual({ kind: 'protocol', detail: 'the engine has no MultiPV option' })
   })
 
   it('answers a position with one legal move with one line', async () => {
