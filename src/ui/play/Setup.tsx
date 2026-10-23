@@ -1,26 +1,34 @@
 import { useState } from 'react'
+import type { ReactNode } from 'react'
 import type { Color, PlaySetup, TimeControl } from '../../domain/types'
-import { LEVELS, loadChoice, resolveChoice, saveChoice } from '../../play'
+import { LEVELS, levelById, loadChoice, resolveChoice, saveChoice } from '../../play'
 import type { SetupChoice } from '../../play'
+import { formatClock } from '../format'
 import { unlockAudio } from './sound'
 
 const MIN = 60_000
-const TIMES: readonly { label: string; time: TimeControl }[] = [
-  { label: 'Sem relógio', time: { kind: 'none' } },
-  { label: '3+2', time: { kind: 'clock', initialMs: 3 * MIN, incrementMs: 2000 } },
-  { label: '5+0', time: { kind: 'clock', initialMs: 5 * MIN, incrementMs: 0 } },
-  { label: '10+0', time: { kind: 'clock', initialMs: 10 * MIN, incrementMs: 0 } },
-  { label: '15+10', time: { kind: 'clock', initialMs: 15 * MIN, incrementMs: 10_000 } },
-  { label: '30+0', time: { kind: 'clock', initialMs: 30 * MIN, incrementMs: 0 } },
+const TIMES: readonly TimeControl[] = [
+  { kind: 'none' },
+  { kind: 'clock', initialMs: 3 * MIN, incrementMs: 2000 },
+  { kind: 'clock', initialMs: 5 * MIN, incrementMs: 0 },
+  { kind: 'clock', initialMs: 10 * MIN, incrementMs: 0 },
+  { kind: 'clock', initialMs: 15 * MIN, incrementMs: 10_000 },
+  { kind: 'clock', initialMs: 30 * MIN, incrementMs: 0 },
 ]
-const COLORS: readonly { value: Color | 'random'; label: string }[] = [
-  { value: 'w', label: 'Brancas' },
-  { value: 'random', label: 'Aleatório' },
-  { value: 'b', label: 'Pretas' },
+const COLORS: readonly { value: Color | 'random'; label: string; note: string }[] = [
+  { value: 'w', label: 'Brancas', note: 'brancas' },
+  { value: 'random', label: 'Aleatório', note: 'cor sorteada' },
+  { value: 'b', label: 'Pretas', note: 'pretas' },
 ]
 
 const sameTime = (a: TimeControl, b: TimeControl) =>
   a.kind === b.kind && (a.kind === 'none' || (b.kind === 'clock' && a.initialMs === b.initialMs && a.incrementMs === b.incrementMs))
+
+function summary(choice: SetupChoice): string {
+  const level = choice.opponent.kind === 'engine' ? levelById(choice.opponent.levelId) : null
+  const who = level ? [`${level.name} ${level.rating}`, COLORS.find((c) => c.value === choice.color)?.note] : ['Dois jogadores']
+  return [...who, formatClock(choice.time)].join(', ')
+}
 
 export function Setup({ onStart }: { onStart: (setup: PlaySetup) => void }) {
   const [choice, setChoice] = useState<SetupChoice>(loadChoice)
@@ -29,72 +37,75 @@ export function Setup({ onStart }: { onStart: (setup: PlaySetup) => void }) {
   const levelId = choice.opponent.kind === 'engine' ? choice.opponent.levelId : null
 
   return (
-    <div>
-      <form
-        className="flex flex-col gap-4"
-        onSubmit={(e) => {
-          e.preventDefault()
-          unlockAudio()
-          saveChoice(choice)
-          onStart(resolveChoice(choice, Math.random))
-        }}
-      >
-        <header>
-          <h1 className="text-[22px] font-semibold tracking-tight">Nova partida</h1>
-        </header>
-
-        <fieldset className="flex flex-col gap-2">
-          <legend className="label">Adversário</legend>
-          <div className="grid grid-cols-2 gap-2">
+    <form
+      className="setup"
+      onSubmit={(e) => {
+        e.preventDefault()
+        unlockAudio()
+        saveChoice(choice)
+        onStart(resolveChoice(choice, Math.random))
+      }}
+    >
+      <div>
+        <h1 className="display text-3xl md:text-5xl mb-4 md:mb-6">Nova partida</h1>
+        <fieldset>
+          <legend className="sec">Adversário</legend>
+          <ol className="levels">
             {LEVELS.map((l) => (
-              <label key={l.id} className="choice">
-                <input type="radio" name="adversario" className="sr-only" checked={levelId === l.id} onChange={() => set({ opponent: { kind: 'engine', levelId: l.id } })} />
-                <span className="flex items-baseline gap-1.5 leading-tight">
-                  <span className="text-[12px] text-ink-3 tabular">{l.id}</span>
-                  <span className="font-semibold text-[14px] truncate">{l.name}</span>
-                </span>
-                <span className="block text-[12px] text-ink-3 leading-tight mt-0.5">{l.rating}</span>
-              </label>
-            ))}
-            <label className="choice col-span-2 flex items-center gap-3">
-              <input type="radio" name="adversario" className="sr-only" checked={local} onChange={() => set({ opponent: { kind: 'local' } })} />
-              <span className="block font-semibold text-[14px]">Dois jogadores neste aparelho</span>
-            </label>
-          </div>
-        </fieldset>
-
-        {!local && (
-          <fieldset className="flex flex-col gap-2">
-            <legend className="label">Suas peças</legend>
-            <div className="grid grid-cols-3 gap-2">
-              {COLORS.map((c) => (
-                <label key={c.value} className="choice flex items-center justify-center gap-1.5 min-h-11">
-                  <input type="radio" name="cor" className="sr-only" checked={choice.color === c.value} onChange={() => set({ color: c.value })} />
-                  <span className="font-semibold text-[14px]">{c.label}</span>
+              <li key={l.id}>
+                <label className="level">
+                  <input type="radio" name="adversario" className="sr-only" checked={levelId === l.id} onChange={() => set({ opponent: { kind: 'engine', levelId: l.id } })} />
+                  <span className="i">{l.id}</span>
+                  <span className="name">{l.name}</span>
+                  <span className="lead" aria-hidden />
+                  <span className={`elo ${l.rating.startsWith('~') ? '' : 'italic'}`}>{l.rating}</span>
                 </label>
-              ))}
-            </div>
-          </fieldset>
-        )}
+              </li>
+            ))}
+          </ol>
+          <label className="two-player">
+            <input type="radio" name="adversario" className="sr-only" checked={local} onChange={() => set({ opponent: { kind: 'local' } })} />
+            Dois jogadores neste aparelho
+          </label>
+        </fieldset>
+      </div>
 
-        <fieldset className="flex flex-col gap-2">
-          <legend className="label">Tempo</legend>
-          <div className="grid grid-cols-3 gap-2">
-            {TIMES.map((t) => (
-              <label key={t.label} className="choice text-center">
-                <input type="radio" name="tempo" className="sr-only" checked={sameTime(choice.time, t.time)} onChange={() => set({ time: t.time })} />
-                <span className="block font-semibold text-[14px] tabular leading-tight">{t.label}</span>
+      <div className="setup-side">
+        {!local && (
+          <Choices legend="Suas peças">
+            {COLORS.map((c) => (
+              <label key={c.value} className="choice">
+                <input type="radio" name="cor" className="sr-only" checked={choice.color === c.value} onChange={() => set({ color: c.value })} />
+                {c.label}
               </label>
             ))}
-          </div>
-        </fieldset>
-
-        <div className="sticky bottom-0 z-10 -mx-4 px-4 pt-4 pb-3 sm:mx-0 sm:px-0 bg-linear-to-t from-bg from-75% to-transparent">
-          <button type="submit" className="btn btn-primary btn-lg w-full">
-            Jogar
-          </button>
+          </Choices>
+        )}
+        <Choices legend="Tempo">
+          {TIMES.map((t) => {
+            const label = formatClock(t)
+            return (
+              <label key={label} className={`choice ${t.kind === 'clock' ? 'num' : ''}`}>
+                <input type="radio" name="tempo" className="sr-only" checked={sameTime(choice.time, t)} onChange={() => set({ time: t })} />
+                {t.kind === 'none' ? 'Sem relógio' : label}
+              </label>
+            )
+          })}
+        </Choices>
+        <div className="go">
+          <button type="submit" className="btn">Jogar</button>
+          <span className="font-serif italic text-sm text-ink-2">{summary(choice)}</span>
         </div>
-      </form>
-    </div>
+      </div>
+    </form>
+  )
+}
+
+function Choices({ legend, children }: { legend: string; children: ReactNode }) {
+  return (
+    <fieldset className="mb-6 md:mb-8">
+      <legend className="sec">{legend}</legend>
+      <div className="choices">{children}</div>
+    </fieldset>
   )
 }

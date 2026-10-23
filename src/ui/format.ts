@@ -1,4 +1,4 @@
-import type { ByColor, Color, GameResult, GameSource, PlayerTag, Position } from '../domain/types'
+import type { ByColor, Color, GameResult, GameSource, PlayerTag, Position, TimeControl } from '../domain/types'
 
 const dateFmt = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })
 const shortDateFmt = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit' })
@@ -82,4 +82,9 @@ export function formatBytes(n: number): string {
 export function moveNumberLabel(index: number): string {
   const n = Math.floor(index / 2) + 1
   return index % 2 === 0 ? `${n}.` : `${n}...`
+}
+
+/** '5 + 0' with no-break spaces, as a clock setting reads; 'sem relógio' without one. */
+export function formatClock(t: TimeControl): string {
+  return t.kind === 'none' ? 'sem relógio' : `${t.initialMs / 60_000} + ${t.incrementMs / 1000}`
 }
