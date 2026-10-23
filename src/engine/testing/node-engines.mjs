@@ -1,5 +1,6 @@
 // Node-only test plumbing, kept in plain JS so Node's types never enter the browser program.
 import { existsSync } from 'node:fs'
+import { request } from 'node:http'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 
@@ -41,5 +42,16 @@ export function closeCodeWithOrigin(url, origin) {
   return new Promise((resolve) => {
     const ws = new WebSocket(url, { headers: { Origin: origin } })
     ws.addEventListener('close', (e) => resolve(e.code))
+  })
+}
+
+export function statusWithHost(url, host) {
+  return new Promise((resolve, reject) => {
+    request(url, { headers: { Host: host } }, (res) => {
+      res.resume()
+      resolve(res.statusCode)
+    })
+      .on('error', reject)
+      .end()
   })
 }

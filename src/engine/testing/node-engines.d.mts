@@ -6,3 +6,5 @@ export declare function hasNativeStockfish(): boolean
 export declare function liteSingleTransport(): LineTransport
 /** Opens a WebSocket that claims `origin` and resolves with the close code. */
 export declare function closeCodeWithOrigin(url: string, origin: string): Promise<number>
+/** GETs `url` with a forged Host header, as a DNS-rebound page would, and resolves with the status. */
+export declare function statusWithHost(url: string, host: string): Promise<number>
