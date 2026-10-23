@@ -31,7 +31,7 @@ export function HistoryScreen() {
       </header>
       {noIdentity && (
         <div className="card p-4 flex flex-wrap items-center gap-3 justify-between">
-          <p className="text-[14px]">Informe seus nomes de usuário para o histórico saber quais lances são seus.</p>
+          <p className="text-[14px]">As partidas jogadas aqui já contam. Para contar as importadas, informe seus nomes de usuário.</p>
           <a href="#/config" className="btn btn-sm">Configurações</a>
         </div>
       )}

@@ -28,15 +28,15 @@ export function GameOver({ state, seats, onNew, onRematch }: Props) {
   const you = state.setup.opponent.kind === 'engine' ? state.setup.you : null
   const pgn = useMemo(() => toPgn(state, pgnNames(state.setup, settings.identity)), [state, settings.identity])
   const game = useMemo(() => {
-    const r = gameFromPgn(pgn, { kind: 'pgn' })
+    const r = gameFromPgn(pgn, { kind: 'played', id: state.id, you: state.setup.you })
     return r.ok ? r.value : null
-  }, [pgn])
+  }, [pgn, state.id, state.setup.you])
   const { title, detail, tone } = resultTitle(state, you)
   const { icon: Icon, className } = TONE[tone]
   const opponent = you ? seats[you === 'w' ? 'b' : 'w'] : null
   const open = (ply = 0) => {
     if (!game) return
-    holdGame(game, { perspective: you ? { kind: 'me', color: you } : { kind: 'spectator' }, ply })
+    holdGame(game, ply)
     navigate({ name: 'review', id: game.id })
   }
 

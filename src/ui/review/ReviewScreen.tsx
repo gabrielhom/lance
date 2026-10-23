@@ -2,7 +2,7 @@ import { Chess } from 'chess.js'
 import { ChevronFirst, ChevronLast, ChevronLeft, ChevronRight, FlipVertical2, SkipBack, SkipForward } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { perspective } from '../../domain/identity'
-import type { Color, Game, GameId, GameReview, Perspective, ReviewState, Square } from '../../domain/types'
+import type { Color, Game, GameId, GameReview, ReviewState, Square } from '../../domain/types'
 import { formatDate, formatEval, formatPct, formatTimeControl, joinKnown, playerLabel, resultLabel, sourceLabel } from '../format'
 import { ERROR_CLASSIFICATIONS } from '../labels'
 import { heldGame } from '../pending'
@@ -20,7 +20,7 @@ import { useReview } from './useReview'
 type GameSlot =
   | { kind: 'loading' }
   | { kind: 'missing' }
-  | { kind: 'ready'; game: Game; perspective: Perspective | null; ply: number }
+  | { kind: 'ready'; game: Game; ply: number }
 
 export function ReviewScreen({ id }: { id: GameId }) {
   const services = useServices()
@@ -34,7 +34,7 @@ export function ReviewScreen({ id }: { id: GameId }) {
     services.library.get(id).then((record) => {
       if (!alive) return
       const parsed = record ? services.gameFromRecord(record) : null
-      setSlot(parsed?.ok ? { kind: 'ready', game: parsed.value, perspective: null, ply: 0 } : { kind: 'missing' })
+      setSlot(parsed?.ok ? { kind: 'ready', game: parsed.value, ply: 0 } : { kind: 'missing' })
     })
     return () => {
       alive = false
@@ -58,16 +58,16 @@ export function ReviewScreen({ id }: { id: GameId }) {
       </div>
     )
   }
-  return <Review game={slot.game} held={slot.perspective} startPly={slot.ply} />
+  return <Review game={slot.game} startPly={slot.ply} />
 }
 
 /** Plies of the best line after the move at `ply`, drawn on the board instead of the game. */
 type Preview = { readonly ply: number; readonly plies: number }
 
-function Review({ game, held, startPly }: { game: Game; held: Perspective | null; startPly: number }) {
+function Review({ game, startPly }: { game: Game; startPly: number }) {
   const [settings] = useSettings()
   const { run, cancel, restart } = useReview(game)
-  const who = useMemo(() => held ?? perspective(settings.identity, game.players, game.source), [held, settings, game])
+  const who = useMemo(() => perspective(settings.identity, game.players, game.source), [settings, game])
   const myColor: Color | null = who.kind === 'me' ? who.color : null
   const n = game.moves.length
   const [ply, setPly] = useState(Math.min(startPly, n))
