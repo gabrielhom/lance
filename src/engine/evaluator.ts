@@ -1,5 +1,4 @@
 import {
-  WASM_FLAVORS,
   type AnalysisProfile,
   type EngineDescriptor,
   type EngineFailureReason,
@@ -13,9 +12,9 @@ import {
   type SearchedEval,
   type SearchLimit,
 } from '../domain/types'
-import { availability, effectiveTuning, engineId } from './descriptor'
+import { availability, effectiveTuning, engineId, expectedFor } from './descriptor'
 import { abortError, EngineFailure } from './failure'
-import { openSession, type Expected, type SearchJob, type SearchOutcome, type Session } from './session'
+import { openSession, type SearchJob, type SearchOutcome, type Session } from './session'
 import { connect as connectTransport, type Connect } from './transport'
 
 type Job = {
@@ -38,10 +37,6 @@ export function evalKey(profile: AnalysisProfile, position: PositionKey): EvalKe
 /** Every position starts from a cleared engine. Otherwise an eval depends on what its pool worker searched before,
  *  and that depends on timing, so the same game would get a different review each time. */
 const ANALYSIS = { options: { MultiPV: '2' }, fresh: true } as const
-
-function expectedFor(d: EngineDescriptor): Expected {
-  return d.kind === 'wasm' ? { kind: 'eval-file', evalFile: `${WASM_FLAVORS[d.flavor].net}.nnue` } : { kind: 'id-name', idName: d.idName }
-}
 
 /** Cache first, then a FIFO queue over a pool of sessions. A crashed search gets one retry on a fresh engine. */
 export function createEvaluator(

@@ -1,7 +1,9 @@
+import { Chess } from 'chess.js'
 import { afterAll, describe, expect, it } from 'vitest'
 import opera from '../../e2e/fixtures/opera.pgn?raw'
-import { gameFromPgn, type EngineDescriptor, type EngineTuning, type PlayablePosition, type RuntimeEnv } from '../domain'
+import { gameFromPgn, type EngineDescriptor, type EngineInput, type EngineTuning, type PlayablePosition, type PlayLevel, type RuntimeEnv, type Strength } from '../domain'
 import { createEvaluator } from './evaluator'
+import { createMovePicker } from './picker'
 import { memoryCache, recordedPosition } from './testing/fake-engine'
 import { liteSingleTransport } from './testing/node-engines.mjs'
 
@@ -67,4 +69,28 @@ describe('the real lite-single Stockfish 19 analyses a game the same way every t
     expect(playable.length).toBe(33)
     for (const p of playable) expect(backward.get(p.index), `position ${p.index}`).toEqual(forward.get(p.index))
   }, 30_000)
+})
+
+describe('the real lite-single Stockfish 19 picks moves to play', () => {
+  const picker = createMovePicker(LITE, ONE, ENV, liteSingleTransport)
+  afterAll(() => picker.dispose())
+  const level = (strength: Strength, movetimeMs: number): PlayLevel => ({ id: 0, name: 'Nível', rating: '?', strength, movetimeMs })
+  const legal = (input: EngineInput) => {
+    const board = new Chess(input.root)
+    for (const move of input.tail) board.move(move)
+    return board.moves({ verbose: true }).map((m) => m.lan)
+  }
+  const opening = recordedPosition('stop').input
+
+  it.each([
+    ['Skill Level 0', { kind: 'skill', level: 0 }],
+    ['Elo 1320', { kind: 'elo', elo: 1320 }],
+    ['full strength', { kind: 'max' }],
+  ] as const)('plays a legal move at %s', async (_name, strength) => {
+    expect(legal(opening)).toContain(await picker.pick(opening, level(strength, 200), live()))
+  })
+
+  it('finds the mate in one at full strength', async () => {
+    expect(await picker.pick(recordedPosition('mate-in-1').input, level({ kind: 'max' }, 300), live())).toBe('a1a8')
+  })
 })
