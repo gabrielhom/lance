@@ -1,28 +1,43 @@
-import type { ByColor, Color, GameResult, GameSource, PlayerTag } from '../domain/types'
+import type { ByColor, Color, GameResult, GameSource, PlayerTag, Position } from '../domain/types'
 
 const dateFmt = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })
 const shortDateFmt = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit' })
 
-export function formatDate(ms: number | null): string {
-  return ms === null ? 'data desconhecida' : dateFmt.format(ms)
+export function formatDate(ms: number | null): string | null {
+  return ms === null ? null : dateFmt.format(ms)
 }
 export function formatShortDate(ms: number): string {
   return shortDateFmt.format(ms)
 }
 
-export function formatPct(n: number | null, digits = 1): string {
-  return n === null ? '–' : `${n.toFixed(digits)}%`
+const decimal = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+
+export function formatPct(n: number | null): string {
+  return n === null ? '–' : `${decimal.format(n)}%`
 }
 
-/** '600+5' -> 'Rápida 10+5', '180' -> 'Blitz 3 min', '1/86400' -> 'Correspondência', '-' -> 'Sem relógio'. */
-export function formatTimeControl(tc: string | null): string {
-  if (!tc || tc === '-') return 'Sem relógio'
+/** Joins the parts that are known, so a missing date or clock leaves no placeholder behind. */
+export function joinKnown(...parts: (string | null)[]): string {
+  return parts.filter((p) => p !== null && p !== '').join(' · ')
+}
+
+/** A graph label in Brazilian notation: '+1.3' -> '+1,3'. A mated position shows the result instead of a bare '#'. */
+export function formatEval(label: string, position: Position): string {
+  if (label === '#') return position.kind === 'checkmate' && position.turn === 'w' ? '0-1' : '1-0'
+  if (label === '½') return '½-½'
+  return label.replace('.', ',')
+}
+
+/** '600+5' -> 'Rápida 10+5', '180' -> 'Blitz 3 min', '1/86400' -> 'Correspondência', '-' -> 'Sem relógio', unknown -> null. */
+export function formatTimeControl(tc: string | null): string | null {
+  if (!tc) return null
+  if (tc === '-') return 'Sem relógio'
   if (tc.includes('/')) return 'Correspondência'
   const [base, inc = 0] = tc.split('+').map(Number)
   if (!Number.isFinite(base)) return tc
   const estimate = base + 40 * inc
   const category = estimate < 180 ? 'Bullet' : estimate < 480 ? 'Blitz' : estimate < 1500 ? 'Rápida' : 'Clássica'
-  const min = base % 60 === 0 ? `${base / 60}` : (base / 60).toFixed(1)
+  const min = base % 60 === 0 ? `${base / 60}` : decimal.format(base / 60)
   return `${category} ${inc ? `${min}+${inc}` : `${min} min`}`
 }
 

@@ -4,6 +4,7 @@
 import { Chess } from 'chess.js'
 import type { Move } from 'chess.js'
 import { perspective } from '../../domain/identity'
+import { loadPlay, savePlay } from '../../play'
 import type {
   AccuracyPct,
   AccuracyPoint,
@@ -83,6 +84,20 @@ let bookPromise: Promise<Record<string, [string, string] | null>> | null = null
 function book() {
   bookPromise ??= import('../../openings/openings.json').then((m) => m.default as unknown as Record<string, [string, string] | null>)
   return bookPromise
+}
+
+const PIECE_VALUE: Readonly<Record<string, number>> = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 }
+
+/** A weak opponent that still finishes games: it mates when it can, grabs the biggest capture, then checks, then moves at random. */
+function mockMove(input: { root: string; tail: readonly string[] }): Uci {
+  const board = new Chess(input.root)
+  for (const u of input.tail) board.move({ from: u.slice(0, 2), to: u.slice(2, 4), promotion: u[4] })
+  const legal = board.moves({ verbose: true })
+  const mate = legal.find((m) => m.san.endsWith('#'))
+  const captures = legal.filter((m) => m.captured).sort((a, b) => PIECE_VALUE[b.captured!] - PIECE_VALUE[a.captured!])
+  const checks = legal.filter((m) => m.san.endsWith('+'))
+  const pool = mate ? [mate] : captures.length ? [captures[0]] : checks.length && Math.random() < 0.5 ? checks : legal
+  return pool[Math.floor(Math.random() * pool.length)].lan as Uci
 }
 
 /** Positions carry engine input (root + tail since the last irreversible move) so the shape matches the real parser. */
@@ -443,9 +458,12 @@ export function createMockServices(): Services {
   }
 
   return {
-    engineMove: () => Promise.reject(new Error('not mocked yet')),
-    loadPlay: () => null,
-    savePlay: () => {},
+    async engineMove(input, _level, signal) {
+      await sleep(250 + Math.random() * 350, signal)
+      return mockMove(input)
+    },
+    loadPlay,
+    savePlay,
     loadSettings,
     saveSettings(s) {
       localStorage.setItem(SETTINGS_KEY, JSON.stringify(s))

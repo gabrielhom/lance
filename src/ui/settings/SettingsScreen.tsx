@@ -1,4 +1,4 @@
-import { CheckCircle2, Cpu, Plug, Users, XCircle } from 'lucide-react'
+import { CheckCircle2, ChevronDown, Cpu, Gauge, SlidersHorizontal, Users, XCircle } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import type { BridgeEngine, BridgeProbeError, EngineDescriptor, SearchLimit, Settings } from '../../domain/types'
 import { WASM_FLAVORS } from '../../domain/types'
@@ -20,6 +20,8 @@ export function SettingsScreen() {
   const env = services.runtimeEnv()
   const update = (patch: Partial<Settings>) => save({ ...settings, ...patch })
   const account = (site: 'lichess' | 'chesscom') => settings.identity.accounts.find((a) => a.site === site)?.username ?? ''
+  const advanced = useRef<HTMLDetailsElement>(null)
+  const [advancedAtStart] = useState(settings.engine.kind === 'bridge')
   const setAccount = (site: 'lichess' | 'chesscom', username: string) => {
     const rest = settings.identity.accounts.filter((a) => a.site !== site)
     const u = username.trim()
@@ -56,28 +58,30 @@ export function SettingsScreen() {
             checked={settings.engine.kind === 'wasm' && settings.engine.flavor === 'lite'}
             onSelect={() => update({ engine: { kind: 'wasm', flavor: 'lite' } })}
             title="Stockfish 19 Lite"
-            detail={`Roda no navegador, ${formatBytes(WASM_FLAVORS.lite.bytes)}. Funciona em qualquer página.`}
+            detail={`Roda no navegador, download de ${formatBytes(WASM_FLAVORS.lite.bytes)}. Funciona em qualquer aparelho.`}
           />
           <EngineOption
             checked={settings.engine.kind === 'wasm' && settings.engine.flavor === 'full'}
             onSelect={() => update({ engine: { kind: 'wasm', flavor: 'full' } })}
             title="Stockfish 19 Completo"
-            detail={`Rede completa, download de ${formatBytes(WASM_FLAVORS.full.bytes)}. Precisa de uma página com isolamento de origem (COOP/COEP).`}
-            warning={env.crossOriginIsolated ? null : 'Esta página não está isolada, então o Completo não vai carregar aqui.'}
+            detail={`Mais forte e mais pesado, download de ${formatBytes(WASM_FLAVORS.full.bytes)}.`}
+            warning={env.crossOriginIsolated ? null : 'Não carrega nesta página. Veja Avançado.'}
           />
           <EngineOption
             checked={settings.engine.kind === 'bridge'}
-            onSelect={() => update({ engine: settings.engine.kind === 'bridge' ? settings.engine : { kind: 'bridge', url: 'http://127.0.0.1:7777', name: '', idName: '' } })}
+            onSelect={() => {
+              if (advanced.current) advanced.current.open = true
+              update({ engine: settings.engine.kind === 'bridge' ? settings.engine : { kind: 'bridge', url: 'http://127.0.0.1:7777', name: '', idName: '' } })
+            }}
             title="Engine local via bridge"
-            detail="Usa um Stockfish (ou outra engine UCI) instalado no seu computador, pela ponte do projeto."
+            detail="Usa uma engine instalada no seu computador. A conexão fica em Avançado."
           />
         </fieldset>
-        {settings.engine.kind === 'bridge' && <BridgeFields engine={settings.engine} onChange={(engine) => update({ engine })} />}
       </section>
 
       <section className="card p-4 sm:p-5 flex flex-col gap-4" aria-labelledby="analise-titulo">
         <div className="flex items-center gap-2">
-          <Plug size={18} className="text-accent" aria-hidden />
+          <Gauge size={18} className="text-accent" aria-hidden />
           <h2 id="analise-titulo" className="text-[16px] font-semibold">Análise</h2>
         </div>
         <div>
@@ -91,27 +95,57 @@ export function SettingsScreen() {
           </div>
           <p className="hint mt-1">Mais profundidade, análise mais precisa e mais demorada.</p>
         </div>
-        <div className="grid sm:grid-cols-2 gap-3">
-          <NumberField
-            id="engines"
-            label="Engines em paralelo"
-            value={settings.tuning.engines}
-            min={1}
-            max={Math.max(1, env.cores)}
-            onCommit={(v) => update({ tuning: { ...settings.tuning, engines: v } })}
-            hint={`Seu computador tem ${env.cores} núcleos. Só vale para o Lite.`}
-          />
-          <NumberField
-            id="threads"
-            label="Threads por engine"
-            value={settings.tuning.threadsPerEngine}
-            min={1}
-            max={Math.max(1, env.cores)}
-            onCommit={(v) => update({ tuning: { ...settings.tuning, threadsPerEngine: v } })}
-            hint="Só vale para o Completo e para o bridge."
-          />
-        </div>
       </section>
+
+      <details ref={advanced} open={advancedAtStart} className="card group">
+        <summary className="flex items-center gap-2 p-4 sm:p-5 cursor-pointer list-none [&::-webkit-details-marker]:hidden rounded-[var(--radius)]">
+          <SlidersHorizontal size={18} className="text-accent" aria-hidden />
+          <h2 className="text-[16px] font-semibold">Avançado</h2>
+          <ChevronDown size={18} className="ml-auto text-ink-3 transition-transform group-open:rotate-180" aria-hidden />
+        </summary>
+        <div className="flex flex-col gap-5 px-4 pb-4 sm:px-5 sm:pb-5">
+          <div className="flex flex-col gap-2">
+            <h3 className="text-[14px] font-semibold">Engine local</h3>
+            {settings.engine.kind === 'bridge' ? (
+              <BridgeFields engine={settings.engine} onChange={(engine) => update({ engine })} />
+            ) : (
+              <p className="hint">Escolha "Engine local via bridge" acima para conectar um Stockfish instalado no computador.</p>
+            )}
+          </div>
+          <div className="flex flex-col gap-2">
+            <h3 className="text-[14px] font-semibold">Desempenho</h3>
+            <div className="grid sm:grid-cols-2 gap-3">
+              <NumberField
+                id="engines"
+                label="Engines em paralelo"
+                value={settings.tuning.engines}
+                min={1}
+                max={Math.max(1, env.cores)}
+                onCommit={(v) => update({ tuning: { ...settings.tuning, engines: v } })}
+                hint={`Seu computador tem ${env.cores} núcleos. Só vale para o Lite.`}
+              />
+              <NumberField
+                id="threads"
+                label="Threads por engine"
+                value={settings.tuning.threadsPerEngine}
+                min={1}
+                max={Math.max(1, env.cores)}
+                onCommit={(v) => update({ tuning: { ...settings.tuning, threadsPerEngine: v } })}
+                hint="Só vale para o Completo e para o bridge."
+              />
+            </div>
+          </div>
+          <div className="flex flex-col gap-1">
+            <h3 className="text-[14px] font-semibold">Isolamento de origem</h3>
+            <p className="text-[14px] text-ink-2">
+              O Completo usa várias threads, e o navegador só libera isso numa página com isolamento de origem (cabeçalhos COOP e COEP). O servidor do projeto já envia os dois.
+            </p>
+            <p className={`text-[14px] font-medium ${env.crossOriginIsolated ? 'text-good' : 'text-warn'}`}>
+              {env.crossOriginIsolated ? 'Esta página está isolada.' : 'Esta página não está isolada, então use o Lite ou o bridge.'}
+            </p>
+          </div>
+        </div>
+      </details>
     </div>
   )
 }

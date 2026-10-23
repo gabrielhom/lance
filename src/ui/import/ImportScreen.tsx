@@ -6,6 +6,7 @@ import { fetchFailureText, rejectionText } from '../labels'
 import { holdGame } from '../pending'
 import { navigate } from '../router'
 import { useServices, useSettings } from '../services'
+import { useMediaQuery } from '../useMediaQuery'
 import { GameList, LibraryList } from './GameList'
 
 type Site = 'lichess' | 'chesscom'
@@ -31,7 +32,7 @@ function readLastUser(): { site: Site; username: string } {
   return { site: 'lichess', username: '' }
 }
 
-export function HomeScreen() {
+export function ImportScreen() {
   const services = useServices()
   const [settings] = useSettings()
   const openGame = (game: Game) => {
@@ -47,23 +48,31 @@ export function HomeScreen() {
     }
   }, [services])
 
+  // On a phone the import panels fill the first screen, so a returning player sees their games first.
+  const wide = useMediaQuery('(min-width: 1024px)')
+  const libraryFirst = !wide && !!library && library.length > 0
+  const librarySection = (
+    <section aria-labelledby="biblioteca-titulo">
+      <div className="flex items-baseline justify-between mb-3">
+        <h2 id="biblioteca-titulo" className="text-[18px] font-semibold tracking-tight">Partidas revisadas</h2>
+        {library && library.length > 0 && <a href="#/historico" className="text-[14px] text-accent font-medium">Ver histórico</a>}
+      </div>
+      <LibraryList records={library} identity={settings.identity} />
+    </section>
+  )
+
   return (
     <div className="flex flex-col gap-6">
       <header>
         <h1 className="text-[22px] font-semibold tracking-tight">Revisar uma partida</h1>
-        <p className="hint">Veja sua precisão, os momentos-chave e o que a engine jogaria em cada lance.</p>
+        <p className="hint">Cole um PGN ou traga suas partidas do Lichess e do Chess.com para ver precisão, momentos-chave e o que a engine jogaria.</p>
       </header>
-      <section className="grid gap-4 lg:grid-cols-2">
+      {libraryFirst && librarySection}
+      <section className="grid gap-4 lg:grid-cols-2" aria-label="Importar partidas">
         <PastePanel onParsed={openGame} />
         <FetchPanel onPick={openGame} />
       </section>
-      <section aria-labelledby="biblioteca-titulo">
-        <div className="flex items-baseline justify-between mb-3">
-          <h2 id="biblioteca-titulo" className="text-[18px] font-semibold tracking-tight">Partidas revisadas</h2>
-          {library && library.length > 0 && <a href="#/historico" className="text-[14px] text-accent font-medium">Ver histórico</a>}
-        </div>
-        <LibraryList records={library} identity={settings.identity} />
-      </section>
+      {!libraryFirst && librarySection}
     </div>
   )
 }
@@ -142,9 +151,21 @@ function ParsedResult({ result, onPick }: { result: ImportResult; onPick: (g: Ga
           <div>
             <p className="font-semibold">{result.rejected.length === 1 ? 'Uma partida não pôde ser lida' : `${result.rejected.length} partidas não puderam ser lidas`}</p>
             <ul className="mt-1 list-disc pl-5 text-ink-2">
-              {result.rejected.slice(0, 5).map((r) => (
-                <li key={r.index}>Partida {r.index + 1}: {rejectionText(r.rejection)}</li>
-              ))}
+              {result.rejected.slice(0, 5).map((r) => {
+                const t = rejectionText(r.rejection)
+                return (
+                  <li key={r.index}>
+                    {result.rejected.length + result.games.length > 1 && `Partida ${r.index + 1}: `}
+                    {t.text}
+                    {t.detail && (
+                      <details className="mt-1">
+                        <summary className="cursor-pointer text-[13px]">Detalhes técnicos</summary>
+                        <code className="block mt-1 text-[12px] break-words">{t.detail}</code>
+                      </details>
+                    )}
+                  </li>
+                )
+              })}
             </ul>
           </div>
         </div>

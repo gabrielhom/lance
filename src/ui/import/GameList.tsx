@@ -1,7 +1,7 @@
 import { ChevronRight } from 'lucide-react'
 import type { Color, Game, Identity, LibraryRecord } from '../../domain/types'
 import { perspective } from '../../domain/identity'
-import { OUTCOME_LABEL, formatDate, formatPct, formatTimeControl, opponentOf, outcomeFor, playerLabel, resultLabel, sourceLabel } from '../format'
+import { OUTCOME_LABEL, formatDate, formatPct, formatTimeControl, joinKnown, opponentOf, outcomeFor, playerLabel, resultLabel, sourceLabel } from '../format'
 import { href } from '../router'
 import { useSettings } from '../services'
 
@@ -43,8 +43,7 @@ export function GameList({ games, onPick, highlight }: { games: readonly Game[];
                   <OutcomePill game={g} color={color} />
                 </span>
                 <span className="block text-[13px] text-ink-3 mt-0.5">
-                  {color ? `de ${color === 'w' ? 'brancas' : 'pretas'} · ` : ''}
-                  {formatDate(g.playedAt)} · {formatTimeControl(g.timeControl)} · {g.moves.length} lances
+                  {joinKnown(color && `de ${color === 'w' ? 'brancas' : 'pretas'}`, formatDate(g.playedAt), formatTimeControl(g.timeControl), `${g.moves.length} lances`)}
                 </span>
               </span>
               <ChevronRight size={18} className="text-ink-3" aria-hidden />
@@ -89,8 +88,7 @@ export function LibraryList({ records, identity }: { records: readonly LibraryRe
                   <OutcomePill game={r} color={color} />
                 </span>
                 <span className="block text-[13px] text-ink-3 mt-0.5">
-                  {formatDate(r.playedAt)} · {sourceLabel(r.source)}
-                  {r.summary.opening ? ` · ${r.summary.opening.name}` : ''}
+                  {joinKnown(formatDate(r.playedAt), sourceLabel(r.source), r.summary.opening?.name ?? null)}
                 </span>
               </span>
               <span className="text-right">

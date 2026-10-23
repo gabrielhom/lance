@@ -1,6 +1,6 @@
 import { useId, useState } from 'react'
 import type { AccuracyPoint } from '../../domain/types'
-import { OUTCOME_LABEL, colorLabel, formatShortDate, outcomeFor } from '../format'
+import { OUTCOME_LABEL, colorLabel, formatPct, formatShortDate, outcomeFor } from '../format'
 import { href } from '../router'
 import { useElementWidth } from '../useElementWidth'
 
@@ -57,7 +57,7 @@ export function AccuracyChart({ points }: { points: readonly AccuracyPoint[] }) 
         )}
         {p && shown !== null && (
           <div className="pointer-events-none absolute top-1 rounded-md bg-surface border border-border shadow-card px-2 py-1 text-[12px] whitespace-nowrap" style={{ left: Math.min(Math.max(x(shown) + 10, 0), Math.max(0, width - 190)) }}>
-            <span className="font-semibold text-[14px] tabular">{p.accuracy.toFixed(1)}%</span>
+            <span className="font-semibold text-[14px] tabular">{formatPct(p.accuracy)}</span>
             <span className="text-ink-2"> · {OUTCOME_LABEL[outcomeFor(p.result, p.color)]} de {colorLabel(p.color)}</span>
             <br />
             <span className="text-ink-3">vs {p.opponent.name} · {formatShortDate(p.playedAt)}</span>
@@ -89,7 +89,7 @@ export function AccuracyChart({ points }: { points: readonly AccuracyPoint[] }) 
                 <td className="py-1 tabular">{formatShortDate(pt.playedAt)}</td>
                 <td className="py-1"><a href={href({ name: 'review', id: pt.gameId })} className="text-accent">{pt.opponent.name}</a></td>
                 <td className="py-1">{OUTCOME_LABEL[outcomeFor(pt.result, pt.color)]}</td>
-                <td className="py-1 text-right tabular">{pt.accuracy.toFixed(1)}%</td>
+                <td className="py-1 text-right tabular">{formatPct(pt.accuracy)}</td>
               </tr>
             ))}
           </tbody>

@@ -1,12 +1,14 @@
-import { History, Home, Monitor, Moon, Settings, Sun } from 'lucide-react'
+import { History, Monitor, Moon, ScanSearch, Settings, Sun, Swords } from 'lucide-react'
+import { useEffect } from 'react'
 import type { ReactNode } from 'react'
 import { href, useRoute } from '../router'
 import type { Route } from '../router'
 import { nextTheme, setTheme, useTheme } from '../theme'
 import type { Theme } from '../theme'
 
-const NAV: readonly { route: Route; label: string; icon: typeof Home }[] = [
-  { route: { name: 'home' }, label: 'Início', icon: Home },
+const NAV: readonly { route: Route; label: string; icon: typeof Swords }[] = [
+  { route: { name: 'play' }, label: 'Jogar', icon: Swords },
+  { route: { name: 'import' }, label: 'Revisar', icon: ScanSearch },
   { route: { name: 'history' }, label: 'Histórico', icon: History },
   { route: { name: 'settings' }, label: 'Configurações', icon: Settings },
 ]
@@ -18,7 +20,12 @@ export function AppShell({ children }: { children: ReactNode }) {
   const route = useRoute()
   const theme = useTheme()
   const ThemeIcon = THEME_ICON[theme]
-  const current = route.name === 'review' ? 'home' : route.name
+  const current = route.name === 'review' ? 'import' : route.name
+  // Hash routing keeps the scroll offset of the previous screen, which lands a new screen mid-page.
+  const where = route.name === 'review' ? `review:${route.id}` : route.name
+  useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [where])
   return (
     <div className="min-h-dvh flex flex-col">
       <a href="#conteudo" className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 btn btn-primary">
@@ -50,7 +57,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       </main>
       <nav aria-label="Principal" className="sm:hidden fixed bottom-0 inset-x-0 z-40 border-t border-border bg-surface flex justify-around px-2 pb-[env(safe-area-inset-bottom)]">
         {NAV.map(({ route: r, label, icon: Icon }) => (
-          <a key={r.name} href={href(r)} className="nav-link flex-col gap-0.5 py-2 min-w-20 text-[12px]" aria-current={current === r.name ? 'page' : undefined}>
+          <a key={r.name} href={href(r)} className="nav-link flex-col gap-0.5 py-2 min-w-18 text-[12px]" aria-current={current === r.name ? 'page' : undefined}>
             <Icon size={20} aria-hidden />
             {label}
           </a>

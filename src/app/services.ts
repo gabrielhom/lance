@@ -2,6 +2,7 @@ import { gameFromPgn, type Evaluator, type MovePicker, type Services, type Setti
 import { createEvaluator, createMovePicker, probeBridge, runtimeEnv } from '../engine'
 import { fetchRecentGames, parsePgnText } from '../import'
 import { loadBook } from '../openings'
+import { loadPlay, savePlay } from '../play'
 import { accuracyHistory, reviewGame } from '../review'
 import { loadSettings, openStore, saveSettings } from '../storage'
 
@@ -47,7 +48,7 @@ export async function createServices(): Promise<Services> {
     accuracyHistory,
     probeBridge,
     engineMove: (input, level, signal) => pickerFor(loadSettings()).pick(input, level, signal),
-    loadPlay: () => null,
-    savePlay: () => {},
+    loadPlay,
+    savePlay,
   }
 }

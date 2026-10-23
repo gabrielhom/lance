@@ -32,11 +32,12 @@ export function fetchFailureText(f: FetchFailure, username: string): { title: st
   }
 }
 
-export function rejectionText(r: GameRejection): string {
+/** The parser's own message is English and technical, so it only goes in `detail`, for a disclosure. */
+export function rejectionText(r: GameRejection): { text: string; detail: string | null } {
   switch (r.kind) {
-    case 'unparseable': return `PGN inválido: ${r.detail}`
-    case 'variant': return `Variante não suportada: ${r.detail}`
-    case 'no-moves': return 'A partida não tem lances.'
+    case 'unparseable': return { text: 'Não deu para ler este PGN. Confira se o texto está completo, com os lances depois dos cabeçalhos.', detail: r.detail }
+    case 'variant': return { text: `Variante não suportada (${r.detail}). Só partidas de xadrez clássico podem ser revisadas.`, detail: null }
+    case 'no-moves': return { text: 'A partida não tem lances.', detail: null }
   }
 }
 
