@@ -108,6 +108,8 @@ export type MoveReview = {
   readonly winAfter: WinPct
   readonly accuracy: AccuracyPct
   readonly best: EvalLine
+  /** best.pv in SAN from `move.before`, for display. */
+  readonly bestLineSan: readonly San[]
   readonly alternative: EvalLine | null
   readonly opening: Opening | null
 }
@@ -226,4 +228,43 @@ export const DEFAULT_SETTINGS: Settings = {
   engine: { kind: 'wasm', flavor: 'lite' },
   limit: { kind: 'depth', depth: 18 },
   tuning: { engines: 4, threadsPerEngine: 1, hashMb: 32 },
+}
+
+export type ImportResult = {
+  readonly games: readonly Game[]
+  readonly rejected: readonly { readonly index: number; readonly rejection: GameRejection }[]
+}
+export type FetchFailure =
+  | { readonly kind: 'not-found' }
+  | { readonly kind: 'rate-limited'; readonly retryAfterS: number | null }
+  | { readonly kind: 'network'; readonly detail: string }
+  | { readonly kind: 'bad-response'; readonly detail: string }
+export type AccuracyPoint = {
+  readonly gameId: GameId
+  readonly playedAt: number
+  readonly color: Color
+  readonly accuracy: number
+  readonly result: GameResult
+  readonly opponent: PlayerTag
+}
+export type BridgeEngine = { readonly name: string; readonly idName: string }
+export type BridgeProbeError = { readonly kind: 'unreachable' } | { readonly kind: 'refused' } | { readonly kind: 'not-uci'; readonly detail: string }
+
+/** Everything the UI needs from the rest of the app. src/app/services.ts builds the real one. */
+export interface Services {
+  loadSettings(): Settings
+  saveSettings(s: Settings): void
+  runtimeEnv(): RuntimeEnv
+  readonly library: Library
+  parsePgnText(text: string): ImportResult
+  fetchRecentGames(
+    site: 'lichess' | 'chesscom',
+    username: string,
+    opts: { readonly max: number; readonly signal: AbortSignal },
+  ): Promise<Result<ImportResult, FetchFailure>>
+  gameFromRecord(record: LibraryRecord): Result<Game, GameRejection>
+  /** Uses the engine and identity from the current settings, saves to the library when done. Ends silently on abort. */
+  reviewGame(game: Game, signal: AbortSignal): AsyncIterable<ReviewState>
+  accuracyHistory(records: readonly LibraryRecord[], identity: Identity): readonly AccuracyPoint[]
+  probeBridge(url: string, signal: AbortSignal): Promise<Result<readonly BridgeEngine[], BridgeProbeError>>
 }
