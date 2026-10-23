@@ -3,7 +3,6 @@ import scholar from '../../e2e/fixtures/scholar.pgn?raw'
 import {
   gameFromPgn,
   type AnalysisProfile,
-  type EngineFailureReason,
   type EngineId,
   type Evaluator,
   type Game,
@@ -14,6 +13,7 @@ import {
   type SearchedEval,
   type Uci,
 } from '../domain'
+import { EngineFailure } from '../engine'
 import { bookFrom } from '../openings'
 import { reviewGame } from '.'
 
@@ -24,14 +24,6 @@ function parse(pgn: string): Game {
   const r = gameFromPgn(pgn, { kind: 'pgn' })
   if (!r.ok) throw new Error(r.error.detail)
   return r.value
-}
-
-class EngineFailure extends Error {
-  readonly reason: EngineFailureReason
-  constructor(reason: EngineFailureReason) {
-    super(reason.kind)
-    this.reason = reason
-  }
 }
 
 /** One engine working through positions in call order, like the real evaluator's FIFO. */

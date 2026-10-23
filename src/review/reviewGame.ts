@@ -15,6 +15,7 @@ import {
   type WinPct,
   type OpeningBook,
 } from '../domain'
+import { EngineFailure } from '../engine'
 
 export type ReviewDeps = {
   readonly evaluator: Evaluator
@@ -28,7 +29,6 @@ type Event =
   | { readonly kind: 'evaluated'; readonly p: PlayablePosition; readonly eval: SearchedEval }
   | { readonly kind: 'rejected'; readonly error: unknown }
 
-const FAILURE_KINDS: readonly string[] = ['unavailable', 'mismatch', 'crashed', 'protocol', 'timeout']
 
 /** Evaluates every playable position, then builds the review and saves it to the library.
  *  Ends with no final state when aborted, since the caller already knows it cancelled. */
@@ -120,11 +120,7 @@ export async function* reviewGame(game: Game, deps: ReviewDeps, signal: AbortSig
   }
 }
 
-/** The engine module's EngineFailure carries its reason; anything else is reported as a crash. */
 function failureReason(error: unknown): EngineFailureReason {
-  const reason = typeof error === 'object' && error !== null && 'reason' in error ? error.reason : null
-  if (typeof reason === 'object' && reason !== null && 'kind' in reason && FAILURE_KINDS.includes(String(reason.kind))) {
-    return reason as EngineFailureReason
-  }
+  if (error instanceof EngineFailure) return error.reason
   return { kind: 'crashed', detail: error instanceof Error ? error.message : String(error) }
 }
