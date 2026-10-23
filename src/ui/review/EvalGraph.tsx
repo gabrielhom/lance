@@ -1,7 +1,7 @@
 import { useId, useState } from 'react'
 import type { KeyboardEvent, PointerEvent } from 'react'
 import type { Classification, PartialSeries, PlayedMove } from '../../domain/types'
-import { CLASSIFICATION_LABEL } from '../labels'
+import { CLASSIFICATION_LABEL, CLASSIFICATION_MARK } from '../labels'
 import { moveNumberLabel } from '../format'
 import { useElementWidth } from '../useElementWidth'
 
@@ -12,20 +12,23 @@ type Props = {
   labels: readonly string[] | null
   moves: readonly PlayedMove[]
   markers: readonly GraphMarker[]
+  /** The class of each move, once reviewed, for the cursor's mark. */
+  classes: readonly Classification[] | null
   ply: number
   onSelect: (ply: number) => void
 }
 
-const H = 140
-const PAD = { top: 8, bottom: 8 }
+const H = 150
+const PAD = { top: 8, right: 4, bottom: 22, left: 28 }
 
-/** White win% over plies. White's share is drawn above the midline in the light tone, Black's below in the dark tone. */
-export function EvalGraph({ series, labels, moves, markers, ply, onSelect }: Props) {
+/** White's winning chance per ply, drawn as one ink line over a wash, with the key moments dotted on it. */
+export function EvalGraph({ series, labels, moves, markers, classes, ply, onSelect }: Props) {
   const [ref, width] = useElementWidth<HTMLDivElement>()
   const [hover, setHover] = useState<number | null>(null)
   const id = useId()
   const n = series.length
-  const x = (i: number) => (n <= 1 ? 0 : (i / (n - 1)) * width)
+  const right = Math.max(PAD.left, width - PAD.right)
+  const x = (i: number) => (n <= 1 ? PAD.left : PAD.left + (i / (n - 1)) * (right - PAD.left))
   const y = (w: number) => PAD.top + ((100 - w) / 100) * (H - PAD.top - PAD.bottom)
   const mid = y(50)
 
@@ -43,15 +46,18 @@ export function EvalGraph({ series, labels, moves, markers, ply, onSelect }: Pro
     else current.push(i)
   }
   flush()
-
-  const areaPath = segments
-    .map((s) => `M ${x(s.from).toFixed(1)},${mid} L ${s.d} L ${x(s.to).toFixed(1)},${mid} Z`)
-    .join(' ')
+  const areaPath = segments.map((s) => `M ${x(s.from).toFixed(1)},${mid} L ${s.d} L ${x(s.to).toFixed(1)},${mid} Z`).join(' ')
   const linePath = segments.map((s) => `M ${s.d}`).join(' ')
+
+  // Move numbers on the x axis, every 10 moves, or 5 in a short game and 20 in a long one.
+  const lastMove = Math.ceil((n - 1) / 2)
+  const step = lastMove <= 24 ? 5 : lastMove <= 80 ? 10 : 20
+  const ticks: number[] = []
+  for (let m = step; m <= lastMove; m += step) ticks.push(m)
 
   const plyFromX = (clientX: number, el: HTMLElement) => {
     const r = el.getBoundingClientRect()
-    const t = Math.max(0, Math.min(1, (clientX - r.left) / r.width))
+    const t = Math.max(0, Math.min(1, (clientX - r.left - PAD.left) / Math.max(1, right - PAD.left)))
     return Math.round(t * (n - 1))
   }
   const onPointer = (e: PointerEvent<HTMLDivElement>) => setHover(plyFromX(e.clientX, e.currentTarget))
@@ -69,15 +75,18 @@ export function EvalGraph({ series, labels, moves, markers, ply, onSelect }: Pro
     const val = w === null ? 'sem avaliação' : labels ? labels[i] : `${Math.round(w)}% brancas`
     return `${head} · ${val}`
   }
-  const shown = hover ?? ply
   const done = series.every((v) => v !== null)
+  const cls = ply > 0 ? classes?.[ply - 1] : undefined
+  const mark = cls ? CLASSIFICATION_MARK[cls] : ''
+  const tone = mark && cls ? `var(--c-${cls})` : 'var(--ink-3)'
+  const at = series[ply]
 
   return (
-    <div className="flex flex-col gap-1">
+    <div className="graph">
       <div
         ref={ref}
-        className="relative w-full rounded-lg overflow-hidden cursor-crosshair"
-        style={{ height: H, background: 'var(--graph-bg)' }}
+        className="relative w-full cursor-crosshair"
+        style={{ height: H }}
         role="slider"
         tabIndex={0}
         aria-label="Gráfico de avaliação. Use as setas para percorrer os lances."
@@ -92,46 +101,50 @@ export function EvalGraph({ series, labels, moves, markers, ply, onSelect }: Pro
         onKeyDown={onKey}
       >
         {width > 0 && (
-          <svg width={width} height={H} aria-hidden className="block">
-            <defs>
-              <clipPath id={`${id}-top`}>
-                <rect x={0} y={0} width={width} height={mid} />
-              </clipPath>
-              <clipPath id={`${id}-bottom`}>
-                <rect x={0} y={mid} width={width} height={H - mid} />
-              </clipPath>
-            </defs>
-            <path d={areaPath} fill="var(--graph-white)" clipPath={`url(#${id}-top)`} />
-            <path d={areaPath} fill="var(--graph-black)" clipPath={`url(#${id}-bottom)`} />
-            <line x1={0} x2={width} y1={mid} y2={mid} stroke="var(--graph-grid)" strokeWidth={1} />
-            <path d={linePath} fill="none" stroke="var(--graph-line)" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" opacity={0.6} />
+          <svg width={width} height={H} aria-hidden className="block overflow-visible">
+            <line x1={PAD.left} x2={right} y1={y(100)} y2={y(100)} stroke="var(--rule)" />
+            <line x1={PAD.left} x2={right} y1={y(0)} y2={y(0)} stroke="var(--rule)" />
+            <path d={areaPath} fill="var(--graph-fill)" />
+            <line x1={PAD.left} x2={right} y1={mid} y2={mid} stroke="var(--ink-3)" />
+            <path d={linePath} fill="none" stroke="var(--ink)" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
+            <text x={PAD.left - 6} y={y(100) + 4} textAnchor="end">100</text>
+            <text x={PAD.left - 6} y={mid + 4} textAnchor="end">50</text>
+            <text x={PAD.left - 6} y={y(0) + 4} textAnchor="end">0</text>
+            {ticks.map((m) => (
+              <text key={m} x={x(Math.min(n - 1, 2 * m - 1))} y={H - 4} textAnchor="middle">{m}</text>
+            ))}
             {markers.map((m) => {
               const w = series[m.index]
-              if (w === null) return null
-              return (
-                <circle key={m.index} cx={x(m.index)} cy={y(w)} r={4.5} fill={m.kind === 'turning-point' ? 'var(--accent)' : `var(--badge-${m.kind})`} stroke="var(--graph-bg)" strokeWidth={2} />
-              )
+              if (w === null || m.index === ply) return null
+              return <circle key={m.index} cx={x(m.index)} cy={y(w)} r={4} fill={m.kind === 'turning-point' ? 'var(--ink-2)' : `var(--c-${m.kind})`} stroke="var(--paper)" strokeWidth={2} />
             })}
+            {n > 1 && hover !== null && hover !== ply && <line x1={x(hover)} x2={x(hover)} y1={PAD.top} y2={H - PAD.bottom} stroke="var(--ink-3)" strokeWidth={1} />}
             {n > 1 && (
               <g>
-                <line x1={x(shown)} x2={x(shown)} y1={0} y2={H} stroke="var(--accent)" strokeWidth={hover === null ? 2 : 1.5} opacity={hover === null ? 1 : 0.8} />
-                {series[shown] !== null && <circle cx={x(shown)} cy={y(series[shown] as number)} r={5} fill="var(--accent)" stroke="var(--surface)" strokeWidth={2} />}
+                <line x1={x(ply)} x2={x(ply)} y1={PAD.top} y2={H - PAD.bottom} stroke={tone} strokeWidth={1.25} />
+                {at !== null && <circle cx={x(ply)} cy={y(at)} r={4.5} fill={mark ? tone : 'var(--ink)'} stroke="var(--paper)" strokeWidth={2} />}
+                {at !== null && ply > 0 && (
+                  <text x={x(ply) + (x(ply) > width - 60 ? -8 : 8)} y={y(at) - 7 < PAD.top + 10 ? y(at) + 17 : y(at) - 7} textAnchor={x(ply) > width - 60 ? 'end' : 'start'} className="cursor-label">
+                    {moveNumberLabel(ply - 1)}{mark}
+                  </text>
+                )}
               </g>
             )}
           </svg>
         )}
         {hover !== null && width > 0 && (
-          <div
-            className="pointer-events-none absolute top-2 rounded-md bg-surface text-ink text-[12px] font-medium px-2 py-1 border border-border whitespace-nowrap"
-            style={{ left: Math.min(Math.max(x(hover) + 8, 4), Math.max(4, width - 150)) }}
-          >
+          <div className="graph-tip" style={{ left: Math.min(Math.max(x(hover) + 8, 4), Math.max(4, width - 170)) }}>
             {describe(hover)}
           </div>
         )}
       </div>
-      <p id={`${id}-legend`} className="hint text-[12px]">
-        {done ? 'Chance de vitória das brancas ao longo da partida. Clique para ir ao lance.' : 'Preenche enquanto a análise avança.'}
-        {markers.length > 0 && done && ` Pontos marcam momentos-chave (${[...new Set(markers.map((m) => (m.kind === 'turning-point' ? 'virada' : CLASSIFICATION_LABEL[m.kind].toLowerCase())))].join(', ')}).`}
+      <p id={`${id}-legend`} className="caption ml-0 mt-1">
+        {done ? 'Chance de vitória das brancas, em %. Toque no gráfico para ir ao lance.' : 'Preenche enquanto a análise avança.'}
+        {markers.length > 0 && done && (
+          <span className="sr-only">
+            {` Pontos marcam momentos-chave (${[...new Set(markers.map((m) => (m.kind === 'turning-point' ? 'virada' : CLASSIFICATION_LABEL[m.kind].toLowerCase())))].join(', ')}).`}
+          </span>
+        )}
       </p>
     </div>
   )

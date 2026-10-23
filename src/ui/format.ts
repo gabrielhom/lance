@@ -29,7 +29,7 @@ export function formatEval(label: string, position: Position): string {
   return label.replace('.', ',')
 }
 
-/** '600+5' -> 'Rápida 10+5', '180' -> 'Blitz 3 min', '1/86400' -> 'Correspondência', '-' -> 'Sem relógio', unknown -> null. */
+/** '600+5' -> 'Rápida 10 + 5', '180' -> 'Blitz 3 + 0', '1/86400' -> 'Correspondência', '-' -> 'Sem relógio', unknown -> null. */
 export function formatTimeControl(tc: string | null): string | null {
   if (!tc) return null
   if (tc === '-') return 'Sem relógio'
@@ -39,7 +39,7 @@ export function formatTimeControl(tc: string | null): string | null {
   const estimate = base + 40 * inc
   const category = estimate < 180 ? 'Bullet' : estimate < 480 ? 'Blitz' : estimate < 1500 ? 'Rápida' : 'Clássica'
   const min = base % 60 === 0 ? `${base / 60}` : decimal.format(base / 60)
-  return `${category} ${inc ? `${min}+${inc}` : `${min} min`}`
+  return `${category} ${min}\u00a0+\u00a0${inc}`
 }
 
 export type Outcome = 'win' | 'loss' | 'draw' | 'unknown'
@@ -52,14 +52,14 @@ export function outcomeFor(result: GameResult, color: Color | null): Outcome {
 export const OUTCOME_LABEL: Readonly<Record<Outcome, string>> = { win: 'Vitória', loss: 'Derrota', draw: 'Empate', unknown: 'Em aberto' }
 
 export function resultLabel(result: GameResult): string {
-  return result === '1/2-1/2' ? '½-½' : result === '*' ? 'em aberto' : result
+  return result === '1/2-1/2' ? '½–½' : result === '*' ? 'em aberto' : result.replace('-', '–')
 }
 
 export function sourceLabel(source: GameSource): string {
   switch (source.kind) {
     case 'lichess': return 'Lichess'
     case 'chesscom': return 'Chess.com'
-    case 'pgn': return 'PGN'
+    case 'pgn': return 'PGN importado'
     case 'played': return 'Jogada no Lance'
   }
 }

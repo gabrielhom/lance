@@ -2,7 +2,8 @@ import { Chess } from 'chess.js'
 import { useEffect, useMemo, useState } from 'react'
 import { perspective } from '../../domain/identity'
 import type { Color, Game, GameId, GameReview, ReviewState, Square } from '../../domain/types'
-import { formatDate, formatEval, formatAccuracy, formatTimeControl, joinKnown, playerLabel, resultLabel, sourceLabel } from '../format'
+import { formatDate, formatEval, formatAccuracy, formatTimeControl, joinKnown, resultLabel, sourceLabel } from '../format'
+import { CopyPgn } from '../CopyPgn'
 import { ERROR_CLASSIFICATIONS } from '../labels'
 import { heldGame } from '../pending'
 import { useServices, useSettings } from '../services'
@@ -42,15 +43,15 @@ export function ReviewScreen({ id }: { id: GameId }) {
 
   if (slot.kind === 'loading') {
     return (
-      <p className="hint" aria-busy="true">Abrindo a partida…</p>
+      <p className="caption ml-0" aria-busy="true">Abrindo a partida…</p>
     )
   }
   if (slot.kind === 'missing') {
     return (
       <div className="max-w-lg">
-        <h1 className="text-[18px] font-semibold">Partida não encontrada</h1>
-        <p className="hint mt-1">Ela não está na biblioteca. Importe-a de novo em Revisar.</p>
-        <a href="#/revisar" className="btn btn-primary mt-4">Ir para Revisar</a>
+        <h1 className="display text-3xl md:text-5xl">Partida não encontrada</h1>
+        <p className="text-ink-2 mt-3">Ela não está na biblioteca. Importe-a de novo em Revisar.</p>
+        <a href="#/revisar" className="btn mt-6">Ir para Revisar</a>
       </div>
     )
   }
@@ -132,97 +133,112 @@ function Review({ game, startPly }: { game: Game; startPly: number }) {
   const status =
     run.kind === 'cancelled' ? <CancelledPanel onRetry={restart} />
     : state?.phase === 'failed' ? <FailedPanel failure={state.failure} onRetry={restart} />
-    : state?.phase === 'done' ? <Summary review={state.review} me={myColor} onJump={go} />
+    : state?.phase === 'done' ? null
     : <AnalyzingPanel state={state?.phase === 'analyzing' ? state : null} onCancel={cancel} />
-  const card = <MoveCard review={review} ply={ply} labels={labels} preview={shownPreview?.plies ?? null} onPreview={(plies) => setPreview(plies === null ? null : { ply, plies })} />
+  const player = (c: Color) => (
+    <>
+      {game.players[c].name}
+      {game.players[c].rating && <span className="num text-ink-3 text-lg font-normal ml-1.5">{game.players[c].rating}</span>}
+    </>
+  )
 
   return (
-    <div className="flex flex-col gap-4 max-w-[1180px] mx-auto">
-      <header className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <h1 className="text-[20px] font-semibold tracking-tight">
-          {playerLabel(game.players.w)} <span className="text-ink-3 font-normal">vs</span> {playerLabel(game.players.b)}
-        </h1>
-        <p className="text-[14px] text-ink-3">
-          {joinKnown(resultLabel(game.result), formatDate(game.playedAt), formatTimeControl(game.timeControl), sourceLabel(game.source))}
+    <div>
+      <header>
+        <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+          <h1 className="display text-2xl md:text-4xl">{player('w')} – {player('b')}</h1>
+          <span className="num text-xl md:text-2xl text-ink-2">{resultLabel(game.result)}</span>
+        </div>
+        <p className="dek">
+          {joinKnown(formatTimeControl(game.timeControl), review?.opening?.name ?? null, formatDate(game.playedAt), sourceLabel(game.source))}
+          <span className="sep">·</span>
+          <CopyPgn pgn={game.pgn} className="tl tl-quiet p-0" />
         </p>
+        {review && <ReviewStrip review={review} me={myColor} />}
       </header>
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(340px,420px)] items-start">
-        <div className="flex flex-col gap-3 min-w-0">
-          <ReviewStrip state={run.kind === 'cancelled' ? null : state} review={review} me={myColor} analyzing={run.kind === 'running' && (state === null || state.phase === 'analyzing')} />
-          <div className="flex gap-2 items-stretch w-full max-w-[min(752px,calc(100dvh-232px))]">
+      <div className="review">
+        <div className="rv-left">
+          <div className="boardwrap">
             <EvalBar whiteWin={whiteWin ?? null} label={evalLabel} orientation={orientation} />
-            <div className="flex-1 min-w-0">
-              <Board
-                fen={previewBoard?.fen ?? position.fen}
-                orientation={orientation}
-                lastMove={previewBoard ? previewBoard.lastMove : lastMove ? { from: lastMove.from, to: lastMove.to } : null}
-                badge={badge}
-                bestArrow={bestArrow}
-              />
-            </div>
+            <Board
+              fen={previewBoard?.fen ?? position.fen}
+              orientation={orientation}
+              lastMove={previewBoard ? previewBoard.lastMove : lastMove ? { from: lastMove.from, to: lastMove.to } : null}
+              badge={badge}
+              bestArrow={bestArrow}
+            />
           </div>
-          <div className="flex items-center gap-1 flex-wrap w-full max-w-[min(752px,calc(100dvh-232px))]" role="toolbar" aria-label="Navegação da partida">
-            <button type="button" className="btn btn-icon hidden sm:inline-flex" onClick={() => go(0)} disabled={ply === 0} aria-label="Primeiro lance (Home)" title="Home">
+          <div className="rvnav" role="toolbar" aria-label="Navegação da partida">
+            <button type="button" className="sqbtn max-md:hidden" onClick={() => go(0)} disabled={ply === 0} aria-label="Primeiro lance (Home)" title="Home">
               <span aria-hidden>⇤</span>
             </button>
-            <button type="button" className="btn btn-icon" onClick={() => go(ply - 1)} disabled={ply === 0} aria-label="Lance anterior (seta para a esquerda)" title="←">
+            <button type="button" className="sqbtn" onClick={() => go(ply - 1)} disabled={ply === 0} aria-label="Lance anterior (seta para a esquerda)" title="←">
               <span aria-hidden>←</span>
             </button>
-            <button type="button" className="btn btn-icon" onClick={() => go(ply + 1)} disabled={ply === n} aria-label="Próximo lance (seta para a direita)" title="→">
+            <button type="button" className="sqbtn" onClick={() => go(ply + 1)} disabled={ply === n} aria-label="Próximo lance (seta para a direita)" title="→">
               <span aria-hidden>→</span>
             </button>
-            <button type="button" className="btn btn-icon hidden sm:inline-flex" onClick={() => go(n)} disabled={ply === n} aria-label="Último lance (End)" title="End">
+            <button type="button" className="sqbtn max-md:hidden" onClick={() => go(n)} disabled={ply === n} aria-label="Último lance (End)" title="End">
               <span aria-hidden>⇥</span>
             </button>
-            {review && errors.length === 0 ? (
-              <span className="text-[14px] text-ink-3 px-2">{myColor ? 'Nenhum erro seu' : 'Nenhum erro'}</span>
-            ) : (
-              <>
-                <button type="button" className="btn" onClick={() => prevError && go(prevError.move.index + 1)} disabled={!prevError}>
-                  Erro anterior
-                </button>
-                <button type="button" className="btn" onClick={() => nextError && go(nextError.move.index + 1)} disabled={!nextError} title={myColor ? 'Próxima imprecisão, erro, blunder ou chance perdida sua' : 'Próxima imprecisão, erro, blunder ou chance perdida'}>
-                  Próximo erro
-                </button>
-              </>
-            )}
-            <button type="button" className="btn ml-auto" onClick={() => setFlipped((f) => !f)} aria-pressed={flipped}>
-              Girar tabuleiro
-            </button>
+            <span className="ply">{ply === 0 ? 'posição inicial' : `lance ${ply} de ${n}`}</span>
+            <span className="ml-auto flex flex-wrap items-baseline justify-end gap-x-5">
+              {review && errors.length === 0 ? (
+                <span className="caption m-0">{myColor ? 'Nenhum erro seu' : 'Nenhum erro'}</span>
+              ) : (
+                <>
+                  <button type="button" className="tl tl-quiet max-md:hidden" onClick={() => prevError && go(prevError.move.index + 1)} disabled={!prevError}>
+                    Erro anterior
+                  </button>
+                  <button type="button" className="tl tl-accent" onClick={() => nextError && go(nextError.move.index + 1)} disabled={!nextError} title={myColor ? 'Próxima imprecisão, erro, blunder ou chance perdida sua' : 'Próxima imprecisão, erro, blunder ou chance perdida'}>
+                    Próximo erro
+                  </button>
+                </>
+              )}
+            </span>
             <span className="sr-only" aria-live="polite">
               {previewBoard ? `Melhor sequência, lance ${shownPreview!.plies}: ${line[shownPreview!.plies - 1]}` : lastMove ? `Lance ${ply}: ${lastMove.san}` : 'Posição inicial'}
             </span>
           </div>
+          <div className="rv-flip">
+            <button type="button" className="tl tl-quiet" onClick={() => setFlipped((f) => !f)} aria-pressed={flipped}>Girar tabuleiro</button>
+            {review && errors.length > 0 && (
+              <button type="button" className="tl tl-quiet md:hidden" onClick={() => prevError && go(prevError.move.index + 1)} disabled={!prevError}>
+                Erro anterior
+              </button>
+            )}
+          </div>
+          <section className="rv-graph" aria-labelledby="grafico-titulo">
+            <h3 id="grafico-titulo" className="font-serif font-semibold text-md mb-1.5">Avaliação ao longo da partida</h3>
+            <EvalGraph series={series} labels={labels} moves={game.moves} markers={markers} classes={review ? review.moves.map((r) => r.classification) : null} ply={ply} onSelect={go} />
+          </section>
         </div>
-        <aside className="flex flex-col gap-4 min-w-0">
-          {ply === 0 ? <>{status}{card}</> : <>{card}{status}</>}
-          <section aria-label="Lances">
+        <div className="rv-right">
+          {status}
+          <MoveCard
+            move={lastMove}
+            review={moveReview}
+            opening={review?.opening ?? null}
+            labels={labels}
+            ply={ply}
+            preview={shownPreview?.plies ?? null}
+            onPreview={(plies) => setPreview(plies === null ? null : { ply, plies })}
+          />
+          <section className="rv-sheet" aria-label="Lances">
             <MoveList moves={game.moves} reviews={review?.moves ?? null} ply={ply} onSelect={go} />
           </section>
-          <section aria-label="Gráfico de avaliação">
-            <EvalGraph series={series} labels={labels} moves={game.moves} markers={markers} ply={ply} onSelect={go} />
-          </section>
-        </aside>
+        </div>
       </div>
+      {review && <Summary review={review} me={myColor} onJump={go} />}
     </div>
   )
 }
 
-/** On a phone the summary sits below the board, so this line keeps progress and the result in view above it. */
-function ReviewStrip({ state, review, me, analyzing }: { state: ReviewState | null; review: GameReview | null; me: Color | null; analyzing: boolean }) {
-  if (review) {
-    const { w, b } = review.players
-    const text = me
-      ? `Você ${formatAccuracy(review.players[me].accuracy)} · Oponente ${formatAccuracy(review.players[me === 'w' ? 'b' : 'w'].accuracy)}`
-      : `Brancas ${formatAccuracy(w.accuracy)} · Pretas ${formatAccuracy(b.accuracy)}`
-    return <p className="lg:hidden text-[15px] font-semibold tabular">Precisão: {text}</p>
-  }
-  if (!analyzing) return null
-  const pct = state?.phase === 'analyzing' ? Math.round(Math.min(1, Math.max(0, state.progress)) * 100) : 0
-  return (
-    <div className="lg:hidden flex items-center gap-3" aria-hidden>
-      <span className="text-[14px] font-medium text-ink-2 whitespace-nowrap">Analisando · {pct}%</span>
-      <div className="progress flex-1"><span style={{ width: `${pct}%` }} /></div>
-    </div>
-  )
+/** On a phone the summary sits at the end of a long page, so the accuracies also show under the title. */
+function ReviewStrip({ review, me }: { review: GameReview; me: Color | null }) {
+  const { w, b } = review.players
+  const text = me
+    ? `você ${formatAccuracy(review.players[me].accuracy)}, oponente ${formatAccuracy(review.players[me === 'w' ? 'b' : 'w'].accuracy)}`
+    : `brancas ${formatAccuracy(w.accuracy)}, pretas ${formatAccuracy(b.accuracy)}`
+  return <p className="lg:hidden mt-1 font-serif italic text-ink-2">Precisão: {text}</p>
 }

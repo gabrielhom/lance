@@ -90,7 +90,7 @@ export function Summary({ review, me, onJump }: Props) {
   const id = useId()
   const name = (c: Color) => review.players[c].player.name
   const columns: readonly Color[] = me ? [me, other(me)] : ['w', 'b']
-  const heads = me ? { [me]: 'Você', [other(me)]: name(other(me)) } : { w: name('w'), b: name('b') }
+  const heads = me ? { [me]: 'Você', [other(me)]: name(other(me)) } : { w: 'Brancas', b: 'Pretas' }
   const names: ByColor<string> = me ? { w: name('w'), b: name('b') } : { w: `${name('w')}, brancas`, b: `${name('b')}, pretas` }
   return (
     <section className="summary" aria-labelledby={`${id}-t`}>
