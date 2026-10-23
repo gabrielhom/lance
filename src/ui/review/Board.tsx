@@ -2,6 +2,7 @@ import { Chessboard } from 'react-chessboard'
 import { useMemo } from 'react'
 import type { CSSProperties } from 'react'
 import type { Classification, Color, Square } from '../../domain/types'
+import { BOARD_STYLE } from '../boardStyle'
 import { useElementWidth } from '../useElementWidth'
 import { ClassificationBadge } from './ClassificationBadge'
 
@@ -33,6 +34,7 @@ export function Board({ fen, orientation, lastMove, badge, bestArrow }: BoardPro
     <div ref={ref} className="w-full select-none" style={{ touchAction: 'manipulation' }} inert aria-hidden>
       <Chessboard
         options={{
+          ...BOARD_STYLE,
           id: 'revisao',
           position: fen,
           boardOrientation: orientation === 'w' ? 'white' : 'black',
@@ -40,11 +42,6 @@ export function Board({ fen, orientation, lastMove, badge, bestArrow }: BoardPro
           allowDrawingArrows: false,
           showAnimations: !REDUCED_MOTION,
           animationDurationInMs: 180,
-          boardStyle: { borderRadius: 8, overflow: 'hidden', boxShadow: 'var(--shadow)' },
-          darkSquareStyle: { backgroundColor: 'var(--board-dark)' },
-          lightSquareStyle: { backgroundColor: 'var(--board-light)' },
-          darkSquareNotationStyle: { color: 'var(--board-light)', fontSize: 11, fontWeight: 600 },
-          lightSquareNotationStyle: { color: 'var(--board-dark)', fontSize: 11, fontWeight: 600 },
           arrows: bestArrow ? [{ startSquare: bestArrow.from, endSquare: bestArrow.to, color: 'var(--arrow-best)' }] : [],
           squareRenderer: ({ square, children }) => (
             <div style={{ width: '100%', height: '100%', position: 'relative', ...squareStyles[square] }}>

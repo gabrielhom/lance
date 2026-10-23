@@ -19,7 +19,8 @@ export function MoveList({ moves, reviews, ply, onSelect }: Props) {
     const list = listRef.current
     const el = list?.querySelector<HTMLElement>('[aria-current="true"]')
     if (!list || !el) return
-    const top = el.offsetTop - list.offsetTop
+    // The list is the offset parent (it is position: relative), so offsetTop is already list-relative.
+    const top = el.offsetTop
     const bottom = top + el.offsetHeight
     if (top < list.scrollTop) list.scrollTop = top - 4
     else if (bottom > list.scrollTop + list.clientHeight) list.scrollTop = bottom - list.clientHeight + 4
