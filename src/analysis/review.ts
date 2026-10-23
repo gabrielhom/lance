@@ -66,7 +66,7 @@ export function buildReview(game: Game, evals: CompleteEvals, book: Book, who: P
   }
 }
 
-export function graphPoints(game: Game, evals: CompleteEvals): NonEmpty<GraphPoint> {
+function graphPoints(game: Game, evals: CompleteEvals): NonEmpty<GraphPoint> {
   const point = (p: Game['positions'][number]): GraphPoint => {
     const e = evals.at(p)
     return { index: p.index, whiteWin: winPct(e, 'w'), label: evalLabel(e) }
@@ -76,7 +76,7 @@ export function graphPoints(game: Game, evals: CompleteEvals): NonEmpty<GraphPoi
 }
 
 /** From White's side: '+1.3', '-0.4', '0.0', 'M3', '-M3', '#' after checkmate, '½' after stalemate. */
-export function evalLabel(e: PositionEval): string {
+function evalLabel(e: PositionEval): string {
   switch (e.kind) {
     case 'checkmate':
       return '#'
@@ -101,11 +101,12 @@ export function keyMoments(moves: readonly MoveReview[]): readonly KeyMoment[] {
     const notable = NOTABLE.has(m.classification)
     const crosses = Math.abs(swing) >= KEY_MOMENTS.turningSwing && Math.sign(before - 50) !== Math.sign(after - 50)
     if (!notable && !crosses) return []
-    const gap = m.alternative && (m.classification === 'brilliant' || m.classification === 'great')
-      ? m.winBefore - winPct(m.alternative.score, m.move.mover)
-      : Math.abs(swing)
+    const rank =
+      m.alternative && (m.classification === 'brilliant' || m.classification === 'great')
+        ? m.winBefore - winPct(m.alternative.score, m.move.mover)
+        : Math.abs(swing)
     const moment: KeyMoment = { move: m, swing, why: notable ? m.classification : 'turning-point' }
-    return [{ moment, rank: gap }]
+    return [{ moment, rank }]
   })
   return ranked
     .sort((a, b) => b.rank - a.rank)
