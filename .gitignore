@@ -27,3 +27,4 @@ public/engine
 test-results
 playwright-report
 engines
+.audit
