@@ -43,7 +43,7 @@ export function MoveList({ moves, reviews, ply, onSelect }: Props) {
         aria-label={`${m.mover === 'w' ? 'Brancas' : 'Pretas'}: ${m.san}${cls ? `, ${CLASSIFICATION_LABEL[cls]}` : ''}`}
       >
         {cls ? <ClassificationBadge kind={cls} size={16} /> : <span style={{ width: 16 }} />}
-        <span style={cls && TINTED.has(cls) ? { color: `var(--cls-${cls})` } : undefined}>{m.san}</span>
+        <span style={cls && TINTED.has(cls) && !current ? { color: `var(--cls-${cls})` } : undefined}>{m.san}</span>
       </button>
     )
   }
