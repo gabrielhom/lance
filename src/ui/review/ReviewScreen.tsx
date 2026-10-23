@@ -131,7 +131,7 @@ function Review({ game }: { game: Game }) {
             </div>
           </div>
           <div className="flex items-center gap-1 flex-wrap max-w-[720px]" role="toolbar" aria-label="Navegação da partida">
-            <button type="button" className="btn btn-icon" onClick={() => go(0)} disabled={ply === 0} aria-label="Primeiro lance (Home)" title="Home">
+            <button type="button" className="btn btn-icon hidden sm:inline-flex" onClick={() => go(0)} disabled={ply === 0} aria-label="Primeiro lance (Home)" title="Home">
               <ChevronFirst size={18} aria-hidden />
             </button>
             <button type="button" className="btn btn-icon" onClick={() => go(ply - 1)} disabled={ply === 0} aria-label="Lance anterior (seta para a esquerda)" title="←">
@@ -140,7 +140,7 @@ function Review({ game }: { game: Game }) {
             <button type="button" className="btn btn-icon" onClick={() => go(ply + 1)} disabled={ply === n} aria-label="Próximo lance (seta para a direita)" title="→">
               <ChevronRight size={18} aria-hidden />
             </button>
-            <button type="button" className="btn btn-icon" onClick={() => go(n)} disabled={ply === n} aria-label="Último lance (End)" title="End">
+            <button type="button" className="btn btn-icon hidden sm:inline-flex" onClick={() => go(n)} disabled={ply === n} aria-label="Último lance (End)" title="End">
               <ChevronLast size={18} aria-hidden />
             </button>
             <button type="button" className="btn" onClick={nextError} disabled={!hasErrors} title={myColor ? 'Próxima imprecisão, erro, blunder ou chance perdida sua' : 'Próxima imprecisão, erro, blunder ou chance perdida'}>
