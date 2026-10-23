@@ -31,12 +31,14 @@ type Job = {
 
 export function evalKey(profile: AnalysisProfile, position: PositionKey): EvalKey {
   const limit = profile.limit.kind === 'depth' ? `d${profile.limit.depth}` : `t${profile.limit.ms}`
-  return `c2|${profile.engine}|${limit}|mpv2|${position}` as EvalKey
+  return `c3|${profile.engine}|${limit}|mpv2|${position}` as EvalKey
 }
 
 /** Every position starts from a cleared engine. Otherwise an eval depends on what its pool worker searched before,
  *  and that depends on timing, so the same game would get a different review each time. */
-const ANALYSIS = { options: { MultiPV: '2' }, fresh: true } as const
+// A few positions cost 10x the median at a fixed depth (the move before a mate, where line 2 searches deep).
+// The cap stops only those: the median Opera game position at depth 18 needs about 0.6M nodes.
+const ANALYSIS = { options: { MultiPV: '2' }, fresh: true, maxNodes: 3_000_000 } as const
 
 /** Cache first, then a FIFO queue over a pool of sessions. A crashed search gets one retry on a fresh engine. */
 export function createEvaluator(

@@ -162,6 +162,7 @@ export function positionCommand(input: EngineInput): string {
   return `position fen ${input.root}${input.tail.length > 0 ? ` moves ${input.tail.join(' ')}` : ''}`
 }
 
-export function goCommand(limit: SearchLimit): string {
-  return limit.kind === 'depth' ? `go depth ${limit.depth}` : `go movetime ${limit.ms}`
+export function goCommand(limit: SearchLimit, maxNodes?: number): string {
+  const cap = maxNodes === undefined ? '' : ` nodes ${maxNodes}`
+  return limit.kind === 'depth' ? `go depth ${limit.depth}${cap}` : `go movetime ${limit.ms}${cap}`
 }

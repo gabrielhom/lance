@@ -11,6 +11,8 @@ export type SearchJob = {
   readonly options: Readonly<Record<string, string>>
   /** Sends ucinewgame first, so nothing an earlier search left in the hash or the history tables shapes this one. */
   readonly fresh: boolean
+  /** Ends the search early on a node count, which stays deterministic on one thread where a time cap would not. */
+  readonly maxNodes?: number
 }
 export type SearchOutcome = { readonly bestmove: Uci; readonly lines: LineCollector }
 
@@ -113,7 +115,7 @@ export function openSession(
       state = { kind: 'searching', pending: s.pending, onDepth: s.onDepth, lines: lineCollector(job.turn) }
       arm(TIMEOUTS.silenceMs)
       transport.send(positionCommand(job.input))
-      transport.send(goCommand(job.limit))
+      transport.send(goCommand(job.limit, job.maxNodes))
     }
 
     function onSearch(s: Extract<State, { kind: 'searching' }>, msg: UciMessage) {

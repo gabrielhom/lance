@@ -62,7 +62,7 @@ describe('evaluate', () => {
       'ucinewgame',
       'isready',
       'position fen rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 moves g1f3 g8f6 f3g1 f6g8',
-      'go depth 12',
+      'go depth 12 nodes 3000000',
     ])
   })
 
@@ -76,7 +76,7 @@ describe('evaluate', () => {
       'ucinewgame',
       'isready',
       'position fen rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1',
-      'go depth 12',
+      'go depth 12 nodes 3000000',
     ])
   })
 
@@ -230,7 +230,7 @@ describe('failures', () => {
     const { evaluator, made } = setup({ engines: [fakeEngine('lite', { crashOnGo: true }), fresh] })
     expect((await evaluator.evaluate(recordedPosition('black-to-move'), live())).depth).toBe(12)
     expect(made).toHaveLength(2)
-    expect(fresh.sent).toContain('go depth 12')
+    expect(fresh.sent).toContain('go depth 12 nodes 3000000')
   })
 
   it('fails as crashed when the retry crashes too', async () => {
