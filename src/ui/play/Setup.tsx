@@ -1,6 +1,6 @@
 import { Shuffle, Users } from 'lucide-react'
 import { useState } from 'react'
-import { Chessboard } from 'react-chessboard'
+import { Chessboard, defaultPieces } from 'react-chessboard'
 import type { Color, PlaySetup, TimeControl } from '../../domain/types'
 import { LEVELS, loadChoice, resolveChoice, saveChoice } from '../../play'
 import type { SetupChoice } from '../../play'
@@ -81,7 +81,7 @@ export function Setup({ onStart }: { onStart: (setup: PlaySetup) => void }) {
               {COLORS.map((c) => (
                 <label key={c.value} className="choice flex items-center justify-center gap-1.5 min-h-11">
                   <input type="radio" name="cor" className="sr-only" checked={choice.color === c.value} onChange={() => set({ color: c.value })} />
-                  {c.value === 'random' ? <Shuffle size={16} aria-hidden /> : <span className={`king king-${c.value}`} aria-hidden>♚</span>}
+                  {c.value === 'random' ? <Shuffle size={16} aria-hidden /> : <King color={c.value} />}
                   <span className="font-semibold text-[14px]">{c.label}</span>
                 </label>
               ))}
@@ -109,5 +109,14 @@ export function Setup({ onStart }: { onStart: (setup: PlaySetup) => void }) {
         </div>
       </form>
     </div>
+  )
+}
+
+function King({ color }: { color: Color }) {
+  const Svg = defaultPieces[color === 'w' ? 'wK' : 'bK']
+  return (
+    <span className={`inline-block w-6 h-6 rounded-full p-0.5 ${color === 'b' ? 'bg-[#f4f3ef]' : ''}`} aria-hidden>
+      <Svg />
+    </span>
   )
 }
