@@ -59,8 +59,23 @@ describe('evaluate', () => {
       'setoption name Hash value 64',
       'isready',
       'setoption name MultiPV value 2',
+      'ucinewgame',
       'isready',
       'position fen rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 moves g1f3 g8f6 f3g1 f6g8',
+      'go depth 12',
+    ])
+  })
+
+  it('clears the engine before every position, so an eval never depends on what the engine searched before', async () => {
+    const engine = fakeEngine('lite')
+    const { evaluator } = setup({ engines: [engine] })
+    await evaluator.evaluate(recordedPosition('mate-in-1'), live())
+    const from = engine.sent.length
+    await evaluator.evaluate(recordedPosition('black-to-move'), live())
+    expect(engine.sent.slice(from)).toEqual([
+      'ucinewgame',
+      'isready',
+      'position fen rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1',
       'go depth 12',
     ])
   })
@@ -167,6 +182,21 @@ describe('abort', () => {
     await searching(engine, 2)
     play(engine, 'mate-in-1')
     expect((await queued).depth).toBe(12)
+  })
+
+  it('an abort while the engine clears settles on readyok without searching, and keeps the engine', async () => {
+    const engine = fakeEngine('lite')
+    const ac = new AbortController()
+    const send = engine.send
+    engine.send = (line) => {
+      send(line)
+      if (line === 'ucinewgame') ac.abort()
+    }
+    const { evaluator, made } = setup({ engines: [engine] })
+    expect(await outcome(evaluator.evaluate(recordedPosition('black-to-move'), ac.signal))).toBe('AbortError')
+    expect(engine.sent.filter((l) => l.startsWith('go '))).toEqual([])
+    expect((await evaluator.evaluate(recordedPosition('mate-in-1'), live())).depth).toBe(12)
+    expect(made).toHaveLength(1)
   })
 
   it('drops a queued job without touching the engine', async () => {

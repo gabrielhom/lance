@@ -1,5 +1,6 @@
 import { afterAll, describe, expect, it } from 'vitest'
-import type { EngineDescriptor, EngineTuning, RuntimeEnv } from '../domain/types'
+import opera from '../../e2e/fixtures/opera.pgn?raw'
+import { gameFromPgn, type EngineDescriptor, type EngineTuning, type PlayablePosition, type RuntimeEnv } from '../domain'
 import { createEvaluator } from './evaluator'
 import { memoryCache, recordedPosition } from './testing/fake-engine'
 import { liteSingleTransport } from './testing/node-engines.mjs'
@@ -48,4 +49,22 @@ describe('the real lite-single Stockfish 19, in process', () => {
     expect(Date.now() - started).toBeLessThan(10_000)
     timed.dispose()
   }, 15_000)
+})
+
+describe('the real lite-single Stockfish 19 analyses a game the same way every time', () => {
+  it('gives the same eval for every position whatever the pool size and the order the positions are searched in', async () => {
+    const game = gameFromPgn(opera, { kind: 'pgn' })
+    if (!game.ok) throw new Error(game.error.detail)
+    const playable = game.value.positions.filter((p): p is PlayablePosition => p.kind === 'playable')
+    const analyse = async (engines: number, order: readonly PlayablePosition[]) => {
+      const evaluator = createEvaluator(LITE, { kind: 'depth', depth: 12 }, { engines, threadsPerEngine: 1, hashMb: 16 }, memoryCache(), { crossOriginIsolated: false, cores: 8 }, liteSingleTransport)
+      const evals = await Promise.all(order.map((p) => evaluator.evaluate(p, live())))
+      evaluator.dispose()
+      return new Map(order.map((p, i) => [p.index, evals[i]]))
+    }
+    const forward = await analyse(3, playable)
+    const backward = await analyse(2, [...playable].reverse())
+    expect(playable.length).toBe(33)
+    for (const p of playable) expect(backward.get(p.index), `position ${p.index}`).toEqual(forward.get(p.index))
+  }, 30_000)
 })

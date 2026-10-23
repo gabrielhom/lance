@@ -32,10 +32,12 @@ type Job = {
 
 export function evalKey(profile: AnalysisProfile, position: PositionKey): EvalKey {
   const limit = profile.limit.kind === 'depth' ? `d${profile.limit.depth}` : `t${profile.limit.ms}`
-  return `c1|${profile.engine}|${limit}|mpv2|${position}` as EvalKey
+  return `c2|${profile.engine}|${limit}|mpv2|${position}` as EvalKey
 }
 
-const ANALYSIS = { options: { MultiPV: '2' }, fresh: false } as const
+/** Every position starts from a cleared engine. Otherwise an eval depends on what its pool worker searched before,
+ *  and that depends on timing, so the same game would get a different review each time. */
+const ANALYSIS = { options: { MultiPV: '2' }, fresh: true } as const
 
 function expectedFor(d: EngineDescriptor): Expected {
   return d.kind === 'wasm' ? { kind: 'eval-file', evalFile: `${WASM_FLAVORS[d.flavor].net}.nnue` } : { kind: 'id-name', idName: d.idName }
