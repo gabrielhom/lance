@@ -138,7 +138,7 @@ export function EvalGraph({ series, labels, moves, markers, classes, ply, onSele
           </div>
         )}
       </div>
-      <p id={`${id}-legend`} className="caption ml-0 mt-1">
+      <p id={`${id}-legend`} className="caption mt-1">
         {done ? 'Chance de vitória das brancas, em %. Toque no gráfico para ir ao lance.' : 'Preenche enquanto a análise avança.'}
         {markers.length > 0 && done && (
           <span className="sr-only">

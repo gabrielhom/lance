@@ -52,7 +52,7 @@ export function GameOver({ state, seats, sans, board, onNew, onRematch }: Props)
       <figure className="over-board">
         {board}
         {last >= 0 && (
-          <figcaption className="caption">
+          <figcaption className="caption board-caption">
             Posição final, depois de {moveNumberLabel(last)}<San san={sans[last]} />
           </figcaption>
         )}

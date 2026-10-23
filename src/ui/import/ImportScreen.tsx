@@ -52,21 +52,21 @@ export function ImportScreen() {
   const libraryFirst = !wide && !!library && library.length > 0
   const librarySection = (
     <section aria-labelledby="biblioteca-titulo">
-      <div className="flex items-baseline justify-between mb-3">
-        <h2 id="biblioteca-titulo" className="text-[18px] font-semibold tracking-tight">Partidas revisadas</h2>
-        {library && library.length > 0 && <a href="#/historico" className="text-[14px] text-accent font-medium">Ver histórico</a>}
+      <div className="flex items-baseline justify-between gap-4">
+        <h2 id="biblioteca-titulo" className="sec">Partidas revisadas</h2>
+        {library && library.length > 0 && <a href="#/historico" className="tl tl-quiet">Ver histórico</a>}
       </div>
-      <LibraryList records={library} identity={settings.identity} />
+      <div className="ruled">
+        <LibraryList records={library} identity={settings.identity} />
+      </div>
     </section>
   )
 
   return (
-    <div className="flex flex-col gap-6">
-      <header>
-        <h1 className="text-[22px] font-semibold tracking-tight">Revisar uma partida</h1>
-      </header>
+    <div className="flex flex-col gap-10 md:gap-14">
+      <h1 className="display text-3xl md:text-5xl">Revisar uma partida</h1>
       {libraryFirst && librarySection}
-      <section className="grid gap-4 lg:grid-cols-2" aria-label="Importar partidas">
+      <section className="grid gap-10 lg:grid-cols-2 lg:gap-18" aria-label="Importar partidas">
         <PastePanel onParsed={openGame} />
         <FetchPanel onPick={openGame} />
       </section>
@@ -102,7 +102,7 @@ function PastePanel({ onParsed }: { onParsed: (g: Game) => void }) {
 
   return (
     <div
-      className={`flex flex-col gap-3 ${dragging ? 'ring-2 ring-accent' : ''}`}
+      className={`min-w-0 ${dragging ? 'outline-2 outline-offset-8 outline-accent' : ''}`}
       onDragOver={(e) => {
         e.preventDefault()
         setDragging(true)
@@ -110,27 +110,29 @@ function PastePanel({ onParsed }: { onParsed: (g: Game) => void }) {
       onDragLeave={() => setDragging(false)}
       onDrop={onDrop}
     >
-      <h2 className="text-[16px] font-semibold">Colar PGN</h2>
-      <p className="hint">Cole o texto de uma ou mais partidas, ou solte um arquivo .pgn aqui.</p>
-      <label className="label" htmlFor="pgn-text">PGN</label>
+      <h2 className="sec">Colar PGN</h2>
+      <div className="ruled flex flex-col gap-3">
+      <label className="sr-only" htmlFor="pgn-text">PGN</label>
       <textarea
         id="pgn-text"
-        className="input"
+        className="field pgn"
         value={text}
         onChange={(e) => setText(e.target.value)}
         placeholder={'[Event "Casual"]\n1. e4 e5 2. Nf3 Nc6 ...'}
         spellCheck={false}
       />
-      <div className="flex flex-wrap gap-2">
-        <button type="button" className="btn btn-primary" disabled={!text.trim()} onClick={() => submit(text)}>
+      <p className="caption">Uma ou mais partidas. Também dá para soltar um arquivo .pgn aqui.</p>
+      <div className="flex flex-wrap items-center gap-x-7 gap-y-2">
+        <button type="button" className="btn" disabled={!text.trim()} onClick={() => submit(text)}>
           Revisar partida
         </button>
-        <button type="button" className="btn" onClick={() => fileRef.current?.click()}>
+        <button type="button" className="tl" onClick={() => fileRef.current?.click()}>
           Abrir arquivo .pgn
         </button>
         <input ref={fileRef} type="file" accept=".pgn,text/plain" className="sr-only" aria-label="Arquivo PGN" onChange={(e) => readFile(e.target.files?.[0])} />
       </div>
       {parsed && <ParsedResult result={parsed} onPick={onParsed} />}
+      </div>
     </div>
   )
 }
@@ -140,10 +142,10 @@ function ParsedResult({ result, onPick }: { result: ImportResult; onPick: (g: Ga
   return (
     <div className="flex flex-col gap-3">
       {result.rejected.length > 0 && (
-        <div role="alert" className="flex gap-2 rounded-lg bg-bad-soft text-ink p-3 text-[14px]">
+        <div role="alert" className="note">
           <div>
             <p className="font-semibold">{result.rejected.length === 1 ? 'Uma partida não pôde ser lida' : `${result.rejected.length} partidas não puderam ser lidas`}</p>
-            <ul className="mt-1 list-disc pl-5 text-ink-2">
+            <ul className="mt-1 list-disc pl-5 text-ink-2 marker:text-ink-3">
               {result.rejected.slice(0, 5).map((r) => {
                 const t = rejectionText(r.rejection)
                 return (
@@ -152,8 +154,8 @@ function ParsedResult({ result, onPick }: { result: ImportResult; onPick: (g: Ga
                     {t.text}
                     {t.detail && (
                       <details className="mt-1">
-                        <summary className="cursor-pointer text-[13px]">Detalhes técnicos</summary>
-                        <code className="block mt-1 text-[12px] break-words">{t.detail}</code>
+                        <summary className="cursor-pointer text-sm">Detalhes técnicos</summary>
+                        <code className="block mt-1 text-xs break-words">{t.detail}</code>
                       </details>
                     )}
                   </li>
@@ -165,7 +167,7 @@ function ParsedResult({ result, onPick }: { result: ImportResult; onPick: (g: Ga
       )}
       {result.games.length > 0 && (
         <div>
-          <p className="label">{result.games.length === 1 ? '1 partida encontrada' : `${result.games.length} partidas encontradas`}</p>
+          <p className="caption mb-1">{result.games.length === 1 ? '1 partida encontrada' : `${result.games.length} partidas encontradas`}</p>
           <GameList games={result.games} onPick={onPick} />
         </div>
       )}
@@ -205,17 +207,17 @@ function FetchPanel({ onPick }: { onPick: (g: Game) => void }) {
   }
 
   return (
-    <div className="flex flex-col gap-3">
-      <h2 className="text-[16px] font-semibold">Buscar partidas recentes</h2>
-      <div className="seg self-start" role="tablist" aria-label="Site">
+    <div className="min-w-0">
+      <h2 className="sec">Buscar partidas recentes</h2>
+      <div className="choices" role="tablist" aria-label="Site">
         {(['lichess', 'chesscom'] as const).map((s) => (
-          <button key={s} type="button" role="tab" aria-selected={site === s} onClick={() => setSite(s)}>
+          <button key={s} type="button" role="tab" className="choice" aria-selected={site === s} onClick={() => setSite(s)}>
             {SITE_LABEL[s]}
           </button>
         ))}
       </div>
       <form
-        className="flex flex-col sm:flex-row gap-2 sm:items-end"
+        className="flex flex-col sm:flex-row gap-3 sm:items-end mt-5"
         onSubmit={(e) => {
           e.preventDefault()
           run()
@@ -223,13 +225,15 @@ function FetchPanel({ onPick }: { onPick: (g: Game) => void }) {
       >
         <div className="flex-1">
           <label className="label" htmlFor="fetch-user">Nome de usuário no {SITE_LABEL[site]}</label>
-          <input id="fetch-user" className="input" value={username} onChange={(e) => setUsername(e.target.value)} autoComplete="username" autoCapitalize="off" spellCheck={false} />
+          <input id="fetch-user" className="field" value={username} onChange={(e) => setUsername(e.target.value)} autoComplete="username" autoCapitalize="off" spellCheck={false} />
         </div>
-        <button type="submit" className="btn btn-primary" disabled={!username.trim() || state.kind === 'loading'}>
+        <button type="submit" className="btn" disabled={!username.trim() || state.kind === 'loading'}>
           Buscar
         </button>
       </form>
-      <FetchBody state={state} onPick={onPick} onRetry={run} />
+      <div className="mt-4">
+        <FetchBody state={state} onPick={onPick} onRetry={run} />
+      </div>
     </div>
   )
 }
@@ -237,22 +241,22 @@ function FetchPanel({ onPick }: { onPick: (g: Game) => void }) {
 function FetchBody({ state, onPick, onRetry }: { state: FetchState; onPick: (g: Game) => void; onRetry: () => void }) {
   switch (state.kind) {
     case 'idle':
-      return <p className="hint">As últimas 20 partidas aparecem aqui para você escolher qual revisar.</p>
+      return <p className="caption">As últimas 20 partidas aparecem aqui para você escolher qual revisar.</p>
     case 'loading':
       return (
-        <div role="status" aria-live="polite" className="flex flex-col gap-2">
-          <p className="hint">Buscando partidas de {state.username}…</p>
+        <div role="status" aria-live="polite">
+          <p className="caption">Buscando partidas de {state.username}…</p>
         </div>
       )
     case 'failed': {
       const t = fetchFailureText(state.failure, state.username)
       return (
-        <div role="alert" className="flex gap-2 rounded-lg bg-bad-soft p-3 text-[14px]">
-          <div className="flex-1">
+        <div role="alert" className="note mt-0">
+          <div>
             <p className="font-semibold">{t.title}</p>
             <p className="text-ink-2 mt-0.5">{t.detail}</p>
             {state.failure.kind !== 'not-found' && (
-              <button type="button" className="btn btn-sm mt-2" onClick={onRetry}>
+              <button type="button" className="tl mt-1" onClick={onRetry}>
                 Tentar de novo
               </button>
             )}
@@ -262,10 +266,10 @@ function FetchBody({ state, onPick, onRetry }: { state: FetchState; onPick: (g: 
     }
     case 'ok': {
       const { games, rejected } = state.result
-      if (games.length === 0) return <p className="hint">Nenhuma partida recente de {state.username}.</p>
+      if (games.length === 0) return <p className="caption">Nenhuma partida recente de {state.username}.</p>
       return (
         <div>
-          {rejected.length > 0 && <p className="hint mb-2">{rejected.length} partida(s) ignorada(s) por serem de variantes.</p>}
+          {rejected.length > 0 && <p className="caption mb-2">{rejected.length} partida(s) ignorada(s) por serem de variantes.</p>}
           <GameList games={games} onPick={onPick} highlight={state.username} />
         </div>
       )

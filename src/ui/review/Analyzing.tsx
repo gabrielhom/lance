@@ -22,7 +22,7 @@ export function AnalyzingPanel({ state, onCancel }: { state: Analyzing | null; o
         <span style={{ width: `${pct}%` }} />
       </div>
       <div className="flex items-baseline justify-between gap-4 mt-2">
-        <p className="caption m-0">{line}</p>
+        <p className="caption">{line}</p>
         <button type="button" className="tl tl-quiet" onClick={onCancel}>Cancelar</button>
       </div>
     </section>

@@ -388,7 +388,7 @@
   .choice { padding: 6px 0 4px; font-size: var(--text-md); color: var(--ink-2); cursor: pointer; }
   .choice.num { font-size: var(--text-lg); line-height: 1.2; }
   .choice:hover { color: var(--ink); }
-  .choice:has(:checked) { color: var(--ink); font-weight: 600; box-shadow: inset 0 -2px 0 var(--ink); }
+  .choice:is(:has(:checked), [aria-selected="true"], [aria-checked="true"]) { color: var(--ink); font-weight: 600; box-shadow: inset 0 -2px 0 var(--ink); }
 
   .go {
     position: sticky;
@@ -416,7 +416,8 @@
   .dek .sep { margin-inline: 6px; color: var(--ink-3); }
   .kicker, .caption { font-family: var(--font-serif); font-style: italic; color: var(--ink-2); }
   .kicker { font-size: var(--text-md); }
-  .caption { margin: 10px 0 0 22px; font-size: var(--text-sm); }
+  .caption { font-size: var(--text-sm); }
+  .board-caption { margin: 10px 0 0 22px; }
 
   /* An alert set like a printed note: ruled above and below, words carrying the weight instead of color. */
   .note { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; margin-top: 16px; padding: 10px 0; border-block: 1px solid var(--rule-strong); }
@@ -586,6 +587,21 @@
     .rv-right > .status + .annot { margin-top: 22px; }
     .rv-graph { padding-left: 22px; }
   }
+
+  .label { display: block; margin-bottom: 6px; font-size: var(--text-sm); font-weight: 600; color: var(--ink-2); }
+  .ruled { padding-top: 12px; border-top: 1px solid var(--rule-strong); }
+  .field.pgn { min-height: 180px; resize: vertical; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: var(--text-xs); line-height: 1.5; }
+
+  /* A game in a list: a ruled row, the whole row the link. */
+  .rows > li { border-bottom: 1px solid var(--rule); }
+  .ruled > .rows { margin-top: -12px; }
+  .row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 16px; width: calc(100% + 16px); margin-inline: -8px; padding: 12px 8px 11px; text-align: left; text-decoration: none; cursor: pointer; }
+  .row:hover { background: var(--paper-2); }
+  .row:focus-visible { outline-offset: 0; }
+  .row-title { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; font-size: var(--text-md); font-weight: 600; }
+  .row-title .outcome { font-family: var(--font-serif); font-style: italic; font-weight: 400; color: var(--ink-2); }
+  .row-meta { display: block; margin-top: 2px; font-size: var(--text-sm); color: var(--ink-2); }
+  .row-acc { display: block; font-family: var(--font-serif); font-size: var(--text-2xl); line-height: 1.1; white-space: nowrap; }
 
   .dialog {
     width: min(420px, calc(100vw - 32px));

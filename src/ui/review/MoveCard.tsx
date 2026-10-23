@@ -47,7 +47,7 @@ export function MoveCard({ move, review: r, opening, labels, ply, preview, onPre
       <section className="annot" aria-live="polite">
         <p className="where">Posição inicial</p>
         {opening && <p className="best">{opening.eco} · {opening.name}</p>}
-        <p className="caption ml-0">Toque nos lances ou use as setas.</p>
+        <p className="caption">Toque nos lances ou use as setas.</p>
       </section>
     )
   }
@@ -64,7 +64,7 @@ export function MoveCard({ move, review: r, opening, labels, ply, preview, onPre
     return (
       <section className="annot" aria-live="polite">
         {head}
-        <p className="caption ml-0">A explicação do lance aparece quando a análise terminar.</p>
+        <p className="caption">A explicação do lance aparece quando a análise terminar.</p>
       </section>
     )
   }
@@ -116,7 +116,7 @@ export function MoveCard({ move, review: r, opening, labels, ply, preview, onPre
               </li>
             )}
           </ol>
-          <p className="caption ml-0 mt-1">{preview === null ? 'Toque num lance para ver a sequência no tabuleiro.' : 'Mostrando a sequência no tabuleiro. As setas avançam e voltam nela.'}</p>
+          <p className="caption mt-1">{preview === null ? 'Toque num lance para ver a sequência no tabuleiro.' : 'Mostrando a sequência no tabuleiro. As setas avançam e voltam nela.'}</p>
         </section>
       )}
     </>

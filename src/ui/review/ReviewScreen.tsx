@@ -43,7 +43,7 @@ export function ReviewScreen({ id }: { id: GameId }) {
 
   if (slot.kind === 'loading') {
     return (
-      <p className="caption ml-0" aria-busy="true">Abrindo a partida…</p>
+      <p className="caption" aria-busy="true">Abrindo a partida…</p>
     )
   }
   if (slot.kind === 'missing') {
@@ -184,7 +184,7 @@ function Review({ game, startPly }: { game: Game; startPly: number }) {
             <span className="ply">{ply === 0 ? 'posição inicial' : `lance ${ply} de ${n}`}</span>
             <span className="ml-auto flex flex-wrap items-baseline justify-end gap-x-5">
               {review && errors.length === 0 ? (
-                <span className="caption m-0">{myColor ? 'Nenhum erro seu' : 'Nenhum erro'}</span>
+                <span className="caption">{myColor ? 'Nenhum erro seu' : 'Nenhum erro'}</span>
               ) : (
                 <>
                   <button type="button" className="tl tl-quiet max-md:hidden" onClick={() => prevError && go(prevError.move.index + 1)} disabled={!prevError}>
