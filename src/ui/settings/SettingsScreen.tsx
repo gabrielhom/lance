@@ -28,25 +28,27 @@ export function SettingsScreen() {
   }
 
   return (
-    <div className="flex flex-col gap-6 max-w-[760px]">
+    <div className="flex flex-col gap-10 md:gap-12 max-w-[760px]">
       <header>
-        <h1 className="text-[22px] font-semibold tracking-tight">Configurações</h1>
-        <p className="hint">Tudo é salvo na hora.</p>
+        <h1 className="display text-3xl md:text-5xl">Configurações</h1>
+        <p className="dek">Tudo é salvo na hora.</p>
       </header>
 
-      <section className="flex flex-col gap-4" aria-labelledby="contas-titulo">
-        <h2 id="contas-titulo" className="text-[16px] font-semibold">Suas contas</h2>
-        <p className="hint">Com seus nomes de usuário o app sabe de que lado você jogou e destaca sua precisão.</p>
-        <div className="grid sm:grid-cols-2 gap-3">
-          <AccountField site="lichess" label="Lichess" value={account('lichess')} onCommit={(v) => setAccount('lichess', v)} />
-          <AccountField site="chesscom" label="Chess.com" value={account('chesscom')} onCommit={(v) => setAccount('chesscom', v)} />
+      <section aria-labelledby="contas-titulo">
+        <h2 id="contas-titulo" className="sec">Suas contas</h2>
+        <div className="ruled flex flex-col gap-4">
+          <p className="text-ink-2">Com seus nomes de usuário o app sabe de que lado você jogou e destaca sua precisão.</p>
+          <div className="grid sm:grid-cols-2 gap-5">
+            <AccountField site="lichess" label="Lichess" value={account('lichess')} onCommit={(v) => setAccount('lichess', v)} />
+            <AccountField site="chesscom" label="Chess.com" value={account('chesscom')} onCommit={(v) => setAccount('chesscom', v)} />
+          </div>
         </div>
       </section>
 
-      <section className="flex flex-col gap-4" aria-labelledby="engine-titulo">
-        <h2 id="engine-titulo" className="text-[16px] font-semibold">Engine</h2>
-        <fieldset className="flex flex-col gap-2">
-          <legend className="label">Qual engine analisa as partidas</legend>
+      <section aria-labelledby="engine-titulo">
+        <h2 id="engine-titulo" className="sec">Engine</h2>
+        <fieldset className="options">
+          <legend className="sr-only">Qual engine analisa as partidas</legend>
           <EngineOption
             checked={settings.engine.kind === 'wasm' && settings.engine.flavor === 'lite'}
             onSelect={() => update({ engine: { kind: 'wasm', flavor: 'lite' } })}
@@ -72,37 +74,35 @@ export function SettingsScreen() {
         </fieldset>
       </section>
 
-      <section className="flex flex-col gap-4" aria-labelledby="analise-titulo">
-        <h2 id="analise-titulo" className="text-[16px] font-semibold">Análise</h2>
-        <div>
-          <p className="label" id="prof-label">Profundidade</p>
-          <div className="seg" role="radiogroup" aria-labelledby="prof-label">
-            {DEPTHS.map((d) => (
-              <button key={d.depth} type="button" role="radio" aria-checked={isDepth(settings.limit, d.depth)} onClick={() => update({ limit: { kind: 'depth', depth: d.depth } })} title={d.hint}>
-                {d.label} <span className="text-ink-3 font-normal">{d.depth}</span>
-              </button>
-            ))}
-          </div>
-          <p className="hint mt-1">Mais profundidade, análise mais precisa e mais demorada.</p>
+      <section aria-labelledby="analise-titulo">
+        <h2 id="analise-titulo" className="sec">Análise</h2>
+        <p className="sr-only" id="prof-label">Profundidade</p>
+        <div className="choices" role="radiogroup" aria-labelledby="prof-label">
+          {DEPTHS.map((d) => (
+            <button key={d.depth} type="button" role="radio" className="choice" aria-checked={isDepth(settings.limit, d.depth)} onClick={() => update({ limit: { kind: 'depth', depth: d.depth } })} title={d.hint}>
+              {d.label} <span className="num text-ink-3 font-normal">{d.depth}</span>
+            </button>
+          ))}
         </div>
+        <p className="caption mt-2">Profundidade da busca em cada posição. Mais profundidade, análise mais precisa e mais demorada.</p>
       </section>
 
-      <details ref={advanced} open={advancedAtStart}>
-        <summary className="cursor-pointer">
-          <h2 className="inline text-[16px] font-semibold">Avançado</h2>
+      <details ref={advanced} open={advancedAtStart} className="advanced">
+        <summary>
+          <h2 className="sec inline">Avançado</h2>
         </summary>
-        <div className="flex flex-col gap-5 pt-4">
+        <div className="ruled flex flex-col gap-8 mt-2">
           <div className="flex flex-col gap-2">
-            <h3 className="text-[14px] font-semibold">Engine local</h3>
+            <h3 className="font-serif font-semibold text-md">Engine local</h3>
             {settings.engine.kind === 'bridge' ? (
               <BridgeFields engine={settings.engine} onChange={(engine) => update({ engine })} />
             ) : (
-              <p className="hint">Escolha "Engine local via bridge" acima para conectar um Stockfish instalado no computador.</p>
+              <p className="text-ink-2">Escolha "Engine local via bridge" acima para conectar um Stockfish instalado no computador.</p>
             )}
           </div>
           <div className="flex flex-col gap-2">
-            <h3 className="text-[14px] font-semibold">Desempenho</h3>
-            <div className="grid sm:grid-cols-2 gap-3">
+            <h3 className="font-serif font-semibold text-md">Desempenho</h3>
+            <div className="grid sm:grid-cols-2 gap-5">
               <NumberField
                 id="engines"
                 label="Engines em paralelo"
@@ -124,11 +124,11 @@ export function SettingsScreen() {
             </div>
           </div>
           <div className="flex flex-col gap-1">
-            <h3 className="text-[14px] font-semibold">Isolamento de origem</h3>
-            <p className="text-[14px] text-ink-2">
+            <h3 className="font-serif font-semibold text-md">Isolamento de origem</h3>
+            <p className="text-ink-2">
               O Completo usa várias threads, e o navegador só libera isso numa página com isolamento de origem (cabeçalhos COOP e COEP). O servidor do projeto já envia os dois.
             </p>
-            <p className={`text-[14px] font-medium ${env.crossOriginIsolated ? 'text-good' : 'text-warn'}`}>
+            <p className="font-semibold">
               {env.crossOriginIsolated ? 'Esta página está isolada.' : 'Esta página não está isolada, então use o Lite ou o bridge.'}
             </p>
           </div>
@@ -144,13 +144,11 @@ function isDepth(limit: SearchLimit, depth: number) {
 
 function EngineOption({ checked, onSelect, title, detail, warning }: { checked: boolean; onSelect: () => void; title: string; detail: string; warning?: string | null }) {
   return (
-    <label className={`flex gap-3 rounded-lg border p-3 cursor-pointer ${checked ? 'border-accent bg-accent-soft' : 'border-border hover:bg-surface-2'}`}>
-      <input type="radio" name="engine" className="mt-1 accent-[var(--accent)]" checked={checked} onChange={onSelect} />
-      <span>
-        <span className="block font-semibold text-[14px]">{title}</span>
-        <span className="block text-[13px] text-ink-2">{detail}</span>
-        {warning && <span className="block text-[13px] text-warn font-medium mt-1">{warning}</span>}
-      </span>
+    <label className="option">
+      <input type="radio" name="engine" checked={checked} onChange={onSelect} />
+      <span className="title">{title}</span>
+      <span className="block text-sm text-ink-2">{detail}</span>
+      {warning && <span className="block text-sm font-semibold italic mt-1">{warning}</span>}
     </label>
   )
 }
@@ -178,11 +176,11 @@ function BridgeFields({ engine, onChange }: { engine: Extract<EngineDescriptor, 
   }
 
   return (
-    <div className="rounded-lg bg-surface-2 p-3 sm:p-4 flex flex-col gap-3">
+    <div className="flex flex-col gap-4">
       <div>
         <label className="label" htmlFor="bridge-url">URL do bridge</label>
         <div className="flex flex-col sm:flex-row gap-2">
-          <input id="bridge-url" className="input" value={url} onChange={(e) => setUrl(e.target.value)} onBlur={() => url.trim() !== engine.url && onChange({ ...engine, url: url.trim() })} spellCheck={false} inputMode="url" />
+          <input id="bridge-url" className="field" value={url} onChange={(e) => setUrl(e.target.value)} onBlur={() => url.trim() !== engine.url && onChange({ ...engine, url: url.trim() })} spellCheck={false} inputMode="url" />
           <button type="button" className="btn" onClick={test} disabled={probe.kind === 'loading' || !url.trim()}>
             {probe.kind === 'loading' ? 'Testando…' : 'Testar'}
           </button>
@@ -191,15 +189,15 @@ function BridgeFields({ engine, onChange }: { engine: Extract<EngineDescriptor, 
       <div aria-live="polite">
         {probe.kind === 'ok' && (
           <div className="flex flex-col gap-2">
-            <p className="flex items-center gap-2 text-[14px] text-good font-medium">
+            <p className="font-semibold">
               Bridge respondeu com {probe.engines.length === 1 ? '1 engine' : `${probe.engines.length} engines`}
             </p>
             <fieldset>
               <legend className="label">Engine a usar</legend>
               <div className="flex flex-col gap-1">
                 {probe.engines.map((e) => (
-                  <label key={e.name} className="flex items-center gap-2 text-[14px] cursor-pointer">
-                    <input type="radio" name="bridge-engine" className="accent-[var(--accent)]" checked={engine.name === e.name} onChange={() => onChange({ ...engine, url: url.trim(), name: e.name, idName: e.idName })} />
+                  <label key={e.name} className="flex items-center gap-2 cursor-pointer">
+                    <input type="radio" name="bridge-engine" className="accent-(--accent)" checked={engine.name === e.name} onChange={() => onChange({ ...engine, url: url.trim(), name: e.name, idName: e.idName })} />
                     <span className="font-medium">{e.name}</span>
                     <span className="text-ink-3">{e.idName}</span>
                   </label>
@@ -209,16 +207,16 @@ function BridgeFields({ engine, onChange }: { engine: Extract<EngineDescriptor, 
           </div>
         )}
         {probe.kind === 'failed' && (
-          <p className="flex items-start gap-2 text-[14px] text-bad font-medium">
+          <p className="font-semibold" role="alert">
             {probeErrorText(probe.error)}
           </p>
         )}
-        {probe.kind === 'idle' && engine.idName && <p className="hint">Engine salva: {engine.name} ({engine.idName})</p>}
+        {probe.kind === 'idle' && engine.idName && <p className="caption">Engine salva: {engine.name} ({engine.idName})</p>}
       </div>
       <div>
         <p className="label">Para iniciar o bridge</p>
-        <pre className="rounded-md bg-surface border border-border p-3 text-[12px] whitespace-pre-wrap break-all"><code>npm run bridge -- --engine sf19=/caminho/para/stockfish</code></pre>
-        <p className="hint mt-1">Troque o caminho pelo binário da sua engine. Pode repetir --engine para registrar mais de uma.</p>
+        <pre className="bg-paper-2 border-l-2 border-rule-strong px-3 py-2 text-xs whitespace-pre-wrap break-all"><code>npm run bridge -- --engine sf19=/caminho/para/stockfish</code></pre>
+        <p className="caption mt-1.5">Troque o caminho pelo binário da sua engine. Pode repetir --engine para registrar mais de uma.</p>
       </div>
     </div>
   )
@@ -235,7 +233,7 @@ function AccountField({ site, label, value, onCommit }: { site: string; label: s
   return (
     <div>
       <label className="label" htmlFor={`acc-${site}`}>{label}</label>
-      <input id={`acc-${site}`} className="input" value={v} onChange={(e) => setV(e.target.value)} onBlur={() => v.trim() !== value && onCommit(v)} autoComplete="username" autoCapitalize="off" spellCheck={false} placeholder="nome de usuário" />
+      <input id={`acc-${site}`} className="field" value={v} onChange={(e) => setV(e.target.value)} onBlur={() => v.trim() !== value && onCommit(v)} autoComplete="username" autoCapitalize="off" spellCheck={false} placeholder="nome de usuário" />
     </div>
   )
 }
@@ -252,8 +250,8 @@ function NumberField({ id, label, value, min, max, onCommit, hint }: { id: strin
   return (
     <div>
       <label className="label" htmlFor={id}>{label}</label>
-      <input id={id} className="input" type="number" inputMode="numeric" min={min} max={max} value={v} onChange={(e) => setV(e.target.value)} onBlur={commit} />
-      <p className="hint mt-1">{hint}</p>
+      <input id={id} className="field max-w-32" type="number" inputMode="numeric" min={min} max={max} value={v} onChange={(e) => setV(e.target.value)} onBlur={commit} />
+      <p className="caption mt-1.5">{hint}</p>
     </div>
   )
 }
