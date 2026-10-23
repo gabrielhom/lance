@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import type { AccuracyPoint, LibraryRecord } from '../../domain/types'
 import { formatPct } from '../format'
 import { LibraryList } from '../import/GameList'
+import { finishedReviews, subscribeReviews } from '../review/runs'
 import { useServices, useSettings } from '../services'
 import { AccuracyChart } from './AccuracyChart'
 
@@ -9,13 +10,15 @@ export function HistoryScreen() {
   const services = useServices()
   const [settings] = useSettings()
   const [records, setRecords] = useState<readonly LibraryRecord[] | null>(null)
+  // A game played just before keeps being reviewed in the background and lands in the library when it finishes.
+  const finished = useSyncExternalStore(subscribeReviews, finishedReviews)
   useEffect(() => {
     let alive = true
     services.library.list().then((l) => alive && setRecords(l))
     return () => {
       alive = false
     }
-  }, [services])
+  }, [services, finished])
   const points: readonly AccuracyPoint[] = useMemo(() => (records ? services.accuracyHistory(records, settings.identity) : []), [services, records, settings])
   const avg = points.length ? points.reduce((s, p) => s + p.accuracy, 0) / points.length : null
   const wins = points.filter((p) => (p.result === '1-0') === (p.color === 'w') && p.result !== '1/2-1/2' && p.result !== '*').length
