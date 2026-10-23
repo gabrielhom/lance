@@ -78,10 +78,13 @@ describe('parseUciLine on recorded Stockfish 19 output', () => {
     expect(parseUciLine('')).toEqual({ kind: 'ignored' })
   })
 
-  it('parses every recorded line without throwing, and finds a bestmove at the end of every search', () => {
+  it('reads every recorded search as info lines ending in exactly one bestmove', () => {
     for (const recorded of ['native', 'lite'] as const) {
       for (const s of Object.values(TRANSCRIPTS[recorded].scenarios)) {
-        expect(parseUciLine(s.lines.at(-1)!).kind).toBe('bestmove')
+        const kinds = s.lines.map((l) => parseUciLine(l).kind)
+        expect(kinds.at(-1)).toBe('bestmove')
+        expect(kinds.filter((k) => k === 'bestmove')).toHaveLength(1)
+        expect(kinds.every((k) => k === 'pv' || k === 'ignored' || k === 'bestmove')).toBe(true)
       }
     }
   })
