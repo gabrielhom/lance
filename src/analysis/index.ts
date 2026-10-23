@@ -1,2 +1,5 @@
 export { winPct, moveAccuracy, gameAccuracy } from './accuracy'
 export { completeEvals, type CompleteEvals } from './evals'
+export { see } from './material'
+export { CLASSIFIER, CLASSIFIER_VERSION, classify, isSacrifice, moveFacts, type MoveContext, type MoveFacts } from './classify'
+export { buildReview, evalLabel, graphPoints, keyMoments, pvSan } from './review'
