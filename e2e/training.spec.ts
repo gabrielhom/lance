@@ -63,6 +63,7 @@ test('trains the blunders of a reviewed game: a wrong and a right answer move th
   await expect(page.getByText('1 posição para hoje · 1 feita hoje, 0 certas')).toBeVisible()
   await axe()
   await page.getByRole('button', { name: 'Próxima' }).click()
+  await expect(page.getByLabel('Digitar um lance')).toBeFocused()
 
   await answer(page, right.best.pv[0])
   await expect(page.getByText('É o lance da engine.')).toBeVisible()

@@ -12,6 +12,7 @@ import { PlayBoard } from '../play/PlayBoard'
 import { href } from '../router'
 import { Mark, San } from '../san'
 import { useServices } from '../services'
+import { useMediaQuery } from '../useMediaQuery'
 
 type Turn =
   | { readonly kind: 'asking'; readonly error: string | null }
@@ -170,9 +171,12 @@ function Question({ item, position, progress, practice, turn, setTurn, onAnswere
   const entry = useMoveEntry({ fen: before.fen, disabled: turn.kind !== 'asking', placeholder: 'seu lance', onMove: submit })
 
   const next = useRef<HTMLButtonElement>(null)
+  const finePointer = useMediaQuery('(pointer: fine)')
   useEffect(() => {
     if (turn.kind === 'answered') next.current?.focus()
-  }, [turn.kind])
+    // On a phone the field would open the keyboard over the board, so it takes focus only with a mouse or trackpad.
+    else if (turn.kind === 'asking' && finePointer) document.getElementById('lance-digitado')?.focus()
+  }, [turn.kind, finePointer])
 
   const where = `Lance ${Math.floor(item.index / 2) + 1} das ${colorLabel(mover)}`
   const best = item.best.pv[0]
