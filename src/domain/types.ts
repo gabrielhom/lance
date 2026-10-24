@@ -244,6 +244,9 @@ export type LibraryRecord = {
 }
 export interface Library {
   put(review: GameReview, now: number): Promise<void>
+  /** Rewrites a stored game's summary from a review rebuilt from the cache, keeping when it was reviewed and leaving its
+   *  training items alone. Does nothing for a game no longer stored. */
+  refresh(review: GameReview): Promise<void>
   /** Newest first. Rows this version can't read are left out; `unreadable` counts them. */
   list(): Promise<readonly LibraryRecord[]>
   unreadable(): Promise<number>

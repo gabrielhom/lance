@@ -38,12 +38,13 @@ export async function createServices(): Promise<Services> {
     return picker.picker
   }
 
-  // Once per page, before the first list, so the counts include games reviewed before training existed.
+  // Once per page, before the first list, so the counts and the reports include games reviewed before training and the
+  // newer summary fields existed.
   let backfilled: Promise<void> | null = null
   const ready = () =>
     (backfilled ??= book
       .then((b) => backfill({ ...store, book: b, identity: loadSettings().identity }, Date.now()))
-      .catch((e: unknown) => console.warn('training backfill failed', e)))
+      .catch((e: unknown) => console.warn('backfill failed', e)))
 
   // Loaded once, on first use; a failed load (offline before the chunk was ever stored) is tried again next time.
   let puzzleSet: ReturnType<typeof loadPuzzles> | null = null
@@ -64,7 +65,7 @@ export async function createServices(): Promise<Services> {
     loadSettings,
     saveSettings,
     runtimeEnv: () => env,
-    library: store.library,
+    library: { ...store.library, list: () => ready().then(() => store.library.list()) },
     backup: store.backup,
     parsePgnText,
     fetchRecentGames,

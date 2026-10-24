@@ -519,6 +519,10 @@ export function createMockServices(): Services {
       records.set(review.game.id, libraryRecord(review, at))
       sync(review, at)
     },
+    async refresh(review) {
+      const record = records.get(review.game.id)
+      if (record) records.set(record.id, { ...record, summary: libraryRecord(review, record.reviewedAt).summary })
+    },
     async list() {
       await seeded
       return [...records.values()].sort((a, b) => (b.playedAt ?? 0) - (a.playedAt ?? 0))

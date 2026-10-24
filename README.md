@@ -28,7 +28,7 @@ Do Histórico, "Ver seus pontos fracos" abre um relatório tirado de todas as su
 - **Fases.** Precisão média, a tendência das últimas 5 partidas contra as 5 anteriores e os erros por partida em cada fase. Como a precisão muda de fase para fase por natureza, a fase mais fraca é a que fica pior entre os jogadores do Lichess, pela mesma amostra que calibra o Elo estimado, e só é apontada quando duas fases têm 5 partidas ou mais.
 - **Erros.** Erros, blunders e chances perdidas por partida, com a média das últimas 5, e quantas derrotas tiveram um blunder seu.
 
-Abaixo desses mínimos, o relatório mostra os números e diz "poucos jogos ainda" em vez de um veredito. Os limites ficam em `INSIGHTS`, em `src/review/insights.ts`. Partidas revisadas antes de uma versão guardar algum desses dados ficam de fora dele, e abrir a revisão de uma delas atualiza o que está salvo.
+Abaixo desses mínimos, o relatório mostra os números e diz "poucos jogos ainda" em vez de um veredito. Os limites ficam em `INSIGHTS`, em `src/review/insights.ts`. Uma partida revisada antes de uma versão guardar algum desses dados é atualizada ao abrir o app, a partir das avaliações guardadas, sem ligar a engine. Se faltar alguma avaliação, ela fica de fora até você abrir a revisão dela.
 
 ## Rodar
 

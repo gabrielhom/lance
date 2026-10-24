@@ -74,8 +74,7 @@ export type Weaknesses = {
     readonly byPhase: Readonly<Record<Phase, PhaseStats>>
     /** The phase where my games rank lowest among Lichess players; null until two phases have enough games. */
     readonly weakest: Phase | null
-    /** Games saved before phases, or before errors per phase, were stored. */
-    readonly withoutPhases: number
+    /** Games saved before errors per phase were stored, which the backfill could not refresh. */
     readonly withoutPhaseErrors: number
   }
   readonly errors: {
@@ -169,7 +168,6 @@ function phases(games: readonly MyGame[]): Weaknesses['phases'] {
   return {
     byPhase,
     weakest: compared.length < 2 ? null : compared.reduce((a, b) => (byPhase[b].percentile! < byPhase[a].percentile! ? b : a)),
-    withoutPhases: games.filter((g) => g.record.summary.phases === null).length,
     withoutPhaseErrors: games.filter((g) => g.record.summary.phaseErrors === null).length,
   }
 }

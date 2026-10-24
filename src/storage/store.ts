@@ -80,6 +80,12 @@ function library(db: Db): Library {
       const tx = db.transaction(['games', 'training'], 'readwrite')
       await Promise.all([tx.objectStore('games').put(libraryRecord(review, now)), syncTraining(tx.objectStore('training'), review, now), tx.done])
     },
+    refresh: async (review) => {
+      const tx = db.transaction('games', 'readwrite')
+      const record = parseLibraryRecord(await tx.store.get(review.game.id))
+      if (record) await tx.store.put({ ...record, summary: libraryRecord(review, record.reviewedAt).summary })
+      await tx.done
+    },
     list: async () =>
       (await db.getAll('games'))
         .map(parseLibraryRecord)

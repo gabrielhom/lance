@@ -200,7 +200,7 @@ function Verdict({ verdict, strong }: { verdict: string | null; strong: boolean 
 }
 
 function Phases({ report, action }: { report: Weaknesses; action: (p: Phase, s: PhaseStats) => Action | null }) {
-  const { byPhase, weakest, withoutPhases, withoutPhaseErrors } = report.phases
+  const { byPhase, weakest, withoutPhaseErrors } = report.phases
   return (
     <section aria-labelledby="fases-titulo">
       <h2 id="fases-titulo" className="sec">Fases</h2>
@@ -233,9 +233,8 @@ function Phases({ report, action }: { report: Weaknesses; action: (p: Phase, s: 
         </ul>
         <p className="caption mt-3">
           A precisão de cada fase cai e sobe por natureza: a abertura costuma ser a mais alta. Por isso a mais fraca é a que fica pior entre os jogadores do Lichess, e não a de menor precisão.
-          {withoutPhases > 0 && ` ${plural(withoutPhases, 'partida revisada antes das fases ficou', 'partidas revisadas antes das fases ficaram')} de fora.`}
-          {withoutPhaseErrors > withoutPhases && ` Os erros por fase contam só as partidas revisadas a partir desta versão.`}
-          {withoutPhaseErrors > 0 && ' Abrir a revisão de uma partida antiga atualiza os dados dela.'}
+          {withoutPhaseErrors > 0 &&
+            ` ${plural(withoutPhaseErrors, 'partida antiga ficou', 'partidas antigas ficaram')} de fora de parte destes números por falta de avaliações guardadas. Abrir a revisão atualiza os dados.`}
         </p>
       </div>
     </section>

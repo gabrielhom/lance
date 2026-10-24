@@ -90,6 +90,7 @@ function memoryLibrary(fails = false) {
       if (fails) throw new Error('quota')
       saved.push(review)
     },
+    refresh: async () => undefined,
     list: async () => [],
     unreadable: async () => 0,
     get: async () => null,

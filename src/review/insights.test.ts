@@ -149,7 +149,7 @@ describe('weaknesses: phases', () => {
     expect([p.byPhase.opening.games, p.byPhase.opening.accuracy, Math.round(p.byPhase.opening.percentile!)]).toEqual([2, 85, 37])
     expect([p.byPhase.middlegame.games, p.byPhase.middlegame.accuracy, Math.round(p.byPhase.middlegame.percentile!)]).toEqual([2, 66.8, 27])
     expect([p.byPhase.endgame.games, p.byPhase.endgame.accuracy]).toEqual([1, 90])
-    expect([p.weakest, p.withoutPhases]).toEqual([null, 1])
+    expect(p.weakest).toBeNull()
   })
 
   it('names the phase where my games rank lowest once two phases have 5 games, not the one with the lowest accuracy', () => {
