@@ -1,7 +1,9 @@
 // Node-only test plumbing, kept in plain JS so Node's types never enter the browser program.
-import { existsSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync } from 'node:fs'
 import { request } from 'node:http'
 import { createRequire } from 'node:module'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const require = createRequire(import.meta.url)
@@ -54,4 +56,13 @@ export function statusWithHost(url, host) {
       .on('error', reject)
       .end()
   })
+}
+
+export const FAKE_UCI = fileURLToPath(new URL('./fake-uci.mjs', import.meta.url))
+
+/** Points fake-uci at a fresh log file, which the bridge's child processes inherit, and returns a reader of its lines. */
+export function fakeUciLog() {
+  const path = join(mkdtempSync(join(tmpdir(), 'bridge-')), 'engine.log')
+  process.env.FAKE_UCI_LOG = path
+  return () => (existsSync(path) ? readFileSync(path, 'utf8').split('\n').filter(Boolean) : [])
 }

@@ -31,6 +31,8 @@ O `npm install` copia o Stockfish 19 (WASM) para `public/engine`. Abra http://lo
 
   A ponte só escuta em 127.0.0.1, só aceita páginas das origens permitidas (`--origin` acrescenta outras) e só roda os executáveis passados na linha de comando. Em Configurações, escolha "Engine local", informe `http://127.0.0.1:7777` e clique em Testar.
 
+  A ponte também recusa qualquer comando UCI que o app não envia (só `setoption` de Threads, Hash, MultiPV, UCI_Elo, UCI_LimitStrength e Skill Level, mais `position`, `go` e os comandos simples), aceita no máximo 8 engines ao mesmo tempo e fecha a conexão que mandar algo fora disso. Para usá-la a partir do site publicado, acrescente `--origin https://lance-steel-ten.vercel.app`. O Chrome e o Firefox permitem que uma página https abra `ws://127.0.0.1`.
+
   O Stockfish nativo é bem mais rápido que o WASM. Os binários oficiais estão em https://github.com/official-stockfish/Stockfish/releases.
 
 A mesma engine escolhida em Configurações joga e revisa. Para jogar ela roda em workers separados dos da análise.
