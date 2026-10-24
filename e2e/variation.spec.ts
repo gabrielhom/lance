@@ -17,7 +17,7 @@ const click = async (page: Page, from: string, to: string) => {
 
 for (const [name, viewport] of [['desktop', { width: 1280, height: 800 }], ['phone', { width: 390, height: 844 }]] as const) {
   test.describe(name, () => {
-    test.use({ viewport })
+    test.use({ viewport, hasTouch: name === 'phone' })
 
     test('tries a line off the game, sees the engine follow it, walks it and returns', async ({ page, axe }) => {
       await page.goto('/#/revisar')
@@ -67,3 +67,22 @@ for (const [name, viewport] of [['desktop', { width: 1280, height: 800 }], ['pho
     })
   })
 }
+
+test('branches a line while the review is still analyzing and gets its eval ahead of the review queue', async ({ page }) => {
+  await page.goto('/#/revisar')
+  await page.getByLabel('PGN', { exact: true }).fill(opera)
+  await page.getByRole('button', { name: 'Revisar partida' }).click()
+  await page.getByRole('button', { name: /Pretas: Bg4/ }).click()
+  await click(page, 'b1', 'c3')
+  const nav = page.getByRole('toolbar', { name: 'Navegação da partida' })
+  await expect(nav).toContainText('variante, lance 1 de 1')
+
+  await expect(page.getByRole('list', { name: 'Melhor continuação' }).getByRole('listitem').first()).toBeVisible({ timeout: 60_000 })
+  // Queued behind the review, the line would only come back near 100%.
+  expect(Number(await page.getByRole('progressbar', { name: 'Progresso da análise' }).getAttribute('aria-valuenow'))).toBeLessThan(50)
+  await expect(page.getByText(/^Avaliação [+-]?\d+,\d$/)).toBeVisible()
+
+  await page.keyboard.press('Escape')
+  await expect(nav).toContainText('lance 6 de 33')
+  await expect(page.getByRole('heading', { name: 'Resumo' })).toBeVisible({ timeout: 240_000 })
+})
