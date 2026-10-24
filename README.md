@@ -1,6 +1,6 @@
 # Lance
 
-Xadrez no navegador contra o Stockfish 19, com revisão de cada partida no fim. Você joga, e o app mostra sua precisão na partida e em cada fase, com um Elo estimado, classifica cada lance (brilhante, ótimo, melhor, excelente, bom, teoria, imprecisão, erro, blunder, chance perdida) e diz qual era o melhor lance e a melhor sequência. Também revisa partidas de fora, coladas como PGN ou buscadas no Lichess e no Chess.com. As revisões ficam salvas no navegador e o histórico mostra sua precisão ao longo do tempo.
+Xadrez no navegador contra o Stockfish 19, com revisão de cada partida no fim. Você joga, e o app mostra sua precisão na partida e em cada fase, com um Elo estimado, classifica cada lance (brilhante, ótimo, melhor, excelente, bom, teoria, imprecisão, erro, blunder, chance perdida) e diz qual era o melhor lance e a melhor sequência. Também revisa partidas de fora, coladas como PGN ou buscadas no Lichess e no Chess.com. As revisões ficam salvas no navegador, o histórico mostra sua precisão ao longo do tempo e um relatório aponta seus pontos fracos.
 
 ## Jogar
 
@@ -19,6 +19,16 @@ Cada erro, blunder ou chance perdida seu numa partida revisada vira uma posiçã
 **Rating de puzzles.** Começa em 1500 e muda a cada puzzle pelo Elo contra o rating do puzzle no Lichess, com K = 800 / (puzzles feitos + 5), nunca abaixo de 16. É mais ou menos o passo com que o Elo converge para o rating mais provável, como uma média das partidas, e o +5 vale como cinco puzzles imaginários em 1500, para os primeiros não balançarem demais. Do 45º puzzle em diante o K fica em 16, e o rating continua acompanhando quem melhora. Só a primeira tentativa em cada puzzle conta, como no Lichess. O rating não fica guardado: ele sai das tentativas refeitas em ordem, então o backup junta as tentativas de dois aparelhos sem deixar o rating fora de compasso.
 
 **De onde vêm os puzzles.** `node scripts/build-puzzles.mjs` lê a base inteira de puzzles do Lichess (`lichess_db_puzzle.csv.zst`, 307 MB, CC0) sem guardar o arquivo e fica com os puzzles de popularidade 80 ou mais, jogados 300 vezes ou mais e com desvio de rating até 90. Pega 150 em cada faixa de 100 pontos, de 400 a 2799, alternando entre os temas do filtro para que cada tema apareça em todo nível que o tem. A seleção atual vem da base atualizada em 5 de outubro de 2026: 6.157.341 puzzles lidos, 3.600 guardados em `src/puzzles/puzzles.json`. São 217 kB com gzip, baixados na primeira vez que alguém abre os puzzles.
+
+## Pontos fracos
+
+Do Histórico, "Ver seus pontos fracos" abre um relatório tirado de todas as suas partidas revisadas, sem ligar a engine. Cada achado vem com uma ação: treinar as posições dos seus erros naquelas partidas ou rever o trecho certo de uma delas.
+
+- **Aberturas.** Agrupadas pela família (o nome antes de ":", ou também o sistema quando a família é genérica, como "Queen's Pawn Game: London System") e pela sua cor, com partidas, pontos, precisão e em quantas você já saiu da teoria com menos de 40% de chance de vitória, cerca de um peão a menos. Uma abertura é ponto fraco com 40% dos pontos ou menos, ou com precisão 5 pontos abaixo da sua média, desde que tenha 3 partidas ou mais.
+- **Fases.** Precisão média, a tendência das últimas 5 partidas contra as 5 anteriores e os erros por partida em cada fase. Como a precisão muda de fase para fase por natureza, a fase mais fraca é a que fica pior entre os jogadores do Lichess, pela mesma amostra que calibra o Elo estimado, e só é apontada quando duas fases têm 5 partidas ou mais.
+- **Erros.** Erros, blunders e chances perdidas por partida, com a média das últimas 5, e quantas derrotas tiveram um blunder seu.
+
+Abaixo desses mínimos, o relatório mostra os números e diz "poucos jogos ainda" em vez de um veredito. Os limites ficam em `INSIGHTS`, em `src/review/insights.ts`. Partidas revisadas antes de uma versão guardar algum desses dados ficam de fora dele, e abrir a revisão de uma delas atualiza o que está salvo.
 
 ## Rodar
 
@@ -110,7 +120,7 @@ O e2e usa a engine nativa em `engines/stockfish-19` para testar a ponte e pula e
 - `src/storage`: IndexedDB e configurações.
 - `src/import`: PGN, Lichess e Chess.com.
 - `src/play`: as regras da partida jogada aqui, relógios, níveis, PGN e a partida em andamento salva.
-- `src/review`: orquestra a análise de uma partida e o histórico de precisão.
+- `src/review`: orquestra a análise de uma partida, o histórico de precisão e os pontos fracos.
 - `src/training`: posições de treino, agenda e conferência da resposta. `TRAINING` guarda os limites.
 - `src/puzzles`: os puzzles do Lichess, a tentativa como máquina de estados, o rating e a escolha do próximo puzzle.
 - `src/ui`: a interface em React.

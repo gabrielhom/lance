@@ -1,16 +1,5 @@
 import { estimateElo } from '../analysis'
-import {
-  MIN_MOVES_OUTSIDE_THEORY,
-  PHASES,
-  movesOutsideTheory,
-  perspective,
-  type AccuracyHistory,
-  type Color,
-  type Identity,
-  type LibraryRecord,
-  type Phase,
-  type PhaseAverage,
-} from '../domain'
+import { MIN_MOVES_OUTSIDE_THEORY, movesOutsideTheory, perspective, type AccuracyHistory, type Color, type Identity, type LibraryRecord } from '../domain'
 
 /** One of my reviewed games long enough to say something. */
 export type MyGame = { readonly record: LibraryRecord; readonly color: Color; readonly accuracy: number; readonly playedAt: number }
@@ -37,14 +26,6 @@ export function myGames(records: readonly LibraryRecord[], identity: Identity): 
 /** My accuracy per reviewed game, oldest first. */
 export function accuracyHistory(records: readonly LibraryRecord[], identity: Identity): AccuracyHistory {
   const { games, shortGames } = myGames(records, identity)
-  const phases = Object.fromEntries(PHASES.map((p) => [p, [] as number[]])) as Record<Phase, number[]>
-  for (const { record, color } of games) {
-    for (const p of PHASES) {
-      const a = record.summary.phases?.[color][p]
-      if (a !== null && a !== undefined) phases[p].push(a)
-    }
-  }
-  const average = (xs: readonly number[]): PhaseAverage => ({ accuracy: xs.length ? xs.reduce((a, x) => a + x, 0) / xs.length : null, games: xs.length })
   return {
     points: games.map(({ record, color, accuracy, playedAt }) => ({
       gameId: record.id,
@@ -56,6 +37,5 @@ export function accuracyHistory(records: readonly LibraryRecord[], identity: Ide
       elo: estimateElo(accuracy, 'game'),
     })),
     shortGames,
-    phases: { opening: average(phases.opening), middlegame: average(phases.middlegame), endgame: average(phases.endgame) },
   }
 }

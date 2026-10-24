@@ -1,4 +1,5 @@
 import { HistoryScreen } from './ui/history/HistoryScreen'
+import { WeaknessesScreen } from './ui/history/WeaknessesScreen'
 import { ImportScreen } from './ui/import/ImportScreen'
 import { PlayScreen } from './ui/play/PlayScreen'
 import { ReviewScreen } from './ui/review/ReviewScreen'
@@ -29,6 +30,7 @@ export default function App() {
         </>
       )}
       {route.name === 'history' && <HistoryScreen />}
+      {route.name === 'weaknesses' && <WeaknessesScreen />}
       {route.name === 'settings' && <SettingsScreen />}
     </AppShell>
   )

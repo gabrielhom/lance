@@ -13,9 +13,12 @@ const NAV: readonly { route: Route; label: string }[] = [
   { route: { name: 'settings' }, label: 'Configurações' },
 ]
 
+/** Screens without their own nav item light up the item they are reached from. */
+const NAV_PARENT: Partial<Record<Route['name'], Route['name']>> = { review: 'import', puzzles: 'training', weaknesses: 'history' }
+
 export function AppShell({ children }: { children: ReactNode }) {
   const route = useRoute()
-  const current = route.name === 'review' ? 'import' : route.name === 'puzzles' ? 'training' : route.name
+  const current = NAV_PARENT[route.name] ?? route.name
   // Hash routing keeps the scroll offset of the previous screen, which lands a new screen mid-page.
   const where = route.name === 'review' ? `review:${route.id}` : route.name === 'training' ? `training:${route.games.join(',')}` : route.name
   useEffect(() => {

@@ -387,14 +387,8 @@ export type AccuracyPoint = {
   readonly opponent: PlayerTag
   readonly elo: EloEstimate | null
 }
-/** My mean accuracy in one phase over the counted games that reached it with enough of my moves. */
-export type PhaseAverage = { readonly accuracy: number | null; readonly games: number }
 /** `shortGames` counts my games left out for having too few moves outside theory. */
-export type AccuracyHistory = {
-  readonly points: readonly AccuracyPoint[]
-  readonly shortGames: number
-  readonly phases: Readonly<Record<Phase, PhaseAverage>>
-}
+export type AccuracyHistory = { readonly points: readonly AccuracyPoint[]; readonly shortGames: number }
 export type BridgeEngine = { readonly name: string; readonly idName: string }
 export type BridgeProbeError = { readonly kind: 'unreachable' } | { readonly kind: 'refused' } | { readonly kind: 'not-uci'; readonly detail: string }
 

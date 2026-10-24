@@ -11,6 +11,7 @@ export type Route =
   /** A mode of the training screen, next to my own mistakes. */
   | { readonly name: 'puzzles' }
   | { readonly name: 'history' }
+  | { readonly name: 'weaknesses' }
   | { readonly name: 'settings' }
 
 export function parseRoute(hash: string): Route {
@@ -23,6 +24,7 @@ export function parseRoute(hash: string): Route {
   if (t) return { name: 'training', games: t[1] ? t[1].split(',').map((g) => decodeURIComponent(g) as GameId) : [] }
   if (path === '/revisar') return { name: 'import' }
   if (path === '/historico') return { name: 'history' }
+  if (path === '/historico/pontos-fracos') return { name: 'weaknesses' }
   if (path === '/config') return { name: 'settings' }
   return { name: 'play' }
 }
@@ -35,6 +37,7 @@ export function href(route: Route): string {
     case 'training': return route.games.length ? `#/treino/${route.games.map(encodeURIComponent).join(',')}` : '#/treino'
     case 'puzzles': return '#/treino/puzzles'
     case 'history': return '#/historico'
+    case 'weaknesses': return '#/historico/pontos-fracos'
     case 'settings': return '#/config'
   }
 }
