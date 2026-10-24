@@ -12,7 +12,7 @@ A partida em andamento sobrevive a um recarregamento, com os relógios onde esta
 
 ## Treinar
 
-Cada erro, blunder ou chance perdida seu numa partida revisada vira uma posição de treino: você tenta achar um lance melhor no tabuleiro. Conta como certo o lance da engine ou outro que perca menos de 2 pontos de chance de vitória, o limite do "excelente". As posições seguem caixas de Leitner: acertar adia a próxima vez (3, 7, 14 e 30 dias), errar traz de volta no dia seguinte. A tela inicial mostra quantas estão para hoje, e a revisão leva ao treino dos erros daquela partida.
+Cada erro, blunder ou chance perdida seu numa partida revisada vira uma posição de treino: você tenta achar um lance melhor no tabuleiro. Conta como certo o lance da engine ou outro que perca menos de 2 pontos de chance de vitória, o limite do "excelente". As posições seguem caixas de Leitner: acertar adia a próxima vez (3, 7, 14 e 30 dias), errar traz de volta no dia seguinte. A posição errada também volta uma vez no fim da mesma sessão, para tentar de novo, sem mudar a agenda. A tela inicial mostra quantas estão para hoje, e a revisão leva ao treino dos erros daquela partida.
 
 ## Rodar
 

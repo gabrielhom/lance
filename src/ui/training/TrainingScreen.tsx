@@ -4,7 +4,7 @@ import { playMove } from '../../domain'
 import type { Color, GameId, Square, TrainingItem, Uci, Verdict } from '../../domain/types'
 import { EngineFailure } from '../../engine'
 import { boardPosition } from '../../play'
-import { itemPosition, trainingProgress, trainingQueue, type TrainingProgress } from '../../training'
+import { isRetry, itemPosition, requeue, trainingProgress, trainingQueue, type TrainingProgress } from '../../training'
 import { colorLabel, moveNumberLabel } from '../format'
 import { CLASSIFICATION_LABEL, engineFailureText } from '../labels'
 import { useMoveEntry } from '../play/MoveInput'
@@ -18,7 +18,7 @@ type Turn =
   | { readonly kind: 'checking'; readonly move: Uci }
   | { readonly kind: 'answered'; readonly move: Uci; readonly verdict: Verdict }
 
-/** A run over a fixed list of items, taken when the run starts so an answered item never jumps back in. */
+/** A run over a list of items taken when the run starts, so an answered item never jumps back in, except a miss that `requeue` brings back once. */
 type Session = { readonly queue: readonly TrainingItem[]; readonly at: number; readonly turn: Turn }
 
 const ASKING: Turn = { kind: 'asking', error: null }
@@ -56,14 +56,17 @@ export function TrainingScreen({ game }: { game: GameId | null }) {
   }
   return (
     <Question
-      key={item.id}
+      key={`${item.id}@${session.at}`}
       item={item}
       position={`${session.at + 1} de ${session.queue.length}`}
       progress={progress}
-      practice={item.schedule.due > now}
+      practice={item.schedule.due > now ? 'early' : isRetry(session.queue, session.at) ? 'retry' : null}
       turn={session.turn}
       setTurn={(turn) => setSession((s) => s && { ...s, turn })}
-      onAnswered={reload}
+      onAnswered={(correct) => {
+        setSession((s) => s && { ...s, queue: requeue(s.queue, s.at, correct) })
+        reload()
+      }}
       onNext={() => setSession((s) => s && { ...s, at: s.at + 1, turn: ASKING })}
     />
   )
@@ -121,11 +124,11 @@ type QuestionProps = {
   item: TrainingItem
   position: string
   progress: TrainingProgress
-  /** Not due yet, so the answer leaves the schedule alone. */
-  practice: boolean
+  /** Not due yet, or due but asked again after a miss in this session, which set it due tomorrow. Either way the answer leaves the schedule alone. */
+  practice: 'retry' | 'early' | null
   turn: Turn
   setTurn: (t: Turn) => void
-  onAnswered: () => void
+  onAnswered: (correct: boolean) => void
   onNext: () => void
 }
 
@@ -156,7 +159,7 @@ function Question({ item, position, progress, practice, turn, setTurn, onAnswere
         await services.training.answer(item.id, verdict !== 'wrong', Date.now())
         if (ac.signal.aborted) return
         setTurn({ kind: 'answered', move, verdict })
-        onAnswered()
+        onAnswered(verdict !== 'wrong')
       })
       .catch((e: unknown) => {
         if (ac.signal.aborted) return
@@ -197,7 +200,8 @@ function Question({ item, position, progress, practice, turn, setTurn, onAnswere
                   <p className="caption">Arraste ou toque numa peça, ou digite o lance.</p>
                 </>
               )}
-              {practice && <p className="caption mt-3">Treino extra: esta posição só volta para a agenda no dia marcado.</p>}
+              {practice === 'retry' && <p className="caption mt-3">Outra tentativa. Esta posição já volta amanhã, acertando ou não.</p>}
+              {practice === 'early' && <p className="caption mt-3">Treino extra: esta posição só volta para a agenda no dia marcado.</p>}
             </>
           )}
         </section>

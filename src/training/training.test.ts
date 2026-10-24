@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { EvalLine, Fen, PlayablePosition, San, Schedule, SearchedEval, TrainingItem, Uci } from '../domain'
-import { checkAnswer, nextSchedule, syncItems, trainingItems, trainingProgress, trainingQueue } from '.'
+import { checkAnswer, isRetry, nextSchedule, requeue, syncItems, trainingItems, trainingProgress, trainingQueue } from '.'
 import { operaReview } from './testing'
 
 const NOW = new Date(2026, 9, 24, 20, 0).getTime()
@@ -87,6 +87,24 @@ describe('trainingQueue', () => {
     const { due, later } = trainingQueue(items, NOW)
     expect(due.map((i) => i.index)).toEqual([3, 1, 5])
     expect(later.map((i) => i.index)).toEqual([7, 9])
+  })
+})
+
+describe('the session queue', () => {
+  const [a, b] = [item(1, NOW), item(3, NOW)]
+  const ids = (queue: readonly TrainingItem[]) => queue.map((i) => i.id)
+
+  it('brings a missed item back once at the end of the session', () => {
+    expect(ids(requeue([a, b], 0, false))).toEqual(['pgn:2dbw2vp1o9w#1', 'pgn:2dbw2vp1o9w#3', 'pgn:2dbw2vp1o9w#1'])
+    expect(ids(requeue([a, b, a], 2, false))).toEqual(['pgn:2dbw2vp1o9w#1', 'pgn:2dbw2vp1o9w#3', 'pgn:2dbw2vp1o9w#1'])
+  })
+
+  it('leaves the queue alone after a right answer, so the session still ends', () => {
+    expect(ids(requeue([a, b], 1, true))).toEqual(['pgn:2dbw2vp1o9w#1', 'pgn:2dbw2vp1o9w#3'])
+  })
+
+  it('tells the retry from the first time the item was asked', () => {
+    expect([0, 1, 2].map((at) => isRetry([a, b, a], at))).toEqual([false, false, true])
   })
 })
 

@@ -78,9 +78,17 @@ test('trains the blunders of a reviewed game: a wrong and a right answer move th
   expect(saved.find((i) => i.id === wrong.id)?.schedule).toMatchObject({ box: 0, due: await day(1), last: { correct: false } })
   expect(saved.find((i) => i.id === right.id)?.schedule).toMatchObject({ box: 1, due: await day(3), last: { correct: true } })
 
+  // The miss comes back once at the end of the session, and getting it right now leaves its schedule alone.
+  await page.getByRole('button', { name: 'Próxima' }).click()
+  await expect(page.getByText('Outra tentativa. Esta posição já volta amanhã, acertando ou não.')).toBeVisible()
+  await expect(page.locator('#treino-onde')).toHaveText(/3 de 3$/)
+  await answer(page, wrong.best.pv[0])
+  await expect(page.getByText('É o lance da engine.')).toBeVisible()
+  expect((await rows(page)).map((i) => i.schedule)).toEqual(saved.map((i) => i.schedule))
+
   await page.getByRole('link', { name: 'Ver o lance na revisão' }).click()
-  await expect(page).toHaveURL(new RegExp(`#/revisao/${encodeURIComponent(right.gameId)}/${right.index + 1}$`))
-  await expect(page.getByRole('button', { name: new RegExp(`^Pretas: ${right.played.san.replace(/[+]/g, '\\+')},`) })).toHaveAttribute('aria-current', 'true')
+  await expect(page).toHaveURL(new RegExp(`#/revisao/${encodeURIComponent(wrong.gameId)}/${wrong.index + 1}$`))
+  await expect(page.getByRole('button', { name: new RegExp(`^Pretas: ${wrong.played.san.replace(/[+]/g, '\\+')},`) })).toHaveAttribute('aria-current', 'true')
 
   // Nothing is due now, so practice goes to the engine for a move neither stored line settles and leaves the schedule alone.
   await page.goto('/#/treino')

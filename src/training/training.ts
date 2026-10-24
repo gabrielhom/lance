@@ -63,6 +63,18 @@ export function nextSchedule(s: Schedule, correct: boolean, now: number): Schedu
   return { box, due: addDays(startOfDay(now), TRAINING.intervalDays[box]), last: { at: now, correct } }
 }
 
+/** A session's queue after the answer to its item at `at`. A miss comes back once at the end, to be tried again in the same
+ *  sitting. The retry is practice: the miss already set the item due tomorrow, and an answer before that changes nothing. */
+export function requeue(queue: readonly TrainingItem[], at: number, correct: boolean): readonly TrainingItem[] {
+  const item = queue[at]
+  return correct || queue.filter((i) => i.id === item.id).length > 1 ? queue : [...queue, item]
+}
+
+/** Whether the session already asked the item at `at` earlier on. */
+export function isRetry(queue: readonly TrainingItem[], at: number): boolean {
+  return queue.findIndex((i) => i.id === queue[at].id) < at
+}
+
 /** Due items, oldest due first, then the rest in the order they come due. */
 export function trainingQueue(items: readonly TrainingItem[], now: number): { due: TrainingItem[]; later: TrainingItem[] } {
   const sorted = [...items].sort((a, b) => a.schedule.due - b.schedule.due || a.gameId.localeCompare(b.gameId) || a.index - b.index)
