@@ -226,12 +226,14 @@ export type Settings = {
   readonly limit: SearchLimit
   readonly tuning: EngineTuning
 }
+/** Pool size a fresh install asks for. effectiveTuning trims it to the machine's cores minus one. */
+export const DEFAULT_LITE_ENGINES = 8
 export const DEFAULT_SETTINGS: Settings = {
   v: 1,
   identity: { accounts: [] },
   engine: { kind: 'wasm', flavor: 'lite' },
   limit: { kind: 'depth', depth: 18 },
-  tuning: { engines: 4, threadsPerEngine: 1, hashMb: 32 },
+  tuning: { engines: DEFAULT_LITE_ENGINES, threadsPerEngine: 1, hashMb: 32 },
 }
 
 export type ImportResult = {

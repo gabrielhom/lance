@@ -1,16 +1,19 @@
 import type { EngineFailureReason, ReviewState } from '../../domain/types'
-import { formatBytes } from '../format'
+import { estimateSecondsLeft, formatBytes, formatTimeLeft } from '../format'
 import { engineFailureText } from '../labels'
+import type { Pace } from './runs'
 
 type Analyzing = Extract<ReviewState, { phase: 'analyzing' }>
 
-export function AnalyzingPanel({ state, onCancel }: { state: Analyzing | null; onCancel: () => void }) {
+export function AnalyzingPanel({ state, pace, onCancel }: { state: Analyzing | null; pace: Pace | undefined; onCancel: () => void }) {
   const pct = state ? Math.round(Math.min(1, Math.max(0, state.progress)) * 100) : 0
   const engine = state?.engine
+  const seconds = state && pace ? estimateSecondsLeft(pace.first, pace.now, state.total) : null
+  const left = engine?.kind === 'searching' && seconds !== null ? formatTimeLeft(seconds) : null
   const line =
     !state ? 'Preparando a análise…'
     : engine?.kind === 'loading' ? `Baixando a engine, ${formatBytes(engine.loaded)} de ${formatBytes(engine.total)}`
-    : engine?.kind === 'searching' ? `Avaliando a posição ${Math.min(state.done + 1, state.total)} de ${state.total}`
+    : engine?.kind === 'searching' ? `Avaliando a posição ${Math.min(state.done + 1, state.total)} de ${state.total}${left ? `, ${left}` : ''}`
     : 'Lendo avaliações já salvas'
   return (
     <section className="status" aria-labelledby="analise-titulo" aria-live="polite">

@@ -1,7 +1,11 @@
 import type { Game, GameId, ReviewState, Services } from '../../domain/types'
+import type { RateSample } from '../format'
+
+/** Two clock readings of the search: when the first position finished (or was seen searching) and the latest. */
+export type Pace = { readonly first: RateSample; readonly now: RateSample }
 
 export type ReviewRun =
-  | { readonly kind: 'running'; readonly state: ReviewState | null }
+  | { readonly kind: 'running'; readonly state: ReviewState | null; readonly pace?: Pace }
   | { readonly kind: 'cancelled'; readonly state: ReviewState | null }
 
 type Entry = { run: ReviewRun; readonly abort: AbortController }
@@ -25,7 +29,7 @@ export function startReview(services: Services, game: Game): void {
     try {
       for await (const state of services.reviewGame(game, signal)) {
         if (signal.aborted) return
-        entry.run = { kind: 'running', state }
+        entry.run = { kind: 'running', state, ...paceAfter(entry.run, state) }
         notify()
       }
     } catch (e) {
@@ -36,6 +40,13 @@ export function startReview(services: Services, game: Game): void {
       notify()
     }
   })()
+}
+
+function paceAfter(run: ReviewRun, state: ReviewState): { pace: Pace } | null {
+  if (state.phase !== 'analyzing' || state.engine.kind !== 'searching') return null
+  const now = { at: performance.now(), done: state.done }
+  const before = run.kind === 'running' ? run.pace : undefined
+  return { pace: { first: before && now.done >= before.first.done ? before.first : now, now } }
 }
 
 export function cancelReview(id: GameId): void {

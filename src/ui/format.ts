@@ -89,3 +89,22 @@ export function moveNumberLabel(index: number): string {
 export function formatClock(t: TimeControl): string {
   return t.kind === 'none' ? 'sem relógio' : `${t.initialMs / 60_000} + ${t.incrementMs / 1000}`
 }
+
+export type RateSample = { readonly at: number; readonly done: number }
+
+/** Positions needed before a rate is believed. Cached positions finish instantly, so the clock starts at the first sample. */
+const MIN_POSITIONS_FOR_ETA = 4
+
+/** Remaining time from the positions finished since `first`, or null while too few have finished to say. */
+export function estimateSecondsLeft(first: RateSample, now: RateSample, total: number): number | null {
+  const finished = now.done - first.done
+  const elapsed = (now.at - first.at) / 1000
+  if (finished < MIN_POSITIONS_FOR_ETA || elapsed <= 0) return null
+  return ((total - now.done) * elapsed) / finished
+}
+
+export function formatTimeLeft(seconds: number): string {
+  if (seconds < 5) return 'quase pronto'
+  if (seconds < 60) return `cerca de ${Math.round(seconds / 5) * 5} s restantes`
+  return `cerca de ${Math.round(seconds / 60)} min restantes`
+}

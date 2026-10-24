@@ -134,7 +134,7 @@ function Review({ game, startPly }: { game: Game; startPly: number }) {
     run.kind === 'cancelled' ? <CancelledPanel onRetry={restart} />
     : state?.phase === 'failed' ? <FailedPanel failure={state.failure} onRetry={restart} />
     : state?.phase === 'done' ? null
-    : <AnalyzingPanel state={state?.phase === 'analyzing' ? state : null} onCancel={cancel} />
+    : <AnalyzingPanel state={state?.phase === 'analyzing' ? state : null} pace={run.kind === 'running' ? run.pace : undefined} onCancel={cancel} />
   const player = (c: Color) => (
     <>
       {game.players[c].name}
