@@ -150,14 +150,14 @@ function tryMove(board: Chess, uci: string): Move | null {
   }
 }
 
-/** The board after `moves` from `start`, or null if one of them is illegal. */
-export function tryReplay(moves: readonly string[], start?: Fen): Chess | null {
-  const board = new Chess(start)
+/** The board after `moves`, or null if one of them is illegal. */
+export function tryReplay(moves: readonly string[]): Chess | null {
+  const board = new Chess()
   return moves.every((u) => tryMove(board, u)) ? board : null
 }
 
-export function replay(moves: readonly Uci[], start?: Fen): Chess {
-  const board = tryReplay(moves, start)
+export function replay(moves: readonly Uci[]): Chess {
+  const board = tryReplay(moves)
   if (!board) throw new Error(`illegal move list: ${moves.join(' ')}`)
   return board
 }
@@ -202,8 +202,8 @@ export function boardPosition(board: Chess, lastMove: BoardPosition['lastMove'])
   }
 }
 
-export function playPosition(moves: readonly Uci[], start?: Fen): PlayPosition {
-  const board = replay(moves, start)
+export function playPosition(moves: readonly Uci[]): PlayPosition {
+  const board = replay(moves)
   const history = board.history({ verbose: true })
   const material = { w: 0, b: 0 }
   for (const row of board.board()) {
@@ -213,14 +213,14 @@ export function playPosition(moves: readonly Uci[], start?: Fen): PlayPosition {
   return {
     ...boardPosition(board, last ? { from: last.from, to: last.to } : null),
     sans: history.map((m) => m.san as San),
-    input: engineInput(history, board.fen()),
+    input: engineInput(history),
     material,
   }
 }
 
 /** Same rule as gameFromPgn: the root is the position after the last pawn move or capture, the tail is every move since. */
-function engineInput(history: readonly Move[], start: string): EngineInput {
+function engineInput(history: readonly Move[]): EngineInput {
   const reset = history.findLastIndex((m) => m.piece === 'p' || !!m.captured)
-  const root = reset < 0 ? (history[0]?.before ?? start) : history[reset].after
+  const root = reset < 0 ? (history[0]?.before ?? new Chess().fen()) : history[reset].after
   return { root: root as Fen, tail: history.slice(reset + 1).map((m) => m.lan as Uci) }
 }

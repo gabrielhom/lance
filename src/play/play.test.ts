@@ -1,6 +1,6 @@
 import { Chess } from 'chess.js'
 import { describe, expect, it } from 'vitest'
-import type { Fen, PlayEvent, PlaySetup, PlayState, Uci } from '../domain/types'
+import type { PlayEvent, PlaySetup, PlayState, Uci } from '../domain/types'
 import { LEVELS } from './levels'
 import { clocksAt, newPlay, playPosition, reducePlay } from './play'
 
@@ -222,20 +222,5 @@ describe('levels', () => {
     expect(new Set(LEVELS.map((l) => l.id)).size).toBe(LEVELS.length)
     for (const l of LEVELS) if (l.strength.kind === 'elo') expect(l.strength.elo).toBeGreaterThanOrEqual(1320)
     for (const l of LEVELS) if (l.strength.kind === 'elo') expect(l.strength.elo).toBeLessThanOrEqual(3190)
-  })
-})
-
-describe('playPosition from a start position', () => {
-  const root = 'rn2kb1r/pp2qppp/2p2n2/4p3/2B1P3/1QN5/PPP2PPP/R1B1K2R w KQkq - 0 9' as Fen
-
-  it('plays the moves from the given position and roots the engine input there', () => {
-    const p = playPosition(['c1g5' as Uci], root)
-    expect(p.fen).toBe('rn2kb1r/pp2qppp/2p2n2/4p1B1/2B1P3/1QN5/PPP2PPP/R3K2R b KQkq - 1 9')
-    expect(p.lastMove).toEqual({ from: 'c1', to: 'g5' })
-    expect(p.input).toEqual({ root, tail: ['c1g5'] })
-  })
-
-  it('roots an empty move list at the start position itself', () => {
-    expect(playPosition([], root).input).toEqual({ root, tail: [] })
   })
 })

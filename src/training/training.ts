@@ -1,8 +1,8 @@
 import { CLASSIFIER, winPct } from '../analysis'
 import {
-  positionAfter,
+  playableAt,
+  playMove,
   type Classification,
-  type Color,
   type GameReview,
   type PlayablePosition,
   type Schedule,
@@ -78,14 +78,21 @@ export function trainingProgress(items: readonly TrainingItem[], now: number): T
   return { due: items.filter((i) => i.schedule.due <= now).length, done: answered.length, right: answered.filter((a) => a.correct).length }
 }
 
+/** The position the item asks about. A stored item always has one, since it was saved from a reviewed game. */
+export function itemPosition(item: TrainingItem): PlayablePosition {
+  const p = playableAt(item.input, item.index)
+  if (!p) throw new Error(`training item ${item.id} has no position`)
+  return p
+}
+
 /** The stored lines settle the best move, the move played in the game and the second engine line. Any other move is
  *  searched, and judged like the review judges a move: win% at the best line before against the eval after. */
 export async function checkAnswer(item: TrainingItem, move: Uci, evaluate: (p: PlayablePosition) => Promise<SearchedEval>): Promise<Verdict> {
   if (move === item.best.pv[0]) return 'best'
   if (move === item.played.uci) return 'wrong'
-  const after = positionAfter(item.input, move, item.index + 1)
-  if (!after) throw new Error(`${move} is not legal in training item ${item.id}`)
-  const mover: Color = after.turn === 'w' ? 'b' : 'w'
+  const answer = playMove(itemPosition(item), move)
+  if (!answer) throw new Error(`${move} is not legal in training item ${item.id}`)
+  const { mover, after } = answer
   const won =
     item.alternative?.pv[0] === move ? winPct(item.alternative.score, mover)
     : after.kind === 'playable' ? winPct((await evaluate(after)).lines[0].score, mover)

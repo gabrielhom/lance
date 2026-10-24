@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import opera from '../../e2e/fixtures/opera.pgn?raw'
 import scholar from '../../e2e/fixtures/scholar.pgn?raw'
-import { gameFromPgn, playMove, positionAfter, type Game, type GameSource, type PlayablePosition, type Uci } from '.'
+import { gameFromPgn, playableAt, playMove, type Fen, type Game, type GameSource, type PlayablePosition, type Uci } from '.'
 
 const PGN_SOURCE: GameSource = { kind: 'pgn' }
 const epd = (fen: string) => fen.split(' ').slice(0, 4).join(' ')
@@ -181,15 +181,17 @@ describe('playMove', () => {
   })
 })
 
-describe('positionAfter', () => {
+describe('playableAt', () => {
   const game = parse(opera)
 
-  it('reaches the same position as the game after every move, mate included', () => {
-    for (const m of game.moves) expect(positionAfter(m.before.input, m.uci, m.index + 1)).toEqual(game.positions[m.index + 1])
+  it('rebuilds every playable position of a game from its engine input alone', () => {
+    for (const p of game.positions) if (p.kind === 'playable') expect(playableAt(p.input, p.index)).toEqual(p)
   })
 
-  it('answers null for an illegal move', () => {
+  it('answers null for an illegal move in the input and for a checkmate', () => {
     const start = game.positions[0]
-    expect(start.kind === 'playable' && positionAfter(start.input, 'e2e5' as Uci, 1)).toBeNull()
+    expect(start.kind === 'playable' && playableAt({ root: start.input.root, tail: ['e2e5' as Uci] }, 1)).toBeNull()
+    const foolsMate = 'rnb1kbnr/pppp1ppp/8/4p3/6Pq/5P2/PPPPP2P/RNBQKBNR w KQkq - 1 3' as Fen
+    expect(playableAt({ root: foolsMate, tail: [] }, 4)).toBeNull()
   })
 })

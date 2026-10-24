@@ -75,30 +75,25 @@ function positionKey(input: EngineInput): PositionKey {
 /** The move `uci` from `before`, or null when it is illegal there. Lines that branch off a game are built from these. */
 export function playMove(before: PlayablePosition, uci: Uci): PlayedMove | null {
   const board = new Chess(before.fen)
-  let m: Move
+  const m = moveUci(board, uci)
+  return m && playedMove(before.index, m, before, positionAt(before.index + 1, m.after, nextInput(before.input, m), board))
+}
+
+/** The position `input` describes, `index` plies into its game, or null when its moves are illegal or the game is over there.
+ *  For what was stored without its game, such as a training item. */
+export function playableAt(input: EngineInput, index: number): PlayablePosition | null {
+  const board = new Chess(input.root)
+  if (!input.tail.every((u) => moveUci(board, u))) return null
+  const p = positionAt(index, board.fen(), input, board)
+  return p.kind === 'playable' ? p : null
+}
+
+function moveUci(board: Chess, uci: Uci): Move | null {
   try {
-    m = board.move({ from: uci.slice(0, 2), to: uci.slice(2, 4), promotion: uci.slice(4) || undefined })
+    return board.move({ from: uci.slice(0, 2), to: uci.slice(2, 4), promotion: uci.slice(4) || undefined })
   } catch {
     return null
   }
-  return playedMove(before.index, m, before, positionAt(before.index + 1, m.after, nextInput(before.input, m), board))
-}
-
-/** The position `uci` leads to from the one `input` describes, under the same root rule as a game. Null if illegal. */
-export function positionAfter(input: EngineInput, uci: Uci, index: number): Position | null {
-  const board = new Chess(input.root)
-  for (const u of [...input.tail, uci]) {
-    try {
-      if (board.move({ from: u.slice(0, 2), to: u.slice(2, 4), promotion: u[4] }).lan !== u) return null
-    } catch {
-      return null
-    }
-  }
-  const fen = board.fen() as Fen
-  if (board.isCheckmate()) return { index, fen, turn: board.turn(), kind: 'checkmate' }
-  if (board.isStalemate()) return { index, fen, turn: board.turn(), kind: 'stalemate' }
-  const next = halfmoveClock(fen) === 0 ? { root: fen, tail: [] } : { root: input.root, tail: [...input.tail, uci] }
-  return playable(index, fen, next, board)
 }
 
 /** The position after the last pawn move or capture, then every move since. Index 0 is the start. */

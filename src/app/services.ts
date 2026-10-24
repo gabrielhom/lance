@@ -44,6 +44,9 @@ export async function createServices(): Promise<Services> {
       .then((b) => backfill({ ...store, book: b, identity: loadSettings().identity }, Date.now()))
       .catch((e: unknown) => console.warn('training backfill failed', e)))
 
+  // A position off any review is searched ahead of the review queue, since someone is waiting on it.
+  const evaluatePosition: Services['evaluatePosition'] = (p, signal) => evaluatorFor(loadSettings()).evaluate(p, signal, undefined, true)
+
   return {
     loadSettings,
     saveSettings,
@@ -58,7 +61,7 @@ export async function createServices(): Promise<Services> {
       const deps = { evaluator: evaluatorFor(settings), book: await book, identity: settings.identity, library: store.library }
       yield* reviewGame(game, deps, signal)
     },
-    evaluatePosition: (p, signal) => evaluatorFor(loadSettings()).evaluate(p, signal, undefined, true),
+    evaluatePosition,
     accuracyHistory,
     probeBridge,
     engineMove: (input, level, signal) => pickerFor(loadSettings()).pick(input, level, signal),
@@ -67,7 +70,7 @@ export async function createServices(): Promise<Services> {
     training: {
       list: () => ready().then(() => store.training.list()),
       answer: (id, correct, now) => store.training.answer(id, correct, now),
-      check: (item, move, signal) => checkAnswer(item, move, (p) => evaluatorFor(loadSettings()).evaluate(p, signal)),
+      check: (item, move, signal) => checkAnswer(item, move, (p) => evaluatePosition(p, signal)),
     },
   }
 }

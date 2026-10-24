@@ -1,8 +1,10 @@
+import { Chess } from 'chess.js'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { playMove } from '../../domain'
 import type { Color, GameId, Square, TrainingItem, Uci, Verdict } from '../../domain/types'
 import { EngineFailure } from '../../engine'
-import { playPosition } from '../../play'
-import { trainingProgress, trainingQueue, type TrainingProgress } from '../../training'
+import { boardPosition } from '../../play'
+import { itemPosition, trainingProgress, trainingQueue, type TrainingProgress } from '../../training'
 import { colorLabel, moveNumberLabel } from '../format'
 import { CLASSIFICATION_LABEL, engineFailureText } from '../labels'
 import { useMoveEntry } from '../play/MoveInput'
@@ -129,14 +131,15 @@ type QuestionProps = {
 
 function Question({ item, position, progress, practice, turn, setTurn, onAnswered, onNext }: QuestionProps) {
   const services = useServices()
-  const { root, tail } = item.input
-  const before = useMemo(() => {
-    const p = playPosition(tail, root)
-    return { ...p, lastMove: item.lastMove ? squares(item.lastMove) : null }
-  }, [root, tail, item.lastMove])
+  const before = useMemo(() => itemPosition(item), [item])
   const mover: Color = before.turn
-  const checking = turn.kind === 'checking' ? turn.move : null
-  const shown = useMemo(() => (checking ? playPosition([...tail, checking], root) : before), [checking, tail, root, before])
+  const answer = useMemo(() => (turn.kind === 'asking' ? null : playMove(before, turn.move)), [before, turn])
+  const board = useMemo(() => {
+    // The answer stands on the board while it is checked; once answered, the board goes back to the question with the answer and the engine's arrow drawn.
+    if (turn.kind === 'checking' && answer) return boardPosition(new Chess(answer.after.fen), squares(answer.uci))
+    const last = turn.kind === 'asking' ? item.lastMove : answer?.uci
+    return boardPosition(new Chess(before.fen), last ? squares(last) : null)
+  }, [before, item.lastMove, turn.kind, answer])
 
   // Leaving the screen or the item stops a search that is still running.
   const search = useRef<AbortController | null>(null)
@@ -173,11 +176,7 @@ function Question({ item, position, progress, practice, turn, setTurn, onAnswere
   return (
     <div className="play">
       <div className="min-w-0">
-        {turn.kind === 'answered' ? (
-          <PlayBoard position={{ ...before, lastMove: squares(turn.move) }} orientation={mover} interactive={false} onMove={() => {}} arrow={squares(best)} />
-        ) : (
-          <PlayBoard position={shown} orientation={mover} interactive={turn.kind === 'asking'} onMove={submit} />
-        )}
+        <PlayBoard position={board} orientation={mover} interactive={turn.kind === 'asking'} onMove={submit} arrow={turn.kind === 'answered' ? squares(best) : null} />
       </div>
       <div className="min-w-0 play-side">
         <h1 className="display text-2xl md:text-4xl">Treino</h1>
@@ -185,7 +184,7 @@ function Question({ item, position, progress, practice, turn, setTurn, onAnswere
         <section className="annot mt-6" aria-labelledby="treino-onde">
           <p id="treino-onde" className="where">{where}<span className="sep mx-1.5">·</span>{position}</p>
           {turn.kind === 'answered' ? (
-            <Answer item={item} move={turn.move} verdict={turn.verdict} />
+            <Answer item={item} san={answer?.san ?? turn.move} verdict={turn.verdict} />
           ) : (
             <>
               <p className="best">Você errou aqui. Ache um lance melhor para as {colorLabel(mover)}.</p>
@@ -219,8 +218,7 @@ const VERDICT: Readonly<Record<Verdict, { label: string; color: string }>> = {
   wrong: { label: 'Não é esse', color: 'var(--c-blunder)' },
 }
 
-function Answer({ item, move, verdict }: { item: TrainingItem; move: Uci; verdict: Verdict }) {
-  const yours = useMemo(() => playPosition([...item.input.tail, move], item.input.root).sans.at(-1) ?? move, [item.input, move])
+function Answer({ item, san: yours, verdict }: { item: TrainingItem; san: string; verdict: Verdict }) {
   const number = moveNumberLabel(item.index)
   const best = <>{number}<San san={item.bestLineSan[0] ?? item.best.pv[0]} /></>
   const { played } = item
