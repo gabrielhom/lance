@@ -1,21 +1,26 @@
 import { Chess } from 'chess.js'
 import { useEffect, useMemo, useState } from 'react'
+import { evalLabel, winPct } from '../../analysis'
 import { perspective } from '../../domain/identity'
-import type { Color, Game, GameId, GameReview, ReviewState, Square } from '../../domain/types'
-import { TOO_SHORT_NOTE, formatDate, formatEval, formatAccuracy, formatTimeControl, joinKnown, resultLabel, sourceLabel, tooShort } from '../format'
+import type { Color, Game, GameId, GameReview, Position, PositionEval, ReviewState, Square, Uci } from '../../domain/types'
+import { boardPosition } from '../../play'
+import { TOO_SHORT_NOTE, formatDate, formatEval, formatAccuracy, formatTimeControl, joinKnown, moveNumberLabel, resultLabel, sourceLabel, tooShort } from '../format'
 import { CopyPgn } from '../CopyPgn'
 import { ERROR_CLASSIFICATIONS } from '../labels'
 import { heldGame } from '../pending'
+import { useMoveEntry } from '../play/MoveInput'
+import { PlayBoard } from '../play/PlayBoard'
 import { useServices, useSettings } from '../services'
 import { AnalyzingPanel, CancelledPanel, FailedPanel } from './Analyzing'
-import { Board } from './Board'
 import { EvalBar } from './EvalBar'
 import { EvalGraph } from './EvalGraph'
 import type { GraphMarker } from './EvalGraph'
+import { LineCard, type LineEval } from './LineCard'
 import { MoveCard } from './MoveCard'
 import { MoveList } from './MoveList'
 import { Summary } from './Summary'
 import { useReview } from './useReview'
+import { bestLine, bestLinePlies, gameAt, moveOnBoard, shown, step, type View } from './view'
 
 type GameSlot =
   | { kind: 'loading' }
@@ -58,77 +63,58 @@ export function ReviewScreen({ id }: { id: GameId }) {
   return <Review game={slot.game} startPly={slot.ply} />
 }
 
-/** Plies of the best line after the move at `ply`, drawn on the board instead of the game. */
-type Preview = { readonly ply: number; readonly plies: number }
-
 function Review({ game, startPly }: { game: Game; startPly: number }) {
   const [settings] = useSettings()
   const { run, cancel, restart } = useReview(game)
   const who = useMemo(() => perspective(settings.identity, game.players, game.source), [settings, game])
   const myColor: Color | null = who.kind === 'me' ? who.color : null
   const n = game.moves.length
-  const [ply, setPly] = useState(Math.min(startPly, n))
+  const [view, setView] = useState<View>(() => gameAt(game, startPly))
   const [flipped, setFlipped] = useState(false)
-  const [preview, setPreview] = useState<Preview | null>(null)
   const orientation: Color = (myColor ?? 'w') === 'w' ? (flipped ? 'b' : 'w') : flipped ? 'w' : 'b'
   const state: ReviewState | null = run.state
   const review: GameReview | null = state?.phase === 'done' ? state.review : null
+  const ply = view.ply
+  const line = view.kind === 'line' ? view : null
 
-  const go = (p: number) => {
-    setPreview(null)
-    setPly(Math.max(0, Math.min(n, p)))
-  }
+  const go = (p: number) => setView(gameAt(game, p))
   const errors = review ? review.moves.filter((r) => ERROR_CLASSIFICATIONS.has(r.classification) && (myColor === null || r.move.mover === myColor)) : []
   const nextError = errors.find((r) => r.move.index + 1 > ply)
   const prevError = errors.findLast((r) => r.move.index + 1 < ply)
-
   const moveReview = review && ply > 0 ? review.moves[ply - 1] : null
-  const line = moveReview?.bestLineSan ?? []
-  const shownPreview = preview && preview.ply === ply && moveReview ? preview : null
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement | null
-      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable || t.getAttribute('role') === 'slider')) return
-      if (shownPreview && (e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === 'Escape')) {
-        e.preventDefault()
-        const plies = e.key === 'Escape' ? 0 : shownPreview.plies + (e.key === 'ArrowRight' ? 1 : -1)
-        setPreview(plies <= 0 ? null : { ply, plies: Math.min(plies, line.length) })
-        return
-      }
-      const step = { ArrowLeft: -1, ArrowRight: 1, Home: -Infinity, End: Infinity }[e.key]
-      if (step === undefined) return
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable || t.getAttribute('role') === 'slider' || t.closest('[role="dialog"]'))) return
+      if (e.key === 'Escape') return setView((v) => gameAt(game, v.ply))
+      const next = { ArrowLeft: (v: View) => step(v, game, -1), ArrowRight: (v: View) => step(v, game, 1), Home: () => gameAt(game, 0), End: () => gameAt(game, Infinity) }[e.key]
+      if (!next) return
       e.preventDefault()
-      setPreview(null)
-      setPly((p) => Math.max(0, Math.min(n, p + step)))
+      setView(next)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [n, ply, shownPreview, line.length])
+  }, [game])
 
-  const previewBoard = useMemo(() => {
-    if (!shownPreview || !moveReview) return null
-    const b = new Chess(moveReview.move.before.fen)
-    let last: { from: Square; to: Square } | null = null
-    for (const san of moveReview.bestLineSan.slice(0, shownPreview.plies)) {
-      const m = b.move(san)
-      last = { from: m.from, to: m.to }
-    }
-    return { fen: b.fen(), lastMove: last }
-  }, [shownPreview, moveReview])
-
-  const position = game.positions[ply]
-  const lastMove = ply > 0 ? game.moves[ply - 1] : null
-  const badge = moveReview && !previewBoard ? { square: moveReview.move.to, kind: moveReview.classification } : null
-  const bestArrow = moveReview && !previewBoard && moveReview.move.uci !== moveReview.best.pv[0] && moveReview.classification !== 'book'
-    ? { from: moveReview.best.pv[0].slice(0, 2) as Square, to: moveReview.best.pv[0].slice(2, 4) as Square }
-    : null
+  const { position, lastMove } = shown(view, game)
+  const board = useMemo(() => boardPosition(new Chess(position.fen), lastMove && { from: lastMove.from, to: lastMove.to }), [position, lastMove])
+  const onMove = (uci: string) => setView((v) => moveOnBoard(v, game, uci as Uci))
+  const entry = useMoveEntry({ fen: position.fen, disabled: position.kind !== 'playable', placeholder: 'testar um lance', onMove })
+  const lineEval = useLineEval(line ? position : null)
+  const known = line && typeof lineEval === 'object' ? lineEval : null
+  const badge = moveReview && !line ? { square: moveReview.move.to, kind: moveReview.classification } : null
+  const arrow = line
+    ? known?.kind === 'searched' ? squares(known.lines[0].pv[0]) : null
+    : moveReview && moveReview.move.uci !== moveReview.best.pv[0] && moveReview.classification !== 'book' ? squares(moveReview.best.pv[0]) : null
 
   const series = review ? review.graph.map((g) => g.whiteWin) : state && state.phase !== 'done' ? state.series : game.positions.map(() => null)
   const labels = useMemo(() => (review ? review.graph.map((g, i) => formatEval(g.label, game.positions[i])) : null), [review, game])
   const markers: GraphMarker[] = review ? review.keyMoments.map((k) => ({ index: k.move.move.index + 1, kind: k.why })) : []
-  const whiteWin = previewBoard ? null : series[ply]
-  const evalLabel = previewBoard ? null : labels ? labels[ply] : whiteWin === null || whiteWin === undefined ? null : `${Math.round(whiteWin)}%`
+  const whiteWin = line ? (known ? winPct(known, 'w') : null) : series[ply]
+  const barLabel = line
+    ? known ? formatEval(evalLabel(known), position) : null
+    : labels ? labels[ply] : whiteWin === null || whiteWin === undefined ? null : `${Math.round(whiteWin)}%`
 
   const status =
     run.kind === 'cancelled' ? <CancelledPanel onRetry={restart} />
@@ -159,29 +145,23 @@ function Review({ game, startPly }: { game: Game; startPly: number }) {
       </header>
         <div className="rv-left">
           <div className="boardwrap">
-            <EvalBar whiteWin={whiteWin ?? null} label={evalLabel} orientation={orientation} />
-            <Board
-              fen={previewBoard?.fen ?? position.fen}
-              orientation={orientation}
-              lastMove={previewBoard ? previewBoard.lastMove : lastMove ? { from: lastMove.from, to: lastMove.to } : null}
-              badge={badge}
-              bestArrow={bestArrow}
-            />
+            <EvalBar whiteWin={whiteWin ?? null} label={barLabel} orientation={orientation} />
+            <PlayBoard position={board} orientation={orientation} interactive onMove={onMove} badge={badge} arrow={arrow} />
           </div>
           <div className="rvnav" role="toolbar" aria-label="Navegação da partida">
-            <button type="button" className="sqbtn max-md:hidden" onClick={() => go(0)} disabled={ply === 0} aria-label="Primeiro lance (Home)" title="Home">
+            <button type="button" className="sqbtn max-md:hidden" onClick={() => go(0)} disabled={!line && ply === 0} aria-label="Primeiro lance (Home)" title="Home">
               <span aria-hidden>⇤</span>
             </button>
-            <button type="button" className="sqbtn" onClick={() => go(ply - 1)} disabled={ply === 0} aria-label="Lance anterior (seta para a esquerda)" title="←">
+            <button type="button" className="sqbtn" onClick={() => setView(step(view, game, -1))} disabled={!line && ply === 0} aria-label="Lance anterior (seta para a esquerda)" title="←">
               <span aria-hidden>←</span>
             </button>
-            <button type="button" className="sqbtn" onClick={() => go(ply + 1)} disabled={ply === n} aria-label="Próximo lance (seta para a direita)" title="→">
+            <button type="button" className="sqbtn" onClick={() => setView(step(view, game, 1))} disabled={line ? line.at === line.moves.length : ply === n} aria-label="Próximo lance (seta para a direita)" title="→">
               <span aria-hidden>→</span>
             </button>
-            <button type="button" className="sqbtn max-md:hidden" onClick={() => go(n)} disabled={ply === n} aria-label="Último lance (End)" title="End">
+            <button type="button" className="sqbtn max-md:hidden" onClick={() => go(n)} disabled={!line && ply === n} aria-label="Último lance (End)" title="End">
               <span aria-hidden>⇥</span>
             </button>
-            <span className="ply">{ply === 0 ? 'posição inicial' : `lance ${ply} de ${n}`}</span>
+            <span className="ply">{line ? `variante, lance ${line.at} de ${line.moves.length}` : ply === 0 ? 'posição inicial' : `lance ${ply} de ${n}`}</span>
             <span className="ml-auto flex flex-wrap items-baseline justify-end gap-x-5">
               {review && errors.length === 0 ? (
                 <span className="caption">{myColor ? 'Nenhum erro seu' : 'Nenhum erro'}</span>
@@ -197,32 +177,35 @@ function Review({ game, startPly }: { game: Game; startPly: number }) {
               )}
             </span>
             <span className="sr-only" aria-live="polite">
-              {previewBoard ? `Melhor sequência, lance ${shownPreview!.plies}: ${line[shownPreview!.plies - 1]}` : lastMove ? `Lance ${ply}: ${lastMove.san}` : 'Posição inicial'}
+              {line && lastMove ? `Variante: ${moveNumberLabel(lastMove.index)} ${lastMove.san}` : lastMove ? `Lance ${ply}: ${lastMove.san}` : 'Posição inicial'}
             </span>
           </div>
           <div className="rv-flip">
             <button type="button" className="tl tl-quiet" onClick={() => setFlipped((f) => !f)} aria-pressed={flipped}>Girar tabuleiro</button>
+            {entry.field}
             {review && errors.length > 0 && (
               <button type="button" className="tl tl-quiet md:hidden" onClick={() => prevError && go(prevError.move.index + 1)} disabled={!prevError}>
                 Erro anterior
               </button>
             )}
           </div>
+          {entry.error}
           <section className="rv-graph" aria-labelledby="grafico-titulo">
             <h3 id="grafico-titulo" className="font-serif font-semibold text-md mb-1.5">Avaliação ao longo da partida</h3>
             <EvalGraph series={series} labels={labels} moves={game.moves} markers={markers} classes={review ? review.moves.map((r) => r.classification) : null} ply={ply} onSelect={go} />
           </section>
         </div>
         <div className="rv-right">
+          {line && <LineCard line={line} evaluation={lineEval} position={position} onAt={(at) => setView({ ...line, at })} onExit={() => go(ply)} />}
           {status}
           <MoveCard
-            move={lastMove}
+            move={ply > 0 ? game.moves[ply - 1] : null}
             review={moveReview}
             opening={review?.opening ?? null}
             labels={labels}
             ply={ply}
-            preview={shownPreview?.plies ?? null}
-            onPreview={(plies) => setPreview(plies === null ? null : { ply, plies })}
+            preview={moveReview && bestLinePlies(view, moveReview.move, moveReview.best.pv)}
+            onPreview={(plies) => setView(plies === null || !moveReview ? gameAt(game, ply) : bestLine(moveReview.move, moveReview.best.pv, plies))}
           />
           <section className="rv-sheet" aria-label="Lances">
             <MoveList moves={game.moves} reviews={review?.moves ?? null} ply={ply} onSelect={go} />
@@ -232,6 +215,27 @@ function Review({ game, startPly }: { game: Game; startPly: number }) {
       {review && <Summary review={review} me={myColor} onJump={go} />}
     </div>
   )
+}
+
+const squares = (uci: Uci) => ({ from: uci.slice(0, 2) as Square, to: uci.slice(2, 4) as Square })
+
+/** The engine's eval of a position off the game, searched while it is on the board. The search stops when it leaves. */
+function useLineEval(position: Position | null): LineEval | null {
+  const services = useServices()
+  const [found, setFound] = useState<{ position: Position; eval: PositionEval | 'failed' } | null>(null)
+  useEffect(() => {
+    if (position?.kind !== 'playable') return
+    const ac = new AbortController()
+    services.evaluatePosition(position, ac.signal).then(
+      (e) => setFound({ position, eval: { kind: 'searched', ...e } }),
+      () => ac.signal.aborted || setFound({ position, eval: 'failed' }),
+    )
+    return () => ac.abort()
+  }, [services, position])
+  if (!position) return null
+  if (position.kind === 'checkmate') return { kind: 'checkmate', loser: position.turn }
+  if (position.kind === 'stalemate') return { kind: 'stalemate' }
+  return found?.position === position ? found.eval : 'searching'
 }
 
 /** On a phone the summary sits at the end of a long page, so the accuracies also show under the title. */

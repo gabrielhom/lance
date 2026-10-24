@@ -77,7 +77,7 @@ function graphPoints(game: Game, evals: CompleteEvals): NonEmpty<GraphPoint> {
 }
 
 /** From White's side: '+1.3', '-0.4', '0.0', 'M3', '-M3', '#' after checkmate, '½' after stalemate. */
-function evalLabel(e: PositionEval): string {
+export function evalLabel(e: PositionEval): string {
   switch (e.kind) {
     case 'checkmate':
       return '#'

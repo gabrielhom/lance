@@ -2,10 +2,11 @@ import { Chessboard, defaultPieces } from 'react-chessboard'
 import type { PieceDropHandlerArgs, PieceHandlerArgs, SquareHandlerArgs } from 'react-chessboard'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
-import type { Color, Square } from '../../domain/types'
-import type { PlayPosition } from '../../play'
+import type { Classification, Color, Square } from '../../domain/types'
+import type { BoardPosition } from '../../play'
 import { BOARD_STYLE, tint } from '../boardStyle'
 import { Diagram } from '../Diagram'
+import { CLASSIFICATION_MARK } from '../labels'
 
 const REDUCED_MOTION = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
 const PROMOTIONS = [
@@ -16,15 +17,18 @@ const PROMOTIONS = [
 ] as const
 
 type Props = {
-  position: PlayPosition
+  position: BoardPosition
   orientation: Color
   /** Whether the side to move is played from this device right now. */
   interactive: boolean
   onMove: (uci: string) => void
+  /** The class of the move that reached this position, printed on its square. */
+  badge?: { square: Square; kind: Classification } | null
+  arrow?: { from: Square; to: Square } | null
 }
 
 /** Click-to-move and drag. The board is pointer-only; the move input next to it is the keyboard and screen reader path. */
-export function PlayBoard({ position, orientation, interactive, onMove }: Props) {
+export function PlayBoard({ position, orientation, interactive, onMove, badge = null, arrow = null }: Props) {
   const [selected, setSelected] = useState<{ fen: string; square: Square } | null>(null)
   const [promotion, setPromotion] = useState<{ fen: string; from: Square; to: Square } | null>(null)
   const boardRef = useRef<HTMLDivElement>(null)
@@ -71,17 +75,19 @@ export function PlayBoard({ position, orientation, interactive, onMove }: Props)
     setSelected(mine(sq) && active !== sq ? { fen: position.fen, square: sq } : null)
   }
 
+  const blunder = badge?.kind === 'blunder'
+  const mark = badge ? CLASSIFICATION_MARK[badge.kind] : ''
   const highlight = useMemo(() => {
     const s: Record<string, string[]> = {}
     const add = (sq: string, layer: string) => (s[sq] ??= []).push(layer)
     if (position.check) add(position.kingSquare, 'radial-gradient(circle, var(--hl-check) 0%, transparent 70%)')
     if (active) add(active, tint('var(--hl-sel)'))
     if (position.lastMove) {
-      add(position.lastMove.from, tint('var(--hl)'))
-      add(position.lastMove.to, tint('var(--hl)'))
+      add(position.lastMove.from, tint(blunder ? 'var(--hl-bad-from)' : 'var(--hl)'))
+      add(position.lastMove.to, tint(blunder ? 'var(--hl-bad)' : 'var(--hl)'))
     }
     return s
-  }, [position, active])
+  }, [position, active, blunder])
   const targetSet = new Set(targets.map((t) => t.to))
 
   const squareRenderer = ({ square, piece, children }: SquareHandlerArgs & { children?: ReactNode }) => {
@@ -91,6 +97,9 @@ export function PlayBoard({ position, orientation, interactive, onMove }: Props)
       <div style={style}>
         {children}
         {targetSet.has(square as Square) && <span aria-hidden className={piece ? 'board-ring' : 'board-dot'} />}
+        {badge && mark && badge.square === square && (
+          <span className="sq-badge" style={{ background: `var(--c-${badge.kind})` }}>{mark}</span>
+        )}
       </div>
     )
   }
@@ -106,6 +115,7 @@ export function PlayBoard({ position, orientation, interactive, onMove }: Props)
             boardOrientation: orientation === 'w' ? 'white' : 'black',
             allowDragging: interactive,
             allowDrawingArrows: false,
+            arrows: arrow ? [{ startSquare: arrow.from, endSquare: arrow.to, color: 'var(--arrow)' }] : [],
             showAnimations: !REDUCED_MOTION,
             animationDurationInMs: 160,
             dragActivationDistance: 4,

@@ -90,10 +90,7 @@ export function MoveCard({ move, review: r, opening, labels, ply, preview, onPre
       </section>
       {showLine && (
         <section className="line" aria-labelledby="linha-titulo">
-          <div className="flex items-baseline justify-between gap-4">
-            <h3 id="linha-titulo" className="font-serif font-semibold text-md">Melhor sequência</h3>
-            {preview !== null && <button type="button" className="tl tl-quiet" onClick={() => onPreview(null)}>Voltar à partida</button>}
-          </div>
+          <h3 id="linha-titulo" className="font-serif font-semibold text-md">Melhor sequência</h3>
           <ol className="moves" aria-label="Melhor sequência">
             {visible.map((san, i) => {
               const idx = r.move.index + i
