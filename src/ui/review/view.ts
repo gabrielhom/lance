@@ -31,6 +31,11 @@ export function moveOnBoard(view: View, game: Game, uci: Uci): View {
   return { ...view, moves: [view.moves[0], ...view.moves.slice(1, view.at), m], at: view.at + 1 }
 }
 
+/** `pv` played on the board move by move, as the engine's line from the position shown. */
+export function follow(view: View, game: Game, pv: readonly Uci[]): View {
+  return pv.reduce((v, uci) => moveOnBoard(v, game, uci), view)
+}
+
 /** The arrow keys. In a line they walk it, and stepping back from its first move returns to the game. */
 export function step(view: View, game: Game, delta: 1 | -1): View {
   if (view.kind === 'game') return gameAt(game, view.ply + delta)

@@ -22,7 +22,7 @@ import { MoveCard } from './MoveCard'
 import { MoveList } from './MoveList'
 import { Summary } from './Summary'
 import { useReview } from './useReview'
-import { bestLine, bestLinePlies, gameAt, moveOnBoard, shown, step, type View } from './view'
+import { bestLine, bestLinePlies, follow, gameAt, moveOnBoard, shown, step, type View } from './view'
 
 type GameSlot =
   | { kind: 'loading' }
@@ -205,7 +205,7 @@ function Review({ game, startPly }: { game: Game; startPly: number }) {
           </section>
         </div>
         <div className="rv-right">
-          {line && lineEval && <LineCard line={line} evaluation={lineEval} position={position} onAt={(at) => setView({ ...line, at })} onExit={() => go(ply)} />}
+          {line && lineEval && <LineCard line={line} evaluation={lineEval} position={position} onAt={(at) => setView({ ...line, at })} onExit={() => go(ply)} onFollow={(pv) => setView((v) => follow(v, game, pv))} />}
           {status}
           <MoveCard
             move={ply > 0 ? game.moves[ply - 1] : null}

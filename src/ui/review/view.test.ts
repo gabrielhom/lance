@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import opera from '../../../e2e/fixtures/opera.pgn?raw'
 import { gameFromPgn } from '../../domain/game'
 import type { Game, Uci } from '../../domain/types'
-import { bestLine, bestLinePlies, gameAt, moveOnBoard, shown, step, type View } from './view'
+import { bestLine, bestLinePlies, follow, gameAt, moveOnBoard, shown, step, type View } from './view'
 
 const parsed = gameFromPgn(opera, { kind: 'pgn' })
 if (!parsed.ok) throw new Error(parsed.error.detail)
@@ -40,6 +40,20 @@ describe('moves made on the review board', () => {
     expect(play(start, 'e2e5')).toBe(start)
     const mated = gameAt(game, 33)
     expect(play(mated, 'e8e7')).toBe(mated)
+  })
+})
+
+describe('following the engine from the board', () => {
+  it('plays its moves onto the line and puts the board at the last one', () => {
+    const line = follow(play(gameAt(game, 2), 'b1c3'), game, ['g8f6', 'f1c4'] as Uci[])
+    expect(sans(line)).toEqual(['Nc3', 'Nf6', 'Bc4'])
+    expect(onBoard(line)).toEqual({ fen: 'rnbqkb1r/pppp1ppp/5n2/4p3/2B1P3/2N5/PPPP1PPP/R1BQK1NR b KQkq - 3 3', last: 'Bc4' })
+  })
+
+  it('replaces what the line had after the board, and stays on the game while the moves are the game\'s', () => {
+    const back = step(play(gameAt(game, 2), 'b1c3', 'g8f6'), game, -1)
+    expect(sans(follow(back, game, ['b8c6'] as Uci[]))).toEqual(['Nc3', 'Nc6'])
+    expect(follow(gameAt(game, 0), game, ['e2e4', 'e7e5'] as Uci[])).toEqual({ kind: 'game', ply: 2 })
   })
 })
 

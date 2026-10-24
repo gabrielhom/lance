@@ -50,6 +50,12 @@ for (const [name, viewport] of [['desktop', { width: 1280, height: 800 }], ['pho
       await expect(nav).toContainText('variante, lance 1 de 2')
       await page.keyboard.press('ArrowRight')
       await expect(nav).toContainText('variante, lance 2 de 2')
+
+      // Two moves into the engine's line from here, played on the board from the card.
+      await expect(continuation.nth(1)).toBeVisible({ timeout: 60_000 })
+      await continuation.nth(1).getByRole('button').click()
+      await expect(nav).toContainText('variante, lance 4 de 4')
+      await expect(page.getByRole('list', { name: 'Lances da variante' }).getByRole('button')).toHaveCount(4)
       await page.keyboard.press('Escape')
       await expect(page.getByRole('heading', { name: 'Variante' })).toBeHidden()
       await expect(nav).toContainText('lance 6 de 33')
