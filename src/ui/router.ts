@@ -8,7 +8,7 @@ export type Route =
   | { readonly name: 'history' }
   | { readonly name: 'settings' }
 
-export function parseRoute(hash: string): Route {
+function parseRoute(hash: string): Route {
   const path = hash.replace(/^#/, '')
   const m = /^\/revisao\/(.+)$/.exec(path)
   if (m) return { name: 'review', id: decodeURIComponent(m[1]) as GameId }

@@ -163,7 +163,7 @@ export function replay(moves: readonly Uci[]): Chess {
 }
 
 /** A legal destination. A promotion needs its piece letter appended before it is a move. */
-export type Target = { readonly to: Square; readonly promotion: boolean }
+type Target = { readonly to: Square; readonly promotion: boolean }
 
 /** Everything the board and move list read about the current position, derived once per move list. */
 export type PlayPosition = {

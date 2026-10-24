@@ -8,7 +8,7 @@ export const CLASSIFIER_VERSION = 1
 /** Every threshold the rule table reads. Win values are Lichess win% for the mover, material is in pawns.
  *  Bump CLASSIFIER_VERSION with any change. The loss bands are chess.com's published expected-points bands
  *  applied to the Lichess curve; brilliant, great and miss are guesses awaiting calibration. */
-export const CLASSIFIER = {
+const CLASSIFIER = {
   bands: { excellent: 2, good: 5, inaccuracy: 10, mistake: 20 },
   brilliant: { minWinAfter: 45, maxAlternative: 90 },
   great: { minGap: 20 },

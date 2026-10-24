@@ -3,6 +3,7 @@
  *  Bridge URLs: containing "nada" probe as unreachable, "recusa" as refused, "falha" makes the review fail. */
 import { Chess } from 'chess.js'
 import type { Move } from 'chess.js'
+import { keyMoments } from '../../analysis'
 import { perspective } from '../../domain/identity'
 import { loadPlay, savePlay } from '../../play'
 import type {
@@ -25,7 +26,6 @@ import type {
   GraphPoint,
   Identity,
   ImportResult,
-  KeyMoment,
   LibraryRecord,
   MoveReview,
   NonEmpty,
@@ -342,12 +342,6 @@ async function fabricateReview(game: Game, who: Perspective): Promise<GameReview
     const accuracy = mine.length ? (mine.reduce((s, r) => s + r.accuracy, 0) / mine.length) as AccuracyPct : null
     return { player: game.players[c], accuracy, counts }
   }
-  const keyMoments: KeyMoment[] = reviews
-    .map((r) => ({ move: r, swing: Math.abs(r.winAfter - r.winBefore), why: (r.classification === 'blunder' || r.classification === 'mistake' || r.classification === 'brilliant' || r.classification === 'great' || r.classification === 'miss' ? r.classification : 'turning-point') as KeyMoment['why'] }))
-    .filter((k) => k.swing >= 12 || k.why === 'brilliant' || k.why === 'great')
-    .sort((a, b) => b.swing - a.swing)
-    .slice(0, 6)
-    .sort((a, b) => a.move.move.index - b.move.move.index)
 
   return {
     game,
@@ -357,7 +351,7 @@ async function fabricateReview(game: Game, who: Perspective): Promise<GameReview
     moves: reviews,
     players: { w: summary('w'), b: summary('b') },
     graph,
-    keyMoments,
+    keyMoments: keyMoments(reviews),
     opening: lastOpening,
   }
 }

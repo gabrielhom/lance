@@ -2,7 +2,7 @@ import type { Color, EngineInput, EvalLine, NonEmpty, Score, SearchedEval, Searc
 
 /** Relative to the side to move, as UCI sends it. `moves` is never 0: a mated side to move is never searched. */
 export type RelScore = { readonly kind: 'cp'; readonly cp: number } | { readonly kind: 'mate'; readonly moves: number }
-export type Bound = 'exact' | 'lower' | 'upper'
+type Bound = 'exact' | 'lower' | 'upper'
 export type PvInfo = {
   readonly kind: 'pv'
   readonly depth: number
@@ -115,10 +115,10 @@ export function toScore(rel: RelScore, turn: Color): Score {
   return { kind: 'mate', winner, moves: Math.abs(rel.moves) }
 }
 
-export type LineTable = ReadonlyMap<number, readonly (EvalLine | undefined)[]>
+type LineTable = ReadonlyMap<number, readonly (EvalLine | undefined)[]>
 
 /** Deepest depth, at or below `through`, whose rows 0..expected-1 are all present. */
-export function pickLines(table: LineTable, expected: 1 | 2, through = Infinity): SearchedEval | null {
+function pickLines(table: LineTable, expected: 1 | 2, through = Infinity): SearchedEval | null {
   const depths = [...table.keys()].filter((d) => d <= through).sort((a, b) => b - a)
   for (const depth of depths) {
     const [first, second] = table.get(depth) ?? []

@@ -60,7 +60,7 @@ export function parsePlay(raw: unknown): PlayState | null {
   return null
 }
 
-export function parseChoice(raw: unknown): SetupChoice | null {
+function parseChoice(raw: unknown): SetupChoice | null {
   if (!isObj(raw)) return null
   const opponent = parseOpponent(raw.opponent)
   const time = parseTime(raw.time)
