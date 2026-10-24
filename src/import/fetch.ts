@@ -1,7 +1,9 @@
 import { gameFromPgn, type FetchFailure, type Game, type GameRejection, type GameSource, type ImportResult, type Result } from '../domain'
 
 type Site = 'lichess' | 'chesscom'
-type Found = { readonly pgn: string; readonly source: GameSource; readonly variant: string | null }
+type Found =
+  | { readonly pgn: string; readonly source: GameSource; readonly variant: string | null }
+  | { readonly rejection: GameRejection }
 
 const LICHESS_VARIANTS = ['standard', 'fromPosition']
 const CHESSCOM_ARCHIVE = 'https://api.chess.com/pub/player/'
@@ -21,8 +23,9 @@ function importAll(found: readonly Found[]): ImportResult {
   const games: Game[] = []
   const rejected: { index: number; rejection: GameRejection }[] = []
   found.forEach((f, index) => {
-    const r: Result<Game, GameRejection> = f.variant
-      ? { ok: false, error: { kind: 'variant', detail: f.variant } }
+    const r: Result<Game, GameRejection> =
+      'rejection' in f ? { ok: false, error: f.rejection }
+      : f.variant ? { ok: false, error: { kind: 'variant', detail: f.variant } }
       : gameFromPgn(f.pgn, f.source)
     if (r.ok) games.push(r.value)
     else rejected.push({ index, rejection: r.error })
@@ -38,7 +41,8 @@ async function lichess(user: string, max: number, signal: AbortSignal): Promise<
     if (line.trim() === '') continue
     const g = parseJson(line)
     if (!isRecord(g) || typeof g.id !== 'string' || typeof g.variant !== 'string' || typeof g.pgn !== 'string') {
-      return badResponse(`unexpected Lichess game: ${line.slice(0, 80)}`)
+      found.push({ rejection: { kind: 'unparseable', detail: `unexpected Lichess game: ${line.slice(0, 80)}` } })
+      continue
     }
     found.push({
       pgn: g.pgn,
@@ -46,6 +50,9 @@ async function lichess(user: string, max: number, signal: AbortSignal): Promise<
       variant: LICHESS_VARIANTS.includes(g.variant) ? null : g.variant,
     })
   }
+  const bad = found.find((f) => 'rejection' in f)
+  // Every line bad means the body is not an ndjson game list at all (an error page, say).
+  if (bad && 'rejection' in bad && found.every((f) => 'rejection' in f)) return badResponse(bad.rejection.detail)
   return { ok: true, value: found }
 }
 

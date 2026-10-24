@@ -55,6 +55,18 @@ describe('fetchRecentGames from Lichess', () => {
     expect(r.value.rejected).toEqual([{ index: 2, rejection: { kind: 'variant', detail: 'threeCheck' } }])
   })
 
+  it('skips a malformed line and reports it as rejected while keeping the good games', async () => {
+    const good = lichessGames.trim().split('\n')
+    serve({ [URL]: { body: [good[0], '{"id":"broken1","variant":', '{"id":"nopgn001","variant":"standard"}', good[1]].join('\n') } })
+    const r = await fetchRecentGames('lichess', 'thibault', { max: 3, signal: signal() })
+    if (!r.ok) throw new Error(r.error.kind)
+    expect(r.value.games.map((g) => g.id)).toEqual(['lichess:k8OVq8Y5', 'lichess:aDN8u0zd'])
+    expect(r.value.rejected).toEqual([
+      { index: 1, rejection: { kind: 'unparseable', detail: 'unexpected Lichess game: {"id":"broken1","variant":' } },
+      { index: 2, rejection: { kind: 'unparseable', detail: 'unexpected Lichess game: {"id":"nopgn001","variant":"standard"}' } },
+    ])
+  })
+
   it('maps a missing user, rate limiting and a garbled body to their failures', async () => {
     serve({})
     expect(await fetchRecentGames('lichess', 'no_such_user_qqzx', { max: 3, signal: signal() })).toEqual({

@@ -238,6 +238,16 @@ function FetchPanel({ onPick }: { onPick: (g: Game) => void }) {
   )
 }
 
+function ignoredText(rejected: ImportResult['rejected']): string {
+  const variants = rejected.filter((r) => r.rejection.kind === 'variant').length
+  const invalid = rejected.length - variants
+  const n = rejected.length
+  const ignored = n === 1 ? '1 partida ignorada' : `${n} partidas ignoradas`
+  if (invalid === 0) return `${ignored} por ${n === 1 ? 'ser de variante' : 'serem de variantes'}.`
+  if (variants === 0) return `${ignored} por dados inválidos vindos do site.`
+  return `${ignored}: ${variants} de variantes e ${invalid} com dados inválidos.`
+}
+
 function FetchBody({ state, onPick, onRetry }: { state: FetchState; onPick: (g: Game) => void; onRetry: () => void }) {
   switch (state.kind) {
     case 'idle':
@@ -275,7 +285,7 @@ function FetchBody({ state, onPick, onRetry }: { state: FetchState; onPick: (g: 
       if (games.length === 0) return <p className="caption">Nenhuma partida recente de {state.username}.</p>
       return (
         <div>
-          {rejected.length > 0 && <p className="caption mb-2">{rejected.length} partida(s) ignorada(s) por serem de variantes.</p>}
+          {rejected.length > 0 && <p className="caption mb-2">{ignoredText(rejected)}</p>}
           <GameList games={games} onPick={onPick} highlight={state.username} />
         </div>
       )
