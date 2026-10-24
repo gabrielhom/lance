@@ -5,7 +5,7 @@ import { buildBackup, planImport } from './backup'
 const ZERO = Object.fromEntries(CLASSIFICATIONS.map((c) => [c, 0])) as Record<Classification, number>
 const NOBODY: Identity = { accounts: [] }
 const GABRIEL: Identity = { accounts: [{ site: 'lichess', username: 'gabrielhom' }] }
-const here = (games: unknown[], training: unknown[] = []) => ({ games, training })
+const here = (games: unknown[], training: unknown[] = [], puzzles: unknown[] = []) => ({ games, training, puzzles })
 
 function record(id: string, reviewedAt: number) {
   return {
@@ -38,6 +38,10 @@ function item(id: string, answeredAt: number | null) {
   }
 }
 
+function attempt(id: string, at: number, solved = true) {
+  return { v: 1, id, at, solved, puzzleRating: 1760 }
+}
+
 function parsed(id: string, answeredAt: number | null) {
   const { v: _, ...rest } = item(id, answeredAt)
   return rest
@@ -51,11 +55,11 @@ describe('buildBackup', () => {
   it('carries every row as stored, unreadable ones included, and the settings', () => {
     const settings: Settings = { ...DEFAULT_SETTINGS, identity: GABRIEL, tuning: { engines: 4, threadsPerEngine: 1, hashMb: 32 } }
     const rows = [record('pgn:a', 100), { v: 2, id: 'pgn:future' }]
-    expect(buildBackup({ games: rows, training: [] }, settings, Date.UTC(2026, 9, 24, 12))).toEqual({
+    expect(buildBackup({ games: rows, training: [], puzzles: [attempt('00sHx', 100)] }, settings, Date.UTC(2026, 9, 24, 12))).toEqual({
       format: 'lance-backup',
       v: 1,
       exportedAt: '2026-10-24T12:00:00.000Z',
-      stores: { games: [record('pgn:a', 100), { v: 2, id: 'pgn:future' }], training: [] },
+      stores: { games: [record('pgn:a', 100), { v: 2, id: 'pgn:future' }], training: [], puzzles: [{ v: 1, id: '00sHx', at: 100, solved: true, puzzleRating: 1760 }] },
       settings: {
         v: 1,
         identity: { accounts: [{ site: 'lichess', username: 'gabrielhom' }] },
@@ -88,6 +92,7 @@ describe('planImport', () => {
         put: [record('pgn:newer', 300), record('pgn:new', 50)],
         training: [],
         drop: [],
+        puzzles: [],
         report: { imported: 2, alreadyHere: 1, ignored: 2, identity: null },
       },
     })
@@ -96,21 +101,21 @@ describe('planImport', () => {
   it('keeps a newer review already here over an older copy in the file', () => {
     expect(planImport(file([record('pgn:a', 100)]), here([record('pgn:a', 500)]), GABRIEL)).toEqual({
       ok: true,
-      value: { put: [], training: [], drop: [], report: { imported: 0, alreadyHere: 1, ignored: 0, identity: null } },
+      value: { put: [], training: [], drop: [], puzzles: [], report: { imported: 0, alreadyHere: 1, ignored: 0, identity: null } },
     })
   })
 
   it('never overwrites a row here that this version cannot read', () => {
     expect(planImport(file([record('pgn:a', 100)]), here([{ v: 2, id: 'pgn:a' }]), GABRIEL)).toEqual({
       ok: true,
-      value: { put: [], training: [], drop: [], report: { imported: 0, alreadyHere: 1, ignored: 0, identity: null } },
+      value: { put: [], training: [], drop: [], puzzles: [], report: { imported: 0, alreadyHere: 1, ignored: 0, identity: null } },
     })
   })
 
   it('takes the newest of two copies of one game in the file', () => {
     expect(planImport(file([record('pgn:a', 100), record('pgn:a', 200)]), here([]), GABRIEL)).toEqual({
       ok: true,
-      value: { put: [record('pgn:a', 200)], training: [], drop: [], report: { imported: 1, alreadyHere: 0, ignored: 0, identity: null } },
+      value: { put: [record('pgn:a', 200)], training: [], drop: [], puzzles: [], report: { imported: 1, alreadyHere: 0, ignored: 0, identity: null } },
     })
   })
 
@@ -122,7 +127,7 @@ describe('planImport', () => {
   it('reads a backup without games as empty', () => {
     expect(planImport('{"format":"lance-backup","v":1,"stores":{}}', here([]), NOBODY)).toEqual({
       ok: true,
-      value: { put: [], training: [], drop: [], report: { imported: 0, alreadyHere: 0, ignored: 0, identity: null } },
+      value: { put: [], training: [], drop: [], puzzles: [], report: { imported: 0, alreadyHere: 0, ignored: 0, identity: null } },
     })
   })
 
@@ -130,6 +135,15 @@ describe('planImport', () => {
     const text = file([], undefined, { training: [item('g#1', 500), item('g#2', 100), item('g#3', null), item('g#4', 900), { v: 2, id: 'g#5' }] })
     const plan = planImport(text, here([], [item('g#1', 300), item('g#2', 200), { v: 2, id: 'g#4' }]), GABRIEL)
     expect(plan.ok && plan.value.training).toEqual([parsed('g#1', 500), parsed('g#3', null)])
+  })
+
+  it('adds puzzle attempts, keeping the earlier of two at one puzzle and never replacing one it cannot read', () => {
+    const text = file([], undefined, { puzzles: [attempt('aaaaa', 500), attempt('bbbbb', 100, false), attempt('ccccc', 900), attempt('ddddd', 50), attempt('ddddd', 40), { v: 2, id: 'eeeee' }] })
+    const plan = planImport(text, here([], [], [attempt('aaaaa', 300), attempt('bbbbb', 200), { v: 2, id: 'ccccc' }]), GABRIEL)
+    expect(plan.ok && plan.value.puzzles).toEqual([
+      { id: 'bbbbb', at: 100, solved: false, puzzleRating: 1760 },
+      { id: 'ddddd', at: 40, solved: true, puzzleRating: 1760 },
+    ])
   })
 
   describe('the items of a game whose newer review comes in', () => {

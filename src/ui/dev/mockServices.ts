@@ -475,11 +475,11 @@ export function createMockServices(): Services {
   const backup: Services['backup'] = {
     async export(settings, at) {
       await seeded
-      return JSON.stringify(buildBackup({ games: [...records.values()], training: [...items.values()] }, settings, at), null, 2)
+      return JSON.stringify(buildBackup({ games: [...records.values()], training: [...items.values()], puzzles: [] }, settings, at), null, 2)
     },
     async import(text, current) {
       await seeded
-      const plan = planImport(text, { games: [...records.values()], training: [...items.values()] }, current)
+      const plan = planImport(text, { games: [...records.values()], training: [...items.values()], puzzles: [] }, current)
       if (!plan.ok) return plan
       for (const r of plan.value.put) records.set(r.id, r)
       for (const i of plan.value.training) items.set(i.id, i)

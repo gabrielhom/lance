@@ -259,7 +259,13 @@ export interface Backup {
   /** Merges by game id, keeping the newer review. Writes nothing when it rejects the file. */
   import(text: string, identity: Identity): Promise<Result<BackupReport, BackupRejection>>
 }
-export type Store = { readonly evals: EvalCache; readonly library: Library; readonly backup: Backup; readonly training: TrainingStore }
+export type Store = {
+  readonly evals: EvalCache
+  readonly library: Library
+  readonly backup: Backup
+  readonly training: TrainingStore
+  readonly puzzles: PuzzleStore
+}
 
 /** The classes that turn one of my moves into a training item. */
 export type TrainingClass = Extract<Classification, 'mistake' | 'blunder' | 'miss'>
@@ -329,6 +335,12 @@ export type PuzzleAttempt = {
   readonly solved: boolean
   /** The puzzle's rating then, so a rebuilt puzzle set never rewrites the player's rating. */
   readonly puzzleRating: number
+}
+export interface PuzzleStore {
+  /** Rows this version can't read are left out. */
+  list(): Promise<readonly PuzzleAttempt[]>
+  /** Keeps the earliest attempt at each puzzle, so recording one again changes nothing. */
+  record(attempt: PuzzleAttempt): Promise<void>
 }
 
 export type Settings = {

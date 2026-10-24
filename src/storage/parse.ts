@@ -21,6 +21,8 @@ import {
   type Opening,
   type Phase,
   type PlayerTag,
+  type PuzzleAttempt,
+  type PuzzleId,
   type ReviewSummary,
   type San,
   type Schedule,
@@ -112,6 +114,17 @@ export function parseTrainingItem(row: unknown): TrainingItem | null {
     alternative,
     schedule,
   }
+}
+
+export type StoredPuzzleAttempt = PuzzleAttempt & { readonly v: 1 }
+
+export function puzzleRow(attempt: PuzzleAttempt): StoredPuzzleAttempt {
+  return { v: 1, ...attempt }
+}
+
+export function parsePuzzleAttempt(row: unknown): PuzzleAttempt | null {
+  if (!isObj(row) || row.v !== 1 || !isStr(row.id) || !isNum(row.at) || typeof row.solved !== 'boolean' || !isNum(row.puzzleRating)) return null
+  return { id: row.id as PuzzleId, at: row.at, solved: row.solved, puzzleRating: row.puzzleRating }
 }
 
 const isUci = (x: unknown): x is Uci => typeof x === 'string' && UCI.test(x)
