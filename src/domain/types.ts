@@ -219,7 +219,23 @@ export interface Library {
   get(id: GameId): Promise<LibraryRecord | null>
   remove(id: GameId): Promise<void>
 }
-export type Store = { readonly evals: EvalCache; readonly library: Library }
+export type BackupRejection = { readonly kind: 'not-backup' } | { readonly kind: 'newer-version' }
+export type BackupReport = {
+  readonly imported: number
+  readonly alreadyHere: number
+  /** Rows in the file this version can't read. */
+  readonly ignored: number
+  /** The accounts from the file, to save; null when the file has none or some are already set. */
+  readonly identity: Identity | null
+}
+/** The library as a file, so the reviews outlive this browser's site data. */
+export interface Backup {
+  /** JSON text with every library row, readable or not, and the settings. */
+  export(settings: Settings, now: number): Promise<string>
+  /** Merges by game id, keeping the newer review. Writes nothing when it rejects the file. */
+  import(text: string, identity: Identity): Promise<Result<BackupReport, BackupRejection>>
+}
+export type Store = { readonly evals: EvalCache; readonly library: Library; readonly backup: Backup }
 
 export type Settings = {
   readonly v: 1
@@ -266,6 +282,7 @@ export interface Services {
   saveSettings(s: Settings): void
   runtimeEnv(): RuntimeEnv
   readonly library: Library
+  readonly backup: Backup
   parsePgnText(text: string): ImportResult
   fetchRecentGames(
     site: 'lichess' | 'chesscom',

@@ -6,6 +6,7 @@ import type { Move } from 'chess.js'
 import { keyMoments } from '../../analysis'
 import { perspective } from '../../domain/identity'
 import { loadPlay, savePlay } from '../../play'
+import { buildBackup, planImport } from '../../storage'
 import type {
   AccuracyPct,
   AccuracyPoint,
@@ -454,6 +455,20 @@ export function createMockServices(): Services {
     },
   }
 
+  const backup: Services['backup'] = {
+    async export(settings, at) {
+      await seeded
+      return JSON.stringify(buildBackup({ games: [...records.values()] }, settings, at), null, 2)
+    },
+    async import(text, current) {
+      await seeded
+      const plan = planImport(text, [...records.values()], current)
+      if (!plan.ok) return plan
+      for (const r of plan.value.put) records.set(r.id, r)
+      return { ok: true, value: plan.value.report }
+    },
+  }
+
   return {
     async engineMove(input, _level, signal) {
       await sleep(250 + Math.random() * 350, signal)
@@ -469,6 +484,7 @@ export function createMockServices(): Services {
       return { crossOriginIsolated: globalThis.crossOriginIsolated ?? false, cores: navigator.hardwareConcurrency || 4 }
     },
     library,
+    backup,
     parsePgnText,
     async fetchRecentGames(site, username, { max, signal }): Promise<Result<ImportResult, FetchFailure>> {
       await sleep(900, signal)

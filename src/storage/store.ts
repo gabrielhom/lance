@@ -1,5 +1,6 @@
 import { openDB, type DBSchema, type IDBPDatabase, type IDBPTransaction, type StoreNames } from 'idb'
-import type { EvalCache, GameReview, Library, LibraryRecord, Store } from '../domain/types'
+import type { Backup, EvalCache, GameReview, Library, LibraryRecord, Store } from '../domain/types'
+import { buildBackup, planImport } from './backup'
 import { evalRow, parseEvalRow, parseLibraryRecord } from './parse'
 
 interface Schema extends DBSchema {
@@ -39,7 +40,7 @@ export async function openStore(on: StoreEvents, steps: readonly Step[] = STEPS)
       on.stale()
     },
   })
-  return { evals: evalCache(db), library: library(db) }
+  return { evals: evalCache(db), library: library(db), backup: backup(db) }
 }
 
 function evalCache(db: Db): EvalCache {
@@ -65,6 +66,20 @@ function library(db: Db): Library {
     get: async (id) => parseLibraryRecord(await db.get('games', id)),
     remove: async (id) => {
       await db.delete('games', id)
+    },
+  }
+}
+
+function backup(db: Db): Backup {
+  return {
+    export: async (settings, now) => JSON.stringify(buildBackup({ games: await db.getAll('games') }, settings, now), null, 2),
+    async import(text, identity) {
+      // One transaction, so a review saved meanwhile in another tab can't be overwritten by an older copy.
+      const tx = db.transaction('games', 'readwrite')
+      const plan = planImport(text, await tx.store.getAll(), identity)
+      const writes = plan.ok ? plan.value.put.map((r) => tx.store.put(r)) : []
+      await Promise.all([...writes, tx.done])
+      return plan.ok ? { ok: true, value: plan.value.report } : plan
     },
   }
 }

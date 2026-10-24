@@ -40,6 +40,7 @@ export async function createServices(): Promise<Services> {
     saveSettings,
     runtimeEnv: () => env,
     library: store.library,
+    backup: store.backup,
     parsePgnText,
     fetchRecentGames,
     gameFromRecord: (record) => gameFromPgn(record.pgn, record.source),

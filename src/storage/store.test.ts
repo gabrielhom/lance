@@ -4,6 +4,7 @@ import { openDB } from 'idb'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   CLASSIFICATIONS,
+  DEFAULT_SETTINGS,
   type AccuracyPct,
   type Classification,
   type EngineId,
@@ -281,5 +282,32 @@ describe('library', () => {
     expect((await library.list()).map((r) => r.id)).toEqual(['lichess:good0000'])
     expect(await library.unreadable()).toBe(2)
     expect(await library.get('lichess:bad00000' as GameId)).toBeNull()
+  })
+})
+
+describe('backup', () => {
+  const settings = { ...DEFAULT_SETTINGS, identity: { accounts: [{ site: 'lichess' as const, username: 'gabrielhom' }] } }
+
+  it('brings the library back after the site data is cleared, unreadable rows left in the file', async () => {
+    await seedFirstRelease()
+    await writeRaw('games', { v: 2, id: 'lichess:future00' })
+    const text = await (await open()).backup.export(settings, 1_900_000_000_000)
+    expect(JSON.parse(text).stores.games).toEqual([RECORD, { v: 2, id: 'lichess:future00' }])
+
+    vi.stubGlobal('indexedDB', new IDBFactory())
+    const { library, backup } = await open()
+    expect(await backup.import(text, { accounts: [] })).toEqual({
+      ok: true,
+      value: { imported: 1, alreadyHere: 0, ignored: 1, identity: { accounts: [{ site: 'lichess', username: 'gabrielhom' }] } },
+    })
+    expect(await library.list()).toEqual([RECORD])
+    expect(await library.unreadable()).toBe(0)
+    expect(await backup.import(text, settings.identity)).toEqual({ ok: true, value: { imported: 0, alreadyHere: 1, ignored: 1, identity: null } })
+  })
+
+  it('writes nothing from a file that is not a backup', async () => {
+    const { library, backup } = await open()
+    expect(await backup.import('{"games":[]}', { accounts: [] })).toEqual({ ok: false, error: { kind: 'not-backup' } })
+    expect(await library.list()).toEqual([])
   })
 })
