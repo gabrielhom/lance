@@ -149,7 +149,7 @@ function Review({ game, startPly }: { game: Game; startPly: number }) {
         {review && <ReviewStrip review={review} me={myColor} />}
         {toTrain > 0 && (
           <p className="mt-2">
-            <a href={href({ name: 'training', game: game.id })} className="tl tl-accent">Treinar os erros desta partida</a>
+            <a href={href({ name: 'training', games: [game.id] })} className="tl tl-accent">Treinar os erros desta partida</a>
             <span className="caption ml-2">{toTrain === 1 ? '1 posição' : `${toTrain} posições`}</span>
           </p>
         )}

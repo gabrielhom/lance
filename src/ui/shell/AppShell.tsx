@@ -7,7 +7,7 @@ import { useMediaQuery } from '../useMediaQuery'
 
 const NAV: readonly { route: Route; label: string }[] = [
   { route: { name: 'play' }, label: 'Jogar' },
-  { route: { name: 'training', game: null }, label: 'Treino' },
+  { route: { name: 'training', games: [] }, label: 'Treino' },
   { route: { name: 'import' }, label: 'Revisar' },
   { route: { name: 'history' }, label: 'Histórico' },
   { route: { name: 'settings' }, label: 'Configurações' },
@@ -17,7 +17,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const route = useRoute()
   const current = route.name === 'review' ? 'import' : route.name === 'puzzles' ? 'training' : route.name
   // Hash routing keeps the scroll offset of the previous screen, which lands a new screen mid-page.
-  const where = route.name === 'review' ? `review:${route.id}` : route.name === 'training' ? `training:${route.game}` : route.name
+  const where = route.name === 'review' ? `review:${route.id}` : route.name === 'training' ? `training:${route.games.join(',')}` : route.name
   useEffect(() => {
     window.scrollTo(0, 0)
   }, [where])

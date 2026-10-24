@@ -18,8 +18,8 @@ export default function App() {
       {route.name === 'review' && <ReviewScreen key={route.id} id={route.id} ply={route.ply} />}
       {route.name === 'training' && (
         <>
-          {route.game === null && <TrainingModes current="mistakes" />}
-          <TrainingScreen key={route.game} game={route.game} />
+          {route.games.length === 0 && <TrainingModes current="mistakes" />}
+          <TrainingScreen key={route.games.join(',')} games={route.games} />
         </>
       )}
       {route.name === 'puzzles' && (
