@@ -7,6 +7,7 @@ import { keyMoments } from '../../analysis'
 import { perspective } from '../../domain/identity'
 import { loadPlay, savePlay } from '../../play'
 import { buildBackup, planImport } from '../../storage'
+import { checkAnswer, nextSchedule, syncItems } from '../../training'
 import { accuracyHistory } from '../../review'
 import type {
   AccuracyPct,
@@ -44,6 +45,8 @@ import type {
   Score,
   Services,
   Settings,
+  TrainingItem,
+  TrainingItemId,
   Uci,
   WinPct,
 } from '../../domain/types'
@@ -428,17 +431,33 @@ export function createMockServices(): Services {
   const records = new Map<GameId, LibraryRecord>()
   const identity = (): Identity => loadSettings().identity
 
+  const items = new Map<TrainingItemId, TrainingItem>()
+  const sync = (review: GameReview, at: number) => {
+    const { put, remove } = syncItems([...items.values()].filter((i) => i.gameId === review.game.id), review, at)
+    for (const id of remove) items.delete(id)
+    for (const i of put) items.set(i.id, i)
+  }
+
+  // Older seeds' items were answered before, so some come due today and some later.
   const seeded = Promise.all(
     SEEDS.map(async (s, i) => {
       const game = gameFromSeed(s, i, now)
       const review = await fabricateReview(game, perspective(identity(), game.players, game.source))
-      records.set(game.id, recordOf(review, now - s.daysAgo * DAY + 3_600_000))
+      const at = now - s.daysAgo * DAY + 3_600_000
+      records.set(game.id, recordOf(review, at))
+      sync(review, at)
     }),
-  )
+  ).then(() => {
+    let n = 0
+    for (const item of items.values()) {
+      if (n++ % 3 === 0) items.set(item.id, { ...item, schedule: { box: 2, due: now + (n % 5 + 1) * DAY, last: { at: now - 3 * DAY, correct: true } } })
+    }
+  })
 
   const library: Services['library'] = {
     async put(review, at) {
       records.set(review.game.id, recordOf(review, at))
+      sync(review, at)
     },
     async list() {
       await seeded
@@ -453,24 +472,43 @@ export function createMockServices(): Services {
     },
     async remove(id) {
       records.delete(id)
+      for (const i of items.values()) if (i.gameId === id) items.delete(i.id)
     },
   }
 
   const backup: Services['backup'] = {
     async export(settings, at) {
       await seeded
-      return JSON.stringify(buildBackup({ games: [...records.values()] }, settings, at), null, 2)
+      return JSON.stringify(buildBackup({ games: [...records.values()], training: [...items.values()] }, settings, at), null, 2)
     },
     async import(text, current) {
       await seeded
-      const plan = planImport(text, [...records.values()], current)
+      const plan = planImport(text, { games: [...records.values()], training: [...items.values()] }, current)
       if (!plan.ok) return plan
       for (const r of plan.value.put) records.set(r.id, r)
+      for (const i of plan.value.training) items.set(i.id, i)
       return { ok: true, value: plan.value.report }
     },
   }
 
+  const training: Services['training'] = {
+    async list() {
+      await seeded
+      return [...items.values()]
+    },
+    async answer(id, correct, at) {
+      const item = items.get(id)
+      if (item) items.set(id, { ...item, schedule: nextSchedule(item.schedule, correct, at) })
+    },
+    // Any move the stored lines can't settle comes back as good as the best one.
+    check: (item, move, signal) => checkAnswer(item, move, async () => {
+      await sleep(600, signal)
+      return { depth: 18, lines: [item.best] }
+    }),
+  }
+
   return {
+    training,
     async engineMove(input, _level, signal) {
       await sleep(250 + Math.random() * 350, signal)
       return mockMove(input)

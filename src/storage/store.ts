@@ -1,11 +1,13 @@
-import { openDB, type DBSchema, type IDBPDatabase, type IDBPTransaction, type StoreNames } from 'idb'
-import type { Backup, EvalCache, GameReview, Library, LibraryRecord, Store } from '../domain/types'
+import { openDB, type DBSchema, type IDBPDatabase, type IDBPObjectStore, type IDBPTransaction, type StoreNames } from 'idb'
+import type { Backup, EvalCache, GameReview, Library, LibraryRecord, Store, TrainingStore } from '../domain/types'
+import { nextSchedule, syncItems } from '../training/training'
 import { buildBackup, planImport } from './backup'
-import { evalRow, parseEvalRow, parseLibraryRecord } from './parse'
+import { evalRow, parseEvalRow, parseLibraryRecord, parseTrainingItem, trainingRow } from './parse'
 
 interface Schema extends DBSchema {
   evals: { key: string; value: unknown }
   games: { key: string; value: unknown; indexes: { playedAt: number } }
+  training: { key: string; value: unknown; indexes: { gameId: string } }
 }
 type Db = IDBPDatabase<Schema>
 type Step = (db: Db, tx: IDBPTransaction<Schema, StoreNames<Schema>[], 'versionchange'>) => void
@@ -17,6 +19,9 @@ export const STEPS: readonly Step[] = [
     db.createObjectStore('evals')
     db.createObjectStore('games', { keyPath: 'id' }).createIndex('playedAt', 'playedAt')
   },
+  (db) => {
+    db.createObjectStore('training', { keyPath: 'id' }).createIndex('gameId', 'gameId')
+  },
 ]
 
 /** What the app does when another tab needs the database at a newer version. */
@@ -25,6 +30,8 @@ export type StoreEvents = {
   blocked(): void
   /** This tab closed its connection to let a newer tab upgrade; its code is out of date and every call now fails. */
   stale(): void
+  /** The database is already at a version newer than this code knows, so it can't open at all. */
+  outdated(): void
 }
 
 /** `steps` is only for tests, which rehearse the next version with one more step. */
@@ -39,8 +46,11 @@ export async function openStore(on: StoreEvents, steps: readonly Step[] = STEPS)
       db.close()
       on.stale()
     },
+  }).catch((e: unknown) => {
+    if (e instanceof DOMException && e.name === 'VersionError') on.outdated()
+    throw e
   })
-  return { evals: evalCache(db), library: library(db), backup: backup(db) }
+  return { evals: evalCache(db), library: library(db), backup: backup(db), training: training(db) }
 }
 
 function evalCache(db: Db): EvalCache {
@@ -52,10 +62,18 @@ function evalCache(db: Db): EvalCache {
   }
 }
 
+/** In the caller's transaction, so a game is never saved without its items. */
+async function syncTraining<T extends ArrayLike<StoreNames<Schema>>>(store: IDBPObjectStore<Schema, T, 'training', 'readwrite'>, review: GameReview, now: number) {
+  const existing = (await store.index('gameId').getAll(review.game.id)).map(parseTrainingItem).filter((i) => i !== null)
+  const { put, remove } = syncItems(existing, review, now)
+  await Promise.all([...put.map((i) => store.put(trainingRow(i))), ...remove.map((id) => store.delete(id))])
+}
+
 function library(db: Db): Library {
   return {
     put: async (review, now) => {
-      await db.put('games', libraryRecord(review, now))
+      const tx = db.transaction(['games', 'training'], 'readwrite')
+      await Promise.all([tx.objectStore('games').put(libraryRecord(review, now)), syncTraining(tx.objectStore('training'), review, now), tx.done])
     },
     list: async () =>
       (await db.getAll('games'))
@@ -65,19 +83,41 @@ function library(db: Db): Library {
     unreadable: async () => (await db.getAll('games')).filter((row) => parseLibraryRecord(row) === null).length,
     get: async (id) => parseLibraryRecord(await db.get('games', id)),
     remove: async (id) => {
-      await db.delete('games', id)
+      const tx = db.transaction(['games', 'training'], 'readwrite')
+      const training = tx.objectStore('training')
+      const items = await training.index('gameId').getAllKeys(id)
+      await Promise.all([tx.objectStore('games').delete(id), ...items.map((k) => training.delete(k)), tx.done])
+    },
+  }
+}
+
+function training(db: Db): TrainingStore {
+  return {
+    list: async () => (await db.getAll('training')).map(parseTrainingItem).filter((i) => i !== null),
+    async answer(id, correct, now) {
+      const tx = db.transaction('training', 'readwrite')
+      const item = parseTrainingItem(await tx.store.get(id))
+      const writes = item ? [tx.store.put(trainingRow({ ...item, schedule: nextSchedule(item.schedule, correct, now) }))] : []
+      await Promise.all([...writes, tx.done])
+    },
+    async sync(review, now) {
+      const tx = db.transaction('training', 'readwrite')
+      await Promise.all([syncTraining(tx.store, review, now), tx.done])
     },
   }
 }
 
 function backup(db: Db): Backup {
   return {
-    export: async (settings, now) => JSON.stringify(buildBackup({ games: await db.getAll('games') }, settings, now), null, 2),
+    export: async (settings, now) =>
+      JSON.stringify(buildBackup({ games: await db.getAll('games'), training: await db.getAll('training') }, settings, now), null, 2),
     async import(text, identity) {
       // One transaction, so a review saved meanwhile in another tab can't be overwritten by an older copy.
-      const tx = db.transaction('games', 'readwrite')
-      const plan = planImport(text, await tx.store.getAll(), identity)
-      const writes = plan.ok ? plan.value.put.map((r) => tx.store.put(r)) : []
+      const tx = db.transaction(['games', 'training'], 'readwrite')
+      const games = tx.objectStore('games')
+      const training = tx.objectStore('training')
+      const plan = planImport(text, { games: await games.getAll(), training: await training.getAll() }, identity)
+      const writes = plan.ok ? [...plan.value.put.map((r) => games.put(r)), ...plan.value.training.map((i) => training.put(trainingRow(i)))] : []
       await Promise.all([...writes, tx.done])
       return plan.ok ? { ok: true, value: plan.value.report } : plan
     },

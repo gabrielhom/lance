@@ -5,11 +5,13 @@ import { loadBook } from '../openings'
 import { loadPlay, savePlay } from '../play'
 import { accuracyHistory, reviewGame } from '../review'
 import { loadSettings, openStore, saveSettings } from '../storage'
+import { backfill, checkAnswer } from '../training'
 
 export async function createServices(): Promise<Services> {
   const store = await openStore({
     blocked: () => showNotice('Feche as outras abas do Lance para abrir esta. Elas usam uma versão antiga do app.'),
     stale: () => location.reload(),
+    outdated: () => showNotice('Esta aba tem uma versão antiga do Lance. Recarregue a página para abrir a nova.'),
   })
   const env = runtimeEnv()
   const book = loadBook()
@@ -35,6 +37,13 @@ export async function createServices(): Promise<Services> {
     return picker.picker
   }
 
+  // Once per page, before the first list, so the counts include games reviewed before training existed.
+  let backfilled: Promise<void> | null = null
+  const ready = () =>
+    (backfilled ??= book
+      .then((b) => backfill({ ...store, book: b, identity: loadSettings().identity }, Date.now()))
+      .catch((e: unknown) => console.warn('training backfill failed', e)))
+
   return {
     loadSettings,
     saveSettings,
@@ -55,6 +64,11 @@ export async function createServices(): Promise<Services> {
     engineMove: (input, level, signal) => pickerFor(loadSettings()).pick(input, level, signal),
     loadPlay,
     savePlay,
+    training: {
+      list: () => ready().then(() => store.training.list()),
+      answer: (id, correct, now) => store.training.answer(id, correct, now),
+      check: (item, move, signal) => checkAnswer(item, move, (p) => evaluatorFor(loadSettings()).evaluate(p, signal)),
+    },
   }
 }
 

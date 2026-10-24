@@ -16,9 +16,11 @@ import {
   type GameSource,
   type PositionKey,
   type SearchedEval,
+  type TrainingItemId,
   type Uci,
   type WinPct,
 } from '../domain/types'
+import { operaReview } from '../training/testing'
 import { STEPS, openStore, type StoreEvents } from './store'
 
 const START = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1' as Fen
@@ -65,13 +67,14 @@ function review(
   }
 }
 
-async function writeRaw(store: 'evals' | 'games', value: unknown, key?: string) {
-  const db = await openDB('lance', 1)
+/** Only after `open`: it opens the database at the current version without upgrading it. */
+async function writeRaw(store: 'evals' | 'games' | 'training', value: unknown, key?: string) {
+  const db = await openDB('lance', STEPS.length)
   await db.put(store, value, key)
   db.close()
 }
 
-const QUIET: StoreEvents = { blocked: () => {}, stale: () => {} }
+const QUIET: StoreEvents = { blocked: () => {}, stale: () => {}, outdated: () => {} }
 const open = () => openStore(QUIET)
 
 beforeEach(() => {
@@ -109,9 +112,10 @@ async function seedFirstRelease() {
   db.close()
 }
 
-const TRAINING_STEP = (db: Parameters<(typeof STEPS)[number]>[0]) => {
-  ;(db as unknown as IDBDatabase).createObjectStore('training', { keyPath: 'id' })
+const NEXT_STEP = (db: Parameters<(typeof STEPS)[number]>[0]) => {
+  ;(db as unknown as IDBDatabase).createObjectStore('later', { keyPath: 'id' })
 }
+const NEXT = STEPS.length + 1
 
 async function storeNames(version: number) {
   const db = await openDB('lance', version)
@@ -128,27 +132,43 @@ describe('schema', () => {
     expect(await evals.get(KEY)).toEqual(EVAL)
   })
 
-  it('upgrades to a new version by running only the new step and keeps every row', async () => {
+  it('upgrades a first-release database with the training store and keeps every row', async () => {
     await seedFirstRelease()
-    const step = vi.fn(TRAINING_STEP)
-    const { library, evals } = await openStore(QUIET, [...STEPS, step])
-    expect(step).toHaveBeenCalledTimes(1)
+    const { library, evals, training } = await open()
     expect(await library.list()).toEqual([RECORD])
     expect(await evals.get(KEY)).toEqual(EVAL)
+    expect(await training.list()).toEqual([])
     expect(await storeNames(2)).toEqual(['evals', 'games', 'training'])
   })
 
+  it('upgrades to a new version by running only the new step and keeps every row', async () => {
+    await open()
+    const step = vi.fn(NEXT_STEP)
+    const { library } = await openStore(QUIET, [...STEPS, step])
+    expect(step).toHaveBeenCalledTimes(1)
+    expect(await library.list()).toEqual([])
+    expect(await storeNames(NEXT)).toEqual(['evals', 'games', 'later', 'training'])
+  })
+
   it('creates every store on a fresh browser', async () => {
-    await openStore(QUIET, [...STEPS, TRAINING_STEP])
-    expect(await storeNames(2)).toEqual(['evals', 'games', 'training'])
+    await open()
+    expect(await storeNames(STEPS.length)).toEqual(['evals', 'games', 'training'])
+  })
+
+  it('tells an old tab that the database is newer than its code', async () => {
+    await open()
+    const outdated = vi.fn()
+    await expect(openStore({ ...QUIET, outdated }, STEPS.slice(0, 1))).rejects.toThrow(/version/i)
+    expect(outdated).toHaveBeenCalledTimes(1)
   })
 
   it('lets a newer tab upgrade by closing its own connection', async () => {
     await seedFirstRelease()
+    await (await open()).library.list()
     const stale = vi.fn()
-    const old = await openStore({ blocked: () => {}, stale })
+    const old = await openStore({ ...QUIET, stale })
     const blocked = vi.fn()
-    const newer = await openStore({ blocked, stale: () => {} }, [...STEPS, TRAINING_STEP])
+    const newer = await openStore({ ...QUIET, blocked }, [...STEPS, NEXT_STEP])
     expect(stale).toHaveBeenCalledTimes(1)
     expect(blocked).not.toHaveBeenCalled()
     expect(await newer.library.list()).toEqual([RECORD])
@@ -157,9 +177,10 @@ describe('schema', () => {
 
   it('waits for an old tab that never closes, then upgrades', async () => {
     await seedFirstRelease()
-    const oldTab = await openDB('lance', 1)
+    await open()
+    const oldTab = await openDB('lance', STEPS.length)
     const blocked = vi.fn()
-    const opening = openStore({ blocked, stale: () => {} }, [...STEPS, TRAINING_STEP])
+    const opening = openStore({ ...QUIET, blocked }, [...STEPS, NEXT_STEP])
     await vi.waitFor(() => expect(blocked).toHaveBeenCalledTimes(1))
     oldTab.close()
     expect(await (await opening).library.list()).toEqual([RECORD])
@@ -267,7 +288,7 @@ describe('library', () => {
   ])('misses a played game stored %s', async (_, source) => {
     const { library } = await open()
     await library.put(review('played:k3x9', 1000, undefined, { kind: 'played', id: 'k3x9', you: 'w' }), 2000)
-    const db = await openDB('lance', 1)
+    const db = await openDB('lance', STEPS.length)
     const row = await db.get('games', 'played:k3x9')
     await db.put('games', { ...row, source })
     db.close()
@@ -290,8 +311,9 @@ describe('backup', () => {
 
   it('brings the library back after the site data is cleared, unreadable rows left in the file', async () => {
     await seedFirstRelease()
+    const { backup: old } = await open()
     await writeRaw('games', { v: 2, id: 'lichess:future00' })
-    const text = await (await open()).backup.export(settings, 1_900_000_000_000)
+    const text = await old.export(settings, 1_900_000_000_000)
     expect(JSON.parse(text).stores.games).toEqual([RECORD, { v: 2, id: 'lichess:future00' }])
 
     vi.stubGlobal('indexedDB', new IDBFactory())
@@ -309,5 +331,48 @@ describe('backup', () => {
     const { library, backup } = await open()
     expect(await backup.import('{"games":[]}', { accounts: [] })).toEqual({ ok: false, error: { kind: 'not-backup' } })
     expect(await library.list()).toEqual([])
+  })
+})
+
+describe('training', () => {
+  const B5 = 'pgn:2dbw2vp1o9w#17' as TrainingItemId
+  const mine = operaReview({ kind: 'me', color: 'b' })
+  const evening = new Date(2026, 9, 24, 20).getTime()
+  const answered = { box: 1, due: new Date(2026, 9, 27).getTime(), last: { at: evening, correct: true } }
+
+  it('saves the items of a review with its game and keeps their schedule when the game is reviewed again', async () => {
+    const { library, training } = await open()
+    await library.put(mine, 1000)
+    expect(await training.list()).toMatchObject([{ id: B5, played: { san: 'b5', classification: 'blunder' }, schedule: { box: 0, due: 1000, last: null } }])
+    await training.answer(B5, true, evening)
+    await library.put(mine, evening + 1)
+    await training.sync(mine, evening + 2)
+    expect((await training.list()).map((i) => [i.id, i.schedule])).toEqual([[B5, answered]])
+  })
+
+  it('removes the items with their game', async () => {
+    const { library, training } = await open()
+    await library.put(mine, 1000)
+    await library.remove(mine.game.id)
+    expect(await training.list()).toEqual([])
+  })
+
+  it('leaves out a row it cannot read', async () => {
+    const { library, training } = await open()
+    await library.put(mine, 1000)
+    await writeRaw('training', { v: 2, id: 'g#1', gameId: 'g' })
+    expect((await training.list()).map((i) => i.id)).toEqual([B5])
+  })
+
+  it('comes back from a backup with its schedule', async () => {
+    const { library, training, backup } = await open()
+    await library.put(mine, 1000)
+    await training.answer(B5, true, evening)
+    const text = await backup.export(DEFAULT_SETTINGS, evening)
+
+    vi.stubGlobal('indexedDB', new IDBFactory())
+    const fresh = await open()
+    await fresh.backup.import(text, { accounts: [] })
+    expect((await fresh.training.list()).map((i) => [i.id, i.schedule])).toEqual([[B5, answered]])
   })
 })

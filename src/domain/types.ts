@@ -239,7 +239,7 @@ export interface Backup {
   /** Merges by game id, keeping the newer review. Writes nothing when it rejects the file. */
   import(text: string, identity: Identity): Promise<Result<BackupReport, BackupRejection>>
 }
-export type Store = { readonly evals: EvalCache; readonly library: Library; readonly backup: Backup }
+export type Store = { readonly evals: EvalCache; readonly library: Library; readonly backup: Backup; readonly training: TrainingStore }
 
 /** The classes that turn one of my moves into a training item. */
 export type TrainingClass = Extract<Classification, 'mistake' | 'blunder' | 'miss'>
@@ -343,6 +343,15 @@ export interface Services {
   /** The game in progress survives a reload. null clears it. */
   loadPlay(): PlayState | null
   savePlay(state: PlayState | null): void
+  readonly training: Training
+}
+
+export interface Training {
+  /** Every item, the ones from games reviewed before training existed included. */
+  list(): Promise<readonly TrainingItem[]>
+  answer(id: TrainingItemId, correct: boolean, now: number): Promise<void>
+  /** Uses the engine from the current settings only when the stored lines can't settle it. Rejects like Evaluator. */
+  check(item: TrainingItem, move: Uci, signal: AbortSignal): Promise<Verdict>
 }
 
 /** How strong the engine plays. Engines without UCI_Elo fall back to Skill Level, and without both play at full strength. */

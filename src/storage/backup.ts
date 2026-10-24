@@ -1,9 +1,9 @@
-import type { BackupRejection, BackupReport, GameId, Identity, LibraryRecord, Result, Settings } from '../domain/types'
-import { parseIdentity, parseLibraryRecord } from './parse'
+import type { BackupRejection, BackupReport, Identity, LibraryRecord, Result, Settings, TrainingItem } from '../domain/types'
+import { parseIdentity, parseLibraryRecord, parseTrainingItem } from './parse'
 
 /** Raw rows of each object store that a backup carries. The eval cache stays out: it rebuilds itself.
  *  A new store is one more key here; an app that doesn't know a key ignores it, so adding one is not a format change. */
-export type BackupStores = { readonly games: readonly unknown[] }
+export type BackupStores = { readonly games: readonly unknown[]; readonly training: readonly unknown[] }
 
 export type BackupFile = {
   readonly format: 'lance-backup'
@@ -19,37 +19,49 @@ export function buildBackup(stores: BackupStores, settings: Settings, now: numbe
   return { format: 'lance-backup', v: 1, exportedAt: new Date(now).toISOString(), stores, settings }
 }
 
-export type ImportPlan = { readonly put: readonly LibraryRecord[]; readonly report: BackupReport }
+export type ImportPlan = { readonly put: readonly LibraryRecord[]; readonly training: readonly TrainingItem[]; readonly report: BackupReport }
 
-/** Decides what an import writes, given the rows already in the games store and the accounts already set.
- *  A game already here stays unless the file has a newer review of it. A row this app can't read stays out of the
- *  database, since nothing could show or update it; it is still in the file. Accounts come back only when none are set. */
-export function planImport(text: string, existing: readonly unknown[], identity: Identity): Result<ImportPlan, BackupRejection> {
+/** Decides what an import writes, given the rows already in each store and the accounts already set.
+ *  A game already here stays unless the file has a newer review of it. A training item stays unless the file's copy was
+ *  answered later, since the later answer carries the schedule the player last saw. A row this app can't read stays
+ *  out of the database, since nothing could show or update it; it is still in the file. Accounts come back only when
+ *  none are set. */
+export function planImport(text: string, existing: BackupStores, identity: Identity): Result<ImportPlan, BackupRejection> {
   const parsed = parseBackup(text)
   if (!parsed.ok) return parsed
-  const { records, ignored, accounts } = parsed.value
-
-  const here = new Map<unknown, number | null>()
-  for (const row of existing) {
-    const r = parseLibraryRecord(row)
-    if (r) here.set(r.id, r.reviewedAt)
-    // An unreadable row may come from a newer app, so it wins over anything in the file.
-    else if (typeof row === 'object' && row !== null && 'id' in row) here.set(row.id, null)
-  }
-  const newest = new Map<GameId, LibraryRecord>()
-  for (const r of records) {
-    const seen = newest.get(r.id)
-    if (!seen || r.reviewedAt > seen.reviewedAt) newest.set(r.id, r)
-  }
-  const put = [...newest.values()].filter((r) => {
-    const at = here.get(r.id)
-    return at === undefined || (at !== null && r.reviewedAt > at)
-  })
+  const { records, items, ignored, accounts } = parsed.value
+  const put = newer(records, existing.games, parseLibraryRecord, (r) => r.reviewedAt)
+  const training = newer(items, existing.training, parseTrainingItem, (i) => i.schedule.last?.at ?? -Infinity)
   const restore = identity.accounts.length === 0 && accounts && accounts.accounts.length > 0 ? accounts : null
-  return { ok: true, value: { put, report: { imported: put.length, alreadyHere: newest.size - put.length, ignored, identity: restore } } }
+  return { ok: true, value: { put, training, report: { imported: put.length, alreadyHere: new Set(records.map((r) => r.id)).size - put.length, ignored, identity: restore } } }
 }
 
-type ParsedBackup = { readonly records: readonly LibraryRecord[]; readonly ignored: number; readonly accounts: Identity | null }
+/** The newest copy of each row in the file, kept only when it is newer than the row here. */
+function newer<T extends { readonly id: string }>(file: readonly T[], here: readonly unknown[], parse: (row: unknown) => T | null, at: (row: T) => number): T[] {
+  const stamps = new Map<unknown, number | null>()
+  for (const row of here) {
+    const r = parse(row)
+    if (r) stamps.set(r.id, at(r))
+    // An unreadable row may come from a newer app, so it wins over anything in the file.
+    else if (typeof row === 'object' && row !== null && 'id' in row) stamps.set(row.id, null)
+  }
+  const newest = new Map<string, T>()
+  for (const r of file) {
+    const seen = newest.get(r.id)
+    if (!seen || at(r) > at(seen)) newest.set(r.id, r)
+  }
+  return [...newest.values()].filter((r) => {
+    const stamp = stamps.get(r.id)
+    return stamp === undefined || (stamp !== null && at(r) > stamp)
+  })
+}
+
+type ParsedBackup = {
+  readonly records: readonly LibraryRecord[]
+  readonly items: readonly TrainingItem[]
+  readonly ignored: number
+  readonly accounts: Identity | null
+}
 
 function parseBackup(text: string): Result<ParsedBackup, BackupRejection> {
   let file: unknown
@@ -63,10 +75,12 @@ function parseBackup(text: string): Result<ParsedBackup, BackupRejection> {
   }
   if (file.v > 1) return { ok: false, error: { kind: 'newer-version' } }
   const games = file.stores.games ?? []
-  if (!Array.isArray(games)) return { ok: false, error: { kind: 'not-backup' } }
+  const training = file.stores.training ?? []
+  if (!Array.isArray(games) || !Array.isArray(training)) return { ok: false, error: { kind: 'not-backup' } }
   const records = games.map(parseLibraryRecord).filter((r) => r !== null)
+  const items = training.map(parseTrainingItem).filter((i) => i !== null)
   const accounts = isObj(file.settings) ? parseIdentity(file.settings.identity) : null
-  return { ok: true, value: { records, ignored: games.length - records.length, accounts } }
+  return { ok: true, value: { records, items, ignored: games.length - records.length, accounts } }
 }
 
 const isInt = (x: unknown): x is number => Number.isInteger(x)
