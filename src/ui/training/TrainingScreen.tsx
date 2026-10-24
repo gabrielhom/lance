@@ -72,7 +72,7 @@ function plural(n: number, one: string, many: string): string {
 }
 
 function progressLine(p: TrainingProgress): string {
-  const due = `${plural(p.due, 'posição', 'posições')} para hoje`
+  const due = p.due === 0 ? 'Nada para hoje' : `${plural(p.due, 'posição', 'posições')} para hoje`
   return p.done === 0 ? due : `${due} · ${plural(p.done, 'feita', 'feitas')} hoje, ${plural(p.right, 'certa', 'certas')}`
 }
 

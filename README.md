@@ -10,6 +10,10 @@ Xadrez no navegador contra o Stockfish 19, com revisão de cada partida no fim. 
 
 A partida em andamento sobrevive a um recarregamento, com os relógios onde estavam. No fim, a revisão começa sozinha e mostra a precisão dos dois lados. Ela continua rodando se você pedir revanche ou começar outra partida, e a partida vai para a biblioteca e para o histórico quando a revisão termina. Partidas jogadas aqui contam como suas sem nenhuma conta configurada.
 
+## Treinar
+
+Cada erro, blunder ou chance perdida seu numa partida revisada vira uma posição de treino: você tenta achar um lance melhor no tabuleiro. Conta como certo o lance da engine ou outro que perca menos de 2 pontos de chance de vitória, o limite do "excelente". As posições seguem caixas de Leitner: acertar adia a próxima vez (3, 7, 14 e 30 dias), errar traz de volta no dia seguinte. A tela inicial mostra quantas estão para hoje, e a revisão leva ao treino dos erros daquela partida.
+
 ## Rodar
 
 ```sh
@@ -80,5 +84,6 @@ O e2e usa a engine nativa em `engines/stockfish-19` para testar a ponte e pula e
 - `src/import`: PGN, Lichess e Chess.com.
 - `src/play`: as regras da partida jogada aqui, relógios, níveis, PGN e a partida em andamento salva.
 - `src/review`: orquestra a análise de uma partida e o histórico de precisão.
+- `src/training`: posições de treino, agenda e conferência da resposta. `TRAINING` guarda os limites.
 - `src/ui`: a interface em React.
 - `bridge/server.mjs`: a ponte para engines nativas.
