@@ -1,2 +1,2 @@
-export { reviewGame, type ReviewDeps } from './reviewGame'
+export { reviewGame } from './reviewGame'
 export { accuracyHistory } from './history'

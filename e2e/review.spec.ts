@@ -57,3 +57,29 @@ test('lists reviewed games in the history after a reload', async ({ page, axe })
   await expect(page.getByRole('link', { name: /vs Oponente.*\d+,\d sua precisão/ })).toBeVisible()
   await axe()
 })
+
+test('brings the library back from a backup after the site data is cleared', async ({ page, axe }) => {
+  await setUsername(page, 'gabrielhom')
+  await review(page, scholar)
+  await page.goto('/#/config')
+  const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Exportar biblioteca' }).click()])
+  expect(download.suggestedFilename()).toMatch(/^lance-backup-\d{4}-\d{2}-\d{2}\.json$/)
+  const backup = await download.path()
+
+  // The open connection closes itself and reloads the page so the delete can go through.
+  const reloaded = page.waitForEvent('load')
+  await page.evaluate("localStorage.clear(); indexedDB.deleteDatabase('lance')")
+  await reloaded
+  await page.goto('/#/historico')
+  await expect(page.getByText('Nenhuma partida revisada ainda')).toBeVisible()
+
+  await page.goto('/#/config')
+  await expect(page.getByLabel('Lichess')).toHaveValue('')
+  await page.getByLabel('Arquivo de backup').setInputFiles(backup)
+  await expect(page.getByText('1 partida importada, 0 já estavam aqui, 0 ignoradas. Suas contas também voltaram.')).toBeVisible()
+  await expect(page.getByLabel('Lichess')).toHaveValue('gabrielhom')
+  await axe()
+
+  await page.goto('/#/historico')
+  await expect(page.getByRole('link', { name: /vs Oponente.*\d+,\d sua precisão/ })).toBeVisible()
+})

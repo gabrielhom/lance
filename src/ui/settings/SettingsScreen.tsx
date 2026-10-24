@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import type { BridgeEngine, BridgeProbeError, EngineDescriptor, SearchLimit, Settings } from '../../domain/types'
+import type { BackupRejection, BackupReport, BridgeEngine, BridgeProbeError, EngineDescriptor, SearchLimit, Settings } from '../../domain/types'
 import { WASM_FLAVORS } from '../../domain/types'
 import { formatBytes } from '../format'
+import { useInstall } from '../install'
 import { probeErrorText } from '../labels'
 import { useServices, useSettings } from '../services'
 
@@ -21,6 +22,7 @@ export function SettingsScreen() {
   const account = (site: 'lichess' | 'chesscom') => settings.identity.accounts.find((a) => a.site === site)?.username ?? ''
   const advanced = useRef<HTMLDetailsElement>(null)
   const [advancedAtStart] = useState(settings.engine.kind === 'bridge')
+  const install = useInstall()
   const setAccount = (site: 'lichess' | 'chesscom', username: string) => {
     const rest = settings.identity.accounts.filter((a) => a.site !== site)
     const u = username.trim()
@@ -87,6 +89,18 @@ export function SettingsScreen() {
         <p className="caption mt-2">Profundidade da busca em cada posição. Mais profundidade, análise mais precisa e mais demorada.</p>
       </section>
 
+      {install && (
+        <section aria-labelledby="instalar-titulo">
+          <h2 id="instalar-titulo" className="sec">Aplicativo</h2>
+          <div className="ruled flex flex-col items-start gap-4">
+            <p className="text-ink-2">Instalado, o Lance abre numa janela própria, como um programa. Depois que a engine carrega uma vez, ele funciona sem internet.</p>
+            <button type="button" className="btn" onClick={install}>
+              Instalar o Lance
+            </button>
+          </div>
+        </section>
+      )}
+
       <details ref={advanced} open={advancedAtStart} className="advanced">
         <summary>
           <h2 className="sec inline">Avançado</h2>
@@ -134,8 +148,107 @@ export function SettingsScreen() {
           </div>
         </div>
       </details>
+
+      <YourData />
     </div>
   )
+}
+
+type Transfer =
+  | { kind: 'idle' }
+  | { kind: 'busy' }
+  | { kind: 'exported' }
+  | { kind: 'imported'; report: BackupReport }
+  | { kind: 'rejected'; rejection: BackupRejection }
+  | { kind: 'failed' }
+
+function YourData() {
+  const services = useServices()
+  const [settings, save] = useSettings()
+  const [transfer, setTransfer] = useState<Transfer>({ kind: 'idle' })
+  const fileInput = useRef<HTMLInputElement>(null)
+
+  const exportLibrary = async () => {
+    setTransfer({ kind: 'busy' })
+    try {
+      const text = await services.backup.export(settings, Date.now())
+      const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }))
+      const a = document.createElement('a')
+      a.href = url
+      a.download = backupFileName(new Date())
+      a.click()
+      setTimeout(() => URL.revokeObjectURL(url), 1000)
+      setTransfer({ kind: 'exported' })
+    } catch {
+      setTransfer({ kind: 'failed' })
+    }
+  }
+
+  const importFile = async (file: File | undefined) => {
+    if (!file) return
+    setTransfer({ kind: 'busy' })
+    try {
+      const r = await services.backup.import(await file.text(), settings.identity)
+      if (!r.ok) return setTransfer({ kind: 'rejected', rejection: r.error })
+      if (r.value.identity) save({ ...settings, identity: r.value.identity })
+      setTransfer({ kind: 'imported', report: r.value })
+    } catch {
+      setTransfer({ kind: 'failed' })
+    } finally {
+      if (fileInput.current) fileInput.current.value = ''
+    }
+  }
+
+  return (
+    <section aria-labelledby="dados-titulo">
+      <h2 id="dados-titulo" className="sec">Seus dados</h2>
+      <div className="ruled flex flex-col gap-4">
+        <p className="text-ink-2">
+          As partidas revisadas ficam só neste navegador, e limpar os dados do site apaga todas. O backup guarda a biblioteca e suas contas num arquivo.
+        </p>
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+          <button type="button" className="btn" onClick={exportLibrary} disabled={transfer.kind === 'busy'}>Exportar biblioteca</button>
+          <button type="button" className="tl" onClick={() => fileInput.current?.click()} disabled={transfer.kind === 'busy'}>Importar backup</button>
+          <input ref={fileInput} type="file" accept=".json,application/json" hidden aria-label="Arquivo de backup" onChange={(e) => importFile(e.target.files?.[0])} />
+        </div>
+        <p aria-live="polite" className={transfer.kind === 'rejected' || transfer.kind === 'failed' ? 'font-semibold' : ''}>
+          {transferText(transfer)}
+        </p>
+      </div>
+    </section>
+  )
+}
+
+function transferText(t: Transfer): string {
+  switch (t.kind) {
+    case 'idle':
+    case 'busy':
+      return ''
+    case 'exported':
+      return 'Backup baixado.'
+    case 'imported': {
+      const { imported, alreadyHere, ignored, identity } = t.report
+      const counts = [
+        imported === 1 ? '1 partida importada' : `${imported} partidas importadas`,
+        alreadyHere === 1 ? '1 já estava aqui' : `${alreadyHere} já estavam aqui`,
+        ignored === 1 ? '1 ignorada' : `${ignored} ignoradas`,
+      ].join(', ')
+      const notes = [ignored > 0 && 'As ignoradas são de uma versão que este app não lê e continuam no arquivo.', identity && 'Suas contas também voltaram.']
+      return [`${counts}.`, ...notes.filter(Boolean)].join(' ')
+    }
+    case 'rejected':
+      return t.rejection.kind === 'newer-version'
+        ? 'Este backup veio de uma versão mais nova do Lance. Recarregue a página para atualizar o app e tente de novo.'
+        : 'Este arquivo não é um backup do Lance.'
+    case 'failed':
+      return 'Não deu para acessar a biblioteca neste navegador.'
+  }
+}
+
+/** lance-backup-YYYY-MM-DD.json, in the local date. */
+function backupFileName(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `lance-backup-${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}.json`
 }
 
 function isDepth(limit: SearchLimit, depth: number) {

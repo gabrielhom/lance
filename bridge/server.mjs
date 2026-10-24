@@ -7,12 +7,17 @@ import { resolve } from 'node:path'
 import { createInterface } from 'node:readline'
 import { fileURLToPath } from 'node:url'
 import { WebSocketServer } from 'ws'
+import { refusal } from './commands.mjs'
 
 export const DEFAULT_ORIGINS = ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://127.0.0.1:5199', 'http://localhost:4173']
 const USAGE = 'usage: npm run bridge -- --engine <name>=<path> [--engine <name>=<path>] [--port 7777] [--origin <url>]'
 const ENGINE_NAME = /^[\w.-]+$/
 const HANDSHAKE_MS = 10_000
 const QUIT_GRACE_MS = 2_000
+// A `position` with 600 moves is about 4 KB.
+export const MAX_FRAME_BYTES = 64 * 1024
+export const MAX_ENGINES = 8
+// Close codes in the 4000s are ours: 4403 origin, 4404 engine name, 4429 engine cap, 4400 refused command.
 
 export function parseArgs(argv) {
   const engines = new Map()
@@ -71,7 +76,7 @@ function identify(path) {
   })
 }
 
-export async function serve({ port, origins, engines }) {
+export async function serve({ port, origins, engines, maxEngines = MAX_ENGINES, log = console.error }) {
   const listed = []
   for (const [name, path] of engines) listed.push({ name, idName: await identify(path) })
   const allowedOrigins = new Set(origins)
@@ -96,13 +101,14 @@ export async function serve({ port, origins, engines }) {
     reply(200, listed)
   })
 
-  const wss = new WebSocketServer({ noServer: true })
+  const wss = new WebSocketServer({ noServer: true, maxPayload: MAX_FRAME_BYTES })
   server.on('upgrade', (req, socket, head) => {
     wss.handleUpgrade(req, socket, head, (ws) => {
       if (!allowed(req)) return ws.close(4403, 'origin not allowed')
       const path = engines.get(engineName(req.url))
       if (!path) return ws.close(4404, 'unknown engine')
-      relay(ws, path, children)
+      if (children.size >= maxEngines) return ws.close(4429, `at most ${maxEngines} engines at once`)
+      relay(ws, path, children, log)
     })
   })
 
@@ -136,7 +142,7 @@ function engineName(url) {
   }
 }
 
-function relay(ws, path, children) {
+function relay(ws, path, children, log) {
   const child = spawn(path, [], { stdio: ['pipe', 'pipe', 'ignore'] })
   children.add(child)
   child.stdin.on('error', () => {})
@@ -148,9 +154,16 @@ function relay(ws, path, children) {
     children.delete(child)
     if (ws.readyState === ws.OPEN) ws.close(1011, `engine exited (${code ?? signal})`)
   })
+  // A refused frame closes the socket instead of being dropped: the app never sends one, so the peer is not our client.
   ws.on('message', (data, isBinary) => {
-    if (!isBinary) child.stdin.write(`${data.toString()}\n`)
+    if (ws.readyState !== ws.OPEN) return
+    const frame = isBinary ? null : data.toString()
+    const why = frame === null ? 'binary frame' : refusal(frame)
+    if (why === null) return void child.stdin.write(`${frame}\n`)
+    log(`bridge: refused client frame (${why}), closing`)
+    ws.close(4400, why.slice(0, 120))
   })
+  ws.on('error', () => ws.terminate())
   ws.on('close', () => {
     if (child.exitCode !== null || child.signalCode !== null) return
     child.stdin.end('quit\n')

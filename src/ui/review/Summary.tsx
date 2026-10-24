@@ -1,7 +1,7 @@
 import { useId } from 'react'
 import type { ByColor, Classification, Color, GameReview } from '../../domain/types'
 import { CLASSIFICATIONS } from '../../domain/types'
-import { colorLabel, formatAccuracy } from '../format'
+import { TOO_SHORT_NOTE, colorLabel, formatAccuracy, tooShort } from '../format'
 import { CLASSIFICATION_LABEL } from '../labels'
 import { Mark } from '../san'
 
@@ -72,14 +72,17 @@ export function ClassTables({ review, columns, heads, onJump }: TablesProps) {
 export function Accuracies({ review, me, names, size }: { review: GameReview; me: Color | null; names: ByColor<string>; size: 'hero' | 'summary' }) {
   const order: readonly Color[] = me ? [me, other(me)] : ['w', 'b']
   return (
-    <div className={`acc acc-${size}`} role="group" aria-label="Precisão">
-      {order.map((c) => (
-        <div key={c} className={me && c !== me ? 'them' : undefined}>
-          <p className="v">{formatAccuracy(review.players[c].accuracy)}</p>
-          <p className="l">{me === c ? (size === 'hero' ? <b>Sua precisão</b> : 'Você, precisão') : names[c]}</p>
-        </div>
-      ))}
-    </div>
+    <>
+      <div className={`acc acc-${size}`} role="group" aria-label="Precisão">
+        {order.map((c) => (
+          <div key={c} className={me && c !== me ? 'them' : undefined}>
+            <p className="v">{formatAccuracy(review.players[c].accuracy)}</p>
+            <p className="l">{me === c ? (size === 'hero' ? <b>Sua precisão</b> : 'Você, precisão') : names[c]}</p>
+          </div>
+        ))}
+      </div>
+      {tooShort(review, me) && <p className="caption mt-2">{TOO_SHORT_NOTE}</p>}
+    </>
   )
 }
 

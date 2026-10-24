@@ -141,6 +141,14 @@ function ParsedResult({ result, onPick }: { result: ImportResult; onPick: (g: Ga
   if (result.games.length === 0 && result.rejected.length === 0) return null
   return (
     <div className="flex flex-col gap-3">
+      {!!result.omitted && (
+        <div role="alert" className="note">
+          <p>
+            <span className="font-semibold">{result.omitted === 1 ? 'Uma partida ficou de fora.' : `${result.omitted} partidas ficaram de fora.`}</span>{' '}
+            Só as primeiras {result.games.length + result.rejected.length} do arquivo foram lidas. Divida o arquivo para ler o resto.
+          </p>
+        </div>
+      )}
       {result.rejected.length > 0 && (
         <div role="alert" className="note">
           <div>
@@ -238,6 +246,16 @@ function FetchPanel({ onPick }: { onPick: (g: Game) => void }) {
   )
 }
 
+function ignoredText(rejected: ImportResult['rejected']): string {
+  const variants = rejected.filter((r) => r.rejection.kind === 'variant').length
+  const invalid = rejected.length - variants
+  const n = rejected.length
+  const ignored = n === 1 ? '1 partida ignorada' : `${n} partidas ignoradas`
+  if (invalid === 0) return `${ignored} por ${n === 1 ? 'ser de variante' : 'serem de variantes'}.`
+  if (variants === 0) return `${ignored} por dados inválidos vindos do site.`
+  return `${ignored}: ${variants} de variantes e ${invalid} com dados inválidos.`
+}
+
 function FetchBody({ state, onPick, onRetry }: { state: FetchState; onPick: (g: Game) => void; onRetry: () => void }) {
   switch (state.kind) {
     case 'idle':
@@ -254,7 +272,13 @@ function FetchBody({ state, onPick, onRetry }: { state: FetchState; onPick: (g: 
         <div role="alert" className="note mt-0">
           <div>
             <p className="font-semibold">{t.title}</p>
-            <p className="text-ink-2 mt-0.5">{t.detail}</p>
+            <p className="text-ink-2 mt-0.5">{t.text}</p>
+            {t.technical && (
+              <details className="mt-1">
+                <summary className="cursor-pointer text-sm">Detalhes técnicos</summary>
+                <code className="block mt-1 text-xs break-words">{t.technical}</code>
+              </details>
+            )}
             {state.failure.kind !== 'not-found' && (
               <button type="button" className="tl mt-1" onClick={onRetry}>
                 Tentar de novo
@@ -269,7 +293,7 @@ function FetchBody({ state, onPick, onRetry }: { state: FetchState; onPick: (g: 
       if (games.length === 0) return <p className="caption">Nenhuma partida recente de {state.username}.</p>
       return (
         <div>
-          {rejected.length > 0 && <p className="caption mb-2">{rejected.length} partida(s) ignorada(s) por serem de variantes.</p>}
+          {rejected.length > 0 && <p className="caption mb-2">{ignoredText(rejected)}</p>}
           <GameList games={games} onPick={onPick} highlight={state.username} />
         </div>
       )

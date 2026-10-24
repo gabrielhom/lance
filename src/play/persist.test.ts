@@ -4,7 +4,7 @@ import { gameFromPgn } from '../domain'
 import type { PlaySetup, PlayState, Uci } from '../domain/types'
 import { DEFAULT_CHOICE, loadChoice, loadPlay, parsePlay, resolveChoice, saveChoice, savePlay } from './persist'
 import { toPgn } from './pgn'
-import { newPlay, reducePlay } from './play'
+import { clocksAt, newPlay, reducePlay } from './play'
 
 const T0 = Date.UTC(2026, 9, 23, 18, 30, 5)
 const setup: PlaySetup = { opponent: { kind: 'engine', levelId: 3 }, you: 'w', time: { kind: 'clock', initialMs: 300_000, incrementMs: 2000 } }
@@ -67,10 +67,32 @@ describe('storage', () => {
 
   it('keeps the game in progress and clears it with null', () => {
     const s = played('e4 e5')
-    savePlay(s)
-    expect(loadPlay()).toEqual(s)
+    savePlay(s, T0)
+    expect(loadPlay(T0)).toEqual(s)
     savePlay(null)
     expect(loadPlay()).toBeNull()
+  })
+
+  it('does not charge the clock for the time the page was closed', () => {
+    const game: PlayState = {
+      id: 'g',
+      setup: { ...setup, time: { kind: 'clock', initialMs: 300_000, incrementMs: 0 } },
+      startedAt: 0,
+      moves: ['e2e4', 'e7e5'] as Uci[],
+      clocks: { w: 300_000, b: 300_000 },
+      phase: 'playing',
+      turnStartedAt: 1_000,
+    }
+    savePlay(game, 31_000)
+    const restored = loadPlay(600_000)!
+    expect(clocksAt(restored, 600_000)).toEqual({ w: 270_000, b: 300_000 })
+    expect(clocksAt(restored, 610_000)).toEqual({ w: 260_000, b: 300_000 })
+  })
+
+  it('restores a game without a clock as it was', () => {
+    const game = played('e4 e5', { ...setup, time: { kind: 'none' } })
+    savePlay(game, T0 + 5000)
+    expect(loadPlay(T0 + 900_000)).toEqual(game)
   })
 
   it('treats a corrupt key as no game', () => {

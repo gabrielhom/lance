@@ -17,7 +17,13 @@ npm install
 npm run dev
 ```
 
-O `npm install` copia o Stockfish 19 (WASM) para `public/engine`. Abra http://localhost:5173 e jogue. Para revisar partidas do Lichess, do Chess.com ou de um PGN, informe seus usuários em Configurações para o app saber de que lado você jogou nelas.
+O `npm install` copia o Stockfish 19 (WASM) para `public/engine/<versão do pacote>`. Abra http://localhost:5173 e jogue. Para revisar partidas do Lichess, do Chess.com ou de um PGN, informe seus usuários em Configurações para o app saber de que lado você jogou nelas.
+
+## Instalar
+
+No Chrome ou no Edge, clique em "Instalar o Lance" em Configurações, ou no ícone de instalar na barra de endereço. O Lance passa a abrir numa janela própria, com ícone como um programa do computador.
+
+Depois da primeira visita ele abre sem internet. A engine fica guardada depois de carregar uma vez, então dá para jogar e revisar offline. Buscar partidas no Lichess e no Chess.com continua precisando de internet. Quem guarda tudo é o service worker em `public/sw.js`, registrado só no build de produção (`npm run build`), nunca no `npm run dev`. Os ícones saem de `public/favicon.svg` com `node scripts/build-icons.mjs`.
 
 ## Engines
 
@@ -30,6 +36,8 @@ O `npm install` copia o Stockfish 19 (WASM) para `public/engine`. Abra http://lo
   ```
 
   A ponte só escuta em 127.0.0.1, só aceita páginas das origens permitidas (`--origin` acrescenta outras) e só roda os executáveis passados na linha de comando. Em Configurações, escolha "Engine local", informe `http://127.0.0.1:7777` e clique em Testar.
+
+  A ponte também recusa qualquer comando UCI que o app não envia (só `setoption` de Threads, Hash, MultiPV, UCI_Elo, UCI_LimitStrength e Skill Level, mais `position`, `go` e os comandos simples), aceita no máximo 8 engines ao mesmo tempo e fecha a conexão que mandar algo fora disso. Para usá-la a partir do site publicado, acrescente `--origin https://lance-steel-ten.vercel.app`. O Chrome e o Firefox permitem que uma página https abra `ws://127.0.0.1`.
 
   O Stockfish nativo é bem mais rápido que o WASM. Os binários oficiais estão em https://github.com/official-stockfish/Stockfish/releases.
 

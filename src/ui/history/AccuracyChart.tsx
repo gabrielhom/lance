@@ -10,6 +10,7 @@ const PAD = { top: 12, right: 12, bottom: 28, left: 36 }
 /** Keeps the first and last dots clear of the tick labels and the edge. */
 const INSET = 12
 const R = 4.5
+const MIN_SPAN = 20
 
 /** The result rides on the dot's fill, as a scorebook marks it: full for a win, half for a draw, empty for a loss. */
 function Dot({ cx, cy, outcome, r = R }: { cx: number; cy: number; outcome: Outcome; r?: number }) {
@@ -30,7 +31,8 @@ export function AccuracyChart({ points }: { points: readonly AccuracyPoint[] }) 
   const id = useId()
   const n = points.length
   const innerW = Math.max(0, width - PAD.left - PAD.right - 2 * INSET)
-  const lo = Math.max(0, Math.floor((Math.min(...points.map((p) => p.accuracy)) - 5) / 10) * 10)
+  // The axis keeps at least MIN_SPAN points so a single game or a tight run does not look like a swing.
+  const lo = Math.max(0, Math.min(100 - MIN_SPAN, Math.floor((Math.min(...points.map((p) => p.accuracy)) - 5) / 10) * 10))
   const x = (i: number) => PAD.left + INSET + (n <= 1 ? innerW / 2 : (i / (n - 1)) * innerW)
   const y = (a: number) => PAD.top + ((100 - a) / (100 - lo)) * (H - PAD.top - PAD.bottom)
   const ticks: number[] = []

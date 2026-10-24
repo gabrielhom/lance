@@ -115,6 +115,10 @@ export type MoveReview = {
   readonly alternative: EvalLine | null
   readonly opening: Opening | null
 }
+/** Below this many moves outside opening theory, an accuracy says too little to enter the history. */
+export const MIN_MOVES_OUTSIDE_THEORY = 10
+export const movesOutsideTheory = (counts: Readonly<Record<Classification, number>>): number =>
+  CLASSIFICATIONS.reduce((n, k) => (k === 'book' ? n : n + counts[k]), 0)
 export type PlayerSummary = {
   readonly player: PlayerTag
   readonly accuracy: AccuracyPct | null
@@ -213,11 +217,29 @@ export type LibraryRecord = {
 }
 export interface Library {
   put(review: GameReview, now: number): Promise<void>
+  /** Newest first. Rows this version can't read are left out; `unreadable` counts them. */
   list(): Promise<readonly LibraryRecord[]>
+  unreadable(): Promise<number>
   get(id: GameId): Promise<LibraryRecord | null>
   remove(id: GameId): Promise<void>
 }
-export type Store = { readonly evals: EvalCache; readonly library: Library }
+export type BackupRejection = { readonly kind: 'not-backup' } | { readonly kind: 'newer-version' }
+export type BackupReport = {
+  readonly imported: number
+  readonly alreadyHere: number
+  /** Rows in the file this version can't read. */
+  readonly ignored: number
+  /** The accounts from the file, to save; null when the file has none or some are already set. */
+  readonly identity: Identity | null
+}
+/** The library as a file, so the reviews outlive this browser's site data. */
+export interface Backup {
+  /** JSON text with every library row, readable or not, and the settings. */
+  export(settings: Settings, now: number): Promise<string>
+  /** Merges by game id, keeping the newer review. Writes nothing when it rejects the file. */
+  import(text: string, identity: Identity): Promise<Result<BackupReport, BackupRejection>>
+}
+export type Store = { readonly evals: EvalCache; readonly library: Library; readonly backup: Backup }
 
 export type Settings = {
   readonly v: 1
@@ -226,17 +248,21 @@ export type Settings = {
   readonly limit: SearchLimit
   readonly tuning: EngineTuning
 }
+/** Pool size a fresh install asks for. effectiveTuning trims it to the machine's cores minus one. */
+export const DEFAULT_LITE_ENGINES = 8
 export const DEFAULT_SETTINGS: Settings = {
   v: 1,
   identity: { accounts: [] },
   engine: { kind: 'wasm', flavor: 'lite' },
   limit: { kind: 'depth', depth: 18 },
-  tuning: { engines: 4, threadsPerEngine: 1, hashMb: 32 },
+  tuning: { engines: DEFAULT_LITE_ENGINES, threadsPerEngine: 1, hashMb: 32 },
 }
 
 export type ImportResult = {
   readonly games: readonly Game[]
   readonly rejected: readonly { readonly index: number; readonly rejection: GameRejection }[]
+  /** Games left unread because the text held more than the parser takes at once. */
+  readonly omitted?: number
 }
 export type FetchFailure =
   | { readonly kind: 'not-found' }
@@ -251,6 +277,8 @@ export type AccuracyPoint = {
   readonly result: GameResult
   readonly opponent: PlayerTag
 }
+/** `shortGames` counts my games left out for having too few moves outside theory. */
+export type AccuracyHistory = { readonly points: readonly AccuracyPoint[]; readonly shortGames: number }
 export type BridgeEngine = { readonly name: string; readonly idName: string }
 export type BridgeProbeError = { readonly kind: 'unreachable' } | { readonly kind: 'refused' } | { readonly kind: 'not-uci'; readonly detail: string }
 
@@ -260,6 +288,7 @@ export interface Services {
   saveSettings(s: Settings): void
   runtimeEnv(): RuntimeEnv
   readonly library: Library
+  readonly backup: Backup
   parsePgnText(text: string): ImportResult
   fetchRecentGames(
     site: 'lichess' | 'chesscom',
@@ -269,7 +298,7 @@ export interface Services {
   gameFromRecord(record: LibraryRecord): Result<Game, GameRejection>
   /** Uses the engine and identity from the current settings, saves to the library when done. Ends silently on abort. */
   reviewGame(game: Game, signal: AbortSignal): AsyncIterable<ReviewState>
-  accuracyHistory(records: readonly LibraryRecord[], identity: Identity): readonly AccuracyPoint[]
+  accuracyHistory(records: readonly LibraryRecord[], identity: Identity): AccuracyHistory
   probeBridge(url: string, signal: AbortSignal): Promise<Result<readonly BridgeEngine[], BridgeProbeError>>
   /** Uses the engine from the current settings. */
   engineMove(input: EngineInput, level: PlayLevel, signal: AbortSignal): Promise<Uci>

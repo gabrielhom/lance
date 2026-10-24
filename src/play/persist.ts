@@ -44,7 +44,7 @@ function parseSetup(x: unknown): PlaySetup | null {
 }
 
 /** Stored state is untrusted: an old build, a manual edit or a half-written key can leave anything, so anything off is null. */
-export function parsePlay(raw: unknown): PlayState | null {
+export function parsePlay(raw: unknown, now: number = Date.now()): PlayState | null {
   if (!isObj(raw) || typeof raw.id !== 'string' || !isNum(raw.startedAt) || !Array.isArray(raw.moves)) return null
   const setup = parseSetup(raw.setup)
   if (!setup || !raw.moves.every((m) => typeof m === 'string')) return null
@@ -53,14 +53,18 @@ export function parsePlay(raw: unknown): PlayState | null {
   const clocks = isObj(raw.clocks) && isMs(raw.clocks.w) && isMs(raw.clocks.b) ? { w: raw.clocks.w, b: raw.clocks.b } : null
   if ((clocks === null) !== (setup.time.kind === 'none') || (raw.clocks !== null && clocks === null)) return null
   const base = { id: raw.id, setup, startedAt: raw.startedAt, moves: raw.moves as Uci[], clocks }
-  if (raw.phase === 'playing' && isNum(raw.turnStartedAt) && !board.isGameOver()) return { ...base, phase: 'playing', turnStartedAt: raw.turnStartedAt }
+  if (raw.phase === 'playing' && isNum(raw.turnStartedAt) && !board.isGameOver()) {
+    // The page was away from savedAt until now, and that time is nobody's.
+    const away = clocks && isNum(raw.savedAt) ? Math.max(0, now - raw.savedAt) : 0
+    return { ...base, phase: 'playing', turnStartedAt: raw.turnStartedAt + away }
+  }
   const result = RESULTS.find((r) => r === raw.result)
   const termination = TERMINATIONS.find((t) => t === raw.termination)
   if (raw.phase === 'over' && isNum(raw.endedAt) && result && termination) return { ...base, phase: 'over', endedAt: raw.endedAt, result, termination }
   return null
 }
 
-export function parseChoice(raw: unknown): SetupChoice | null {
+function parseChoice(raw: unknown): SetupChoice | null {
   if (!isObj(raw)) return null
   const opponent = parseOpponent(raw.opponent)
   const time = parseTime(raw.time)
@@ -86,8 +90,9 @@ function write(key: string, value: unknown): void {
   }
 }
 
-export const loadPlay = (): PlayState | null => parsePlay(read(PLAY_KEY))
-export const savePlay = (state: PlayState | null): void => write(PLAY_KEY, state)
+export const loadPlay = (now: number = Date.now()): PlayState | null => parsePlay(read(PLAY_KEY), now)
+/** The save stamp lets loadPlay tell time spent thinking from time spent away. */
+export const savePlay = (state: PlayState | null, now: number = Date.now()): void => write(PLAY_KEY, state && { ...state, savedAt: now })
 export const loadChoice = (): SetupChoice => parseChoice(read(CHOICE_KEY)) ?? DEFAULT_CHOICE
 export const saveChoice = (choice: SetupChoice): void => write(CHOICE_KEY, choice)
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { EngineDescriptor, EngineTuning } from '../domain/types'
+import { DEFAULT_SETTINGS, type EngineDescriptor, type EngineTuning } from '../domain/types'
 import { availability, bridgeEngineUrl, bridgeHttpBase, effectiveTuning, engineId } from './descriptor'
 
 const lite: EngineDescriptor = { kind: 'wasm', flavor: 'lite' }
@@ -29,6 +29,13 @@ describe('effectiveTuning', () => {
     expect(effectiveTuning(lite, asked, { crossOriginIsolated: false, cores: 12 })).toEqual({ engines: 4, threadsPerEngine: 1, hashMb: 32 })
     expect(effectiveTuning(lite, asked, { crossOriginIsolated: false, cores: 3 })).toEqual({ engines: 2, threadsPerEngine: 1, hashMb: 32 })
     expect(effectiveTuning(lite, asked, { crossOriginIsolated: false, cores: 1 })).toEqual({ engines: 1, threadsPerEngine: 1, hashMb: 32 })
+  })
+
+  it('sizes the default pool to the machine, up to the default cap', () => {
+    const { tuning } = DEFAULT_SETTINGS
+    expect(effectiveTuning(lite, tuning, { crossOriginIsolated: false, cores: 32 }).engines).toBe(8)
+    expect(effectiveTuning(lite, tuning, { crossOriginIsolated: false, cores: 6 }).engines).toBe(5)
+    expect(effectiveTuning(lite, tuning, { crossOriginIsolated: false, cores: 2 }).engines).toBe(1)
   })
 
   it('runs one threaded full engine on every spare core', () => {

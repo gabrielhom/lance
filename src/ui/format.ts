@@ -1,4 +1,5 @@
-import type { ByColor, Color, GameResult, GameSource, PlayerTag, Position, TimeControl } from '../domain/types'
+import { MIN_MOVES_OUTSIDE_THEORY, movesOutsideTheory } from '../domain/types'
+import type { ByColor, Color, GameResult, GameReview, GameSource, PlayerTag, Position, TimeControl } from '../domain/types'
 
 const dateFmt = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })
 const shortDateFmt = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit' })
@@ -89,3 +90,25 @@ export function moveNumberLabel(index: number): string {
 export function formatClock(t: TimeControl): string {
   return t.kind === 'none' ? 'sem relógio' : `${t.initialMs / 60_000} + ${t.incrementMs / 1000}`
 }
+
+export type RateSample = { readonly at: number; readonly done: number }
+
+/** Positions needed before a rate is believed. Cached positions finish instantly, so the clock starts at the first sample. */
+const MIN_POSITIONS_FOR_ETA = 4
+
+/** Remaining time from the positions finished since `first`, or null while too few have finished to say. */
+export function estimateSecondsLeft(first: RateSample, now: RateSample, total: number): number | null {
+  const finished = now.done - first.done
+  const elapsed = (now.at - first.at) / 1000
+  if (finished < MIN_POSITIONS_FOR_ETA || elapsed <= 0) return null
+  return ((total - now.done) * elapsed) / finished
+}
+
+export function formatTimeLeft(seconds: number): string {
+  if (seconds < 5) return 'quase pronto'
+  if (seconds < 60) return `cerca de ${Math.round(seconds / 5) * 5} s restantes`
+  return `cerca de ${Math.round(seconds / 60)} min restantes`
+}
+
+export const TOO_SHORT_NOTE = 'Poucos lances fora da teoria: a precisão diz pouco.'
+export const tooShort = (review: GameReview, me: Color | null): boolean => me !== null && movesOutsideTheory(review.players[me].counts) < MIN_MOVES_OUTSIDE_THEORY

@@ -1,9 +1,12 @@
 import { gameFromPgn, type FetchFailure, type Game, type GameRejection, type GameSource, type ImportResult, type Result } from '../domain'
 
 type Site = 'lichess' | 'chesscom'
-type Found = { readonly pgn: string; readonly source: GameSource; readonly variant: string | null }
+type Found =
+  | { readonly pgn: string; readonly source: GameSource; readonly variant: string | null }
+  | { readonly rejection: GameRejection }
 
 const LICHESS_VARIANTS = ['standard', 'fromPosition']
+const LICHESS_ID = /^[A-Za-z0-9]{8}$/
 const CHESSCOM_ARCHIVE = 'https://api.chess.com/pub/player/'
 
 /** The user's most recent finished games, newest first. Rejects with the signal's AbortError when aborted. */
@@ -21,8 +24,9 @@ function importAll(found: readonly Found[]): ImportResult {
   const games: Game[] = []
   const rejected: { index: number; rejection: GameRejection }[] = []
   found.forEach((f, index) => {
-    const r: Result<Game, GameRejection> = f.variant
-      ? { ok: false, error: { kind: 'variant', detail: f.variant } }
+    const r: Result<Game, GameRejection> =
+      'rejection' in f ? { ok: false, error: f.rejection }
+      : f.variant ? { ok: false, error: { kind: 'variant', detail: f.variant } }
       : gameFromPgn(f.pgn, f.source)
     if (r.ok) games.push(r.value)
     else rejected.push({ index, rejection: r.error })
@@ -37,8 +41,9 @@ async function lichess(user: string, max: number, signal: AbortSignal): Promise<
   for (const line of body.value.split('\n')) {
     if (line.trim() === '') continue
     const g = parseJson(line)
-    if (!isRecord(g) || typeof g.id !== 'string' || typeof g.variant !== 'string' || typeof g.pgn !== 'string') {
-      return badResponse(`unexpected Lichess game: ${line.slice(0, 80)}`)
+    if (!isRecord(g) || typeof g.id !== 'string' || !LICHESS_ID.test(g.id) || typeof g.variant !== 'string' || typeof g.pgn !== 'string') {
+      found.push({ rejection: { kind: 'unparseable', detail: `unexpected Lichess game: ${line.slice(0, 80)}` } })
+      continue
     }
     found.push({
       pgn: g.pgn,
@@ -46,6 +51,9 @@ async function lichess(user: string, max: number, signal: AbortSignal): Promise<
       variant: LICHESS_VARIANTS.includes(g.variant) ? null : g.variant,
     })
   }
+  const bad = found.find((f) => 'rejection' in f)
+  // Every line bad means the body is not an ndjson game list at all (an error page, say).
+  if (bad && 'rejection' in bad && found.every((f) => 'rejection' in f)) return badResponse(bad.rejection.detail)
   return { ok: true, value: found }
 }
 
@@ -67,6 +75,10 @@ async function chesscom(user: string, max: number, signal: AbortSignal): Promise
     if (!games || !games.every(isChessComGame)) return badResponse(`unexpected Chess.com archive ${url}`)
     for (const g of [...games].sort((a, b) => b.end_time - a.end_time)) {
       if (standard >= max) break
+      if (!isChessComGameUrl(g.url)) {
+        found.push({ rejection: { kind: 'unparseable', detail: `unexpected Chess.com game URL: ${g.url.slice(0, 80)}` } })
+        continue
+      }
       const variant = g.rules === 'chess' ? null : g.rules
       if (!variant) standard++
       found.push({ pgn: g.pgn, source: { kind: 'chesscom', uuid: g.uuid, url: g.url }, variant })
@@ -86,6 +98,16 @@ function isChessComGame(g: unknown): g is ChessComGame {
     typeof g.end_time === 'number' &&
     typeof g.pgn === 'string'
   )
+}
+
+/** The URL ends up in an href, so only a game page on chess.com itself is trusted. */
+function isChessComGameUrl(url: string): boolean {
+  try {
+    const u = new URL(url)
+    return u.protocol === 'https:' && u.hostname === 'www.chess.com' && u.username === '' && u.password === ''
+  } catch {
+    return false
+  }
 }
 
 async function getJson(url: string, signal: AbortSignal): Promise<Result<unknown, FetchFailure>> {

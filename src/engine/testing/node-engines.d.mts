@@ -8,3 +8,5 @@ export declare function liteSingleTransport(): LineTransport
 export declare function closeCodeWithOrigin(url: string, origin: string): Promise<number>
 /** GETs `url` with a forged Host header, as a DNS-rebound page would, and resolves with the status. */
 export declare function statusWithHost(url: string, host: string): Promise<number>
+export declare const FAKE_UCI: string
+export declare function fakeUciLog(): () => string[]

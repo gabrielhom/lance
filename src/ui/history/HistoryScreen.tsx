@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
-import type { AccuracyPoint, LibraryRecord } from '../../domain/types'
+import { MIN_MOVES_OUTSIDE_THEORY, type AccuracyHistory, type LibraryRecord } from '../../domain/types'
 import { formatAccuracy } from '../format'
 import { LibraryList } from '../import/GameList'
 import { finishedReviews, subscribeReviews } from '../review/runs'
@@ -10,16 +10,18 @@ export function HistoryScreen() {
   const services = useServices()
   const [settings] = useSettings()
   const [records, setRecords] = useState<readonly LibraryRecord[] | null>(null)
+  const [unreadable, setUnreadable] = useState(0)
   // A game played just before keeps being reviewed in the background and lands in the library when it finishes.
   const finished = useSyncExternalStore(subscribeReviews, finishedReviews)
   useEffect(() => {
     let alive = true
     services.library.list().then((l) => alive && setRecords(l))
+    services.library.unreadable().then((n) => alive && setUnreadable(n))
     return () => {
       alive = false
     }
   }, [services, finished])
-  const points: readonly AccuracyPoint[] = useMemo(() => (records ? services.accuracyHistory(records, settings.identity) : []), [services, records, settings])
+  const { points, shortGames }: AccuracyHistory = useMemo(() => (records ? services.accuracyHistory(records, settings.identity) : { points: [], shortGames: 0 }), [services, records, settings])
   const avg = points.length ? points.reduce((s, p) => s + p.accuracy, 0) / points.length : null
   const wins = points.filter((p) => (p.result === '1-0') === (p.color === 'w') && p.result !== '1/2-1/2' && p.result !== '*').length
   const draws = points.filter((p) => p.result === '1/2-1/2').length
@@ -28,13 +30,21 @@ export function HistoryScreen() {
 
   return (
     <div className="flex flex-col gap-10 md:gap-12">
-      <h1 className="display text-3xl md:text-5xl">Histórico</h1>
-      {noIdentity && (
-        <p className="-mt-4 md:-mt-6 text-ink-2">
-          As partidas jogadas aqui já contam. Para contar as importadas, informe seus nomes de usuário em{' '}
-          <a href="#/config" className="tl text-ink">Configurações</a>.
-        </p>
-      )}
+      <div className="flex flex-col gap-6">
+        <h1 className="display text-3xl md:text-5xl">Histórico</h1>
+        {noIdentity && (
+          <p className="text-ink-2">
+            As partidas jogadas aqui já contam. Para contar as importadas, informe seus nomes de usuário em{' '}
+            <a href="#/config" className="tl text-ink">Configurações</a>.
+          </p>
+        )}
+        {unreadable > 0 && (
+          <p className="font-semibold" role="status">
+            {unreadable === 1 ? '1 partida salva não pôde ser lida' : `${unreadable} partidas salvas não puderam ser lidas`} por esta versão do app.
+            Exportar a biblioteca em <a href="#/config" className="tl">Configurações</a> guarda uma cópia.
+          </p>
+        )}
+      </div>
       <section className="stats" aria-label="Resumo">
         <Stat label="Precisão média" value={avg === null ? '–' : formatAccuracy(avg)} />
         <Stat label="Partidas revisadas" value={records ? String(records.length) : '–'} />
@@ -47,9 +57,14 @@ export function HistoryScreen() {
           {records === null ? (
             <p className="caption" aria-busy="true">Carregando…</p>
           ) : points.length === 0 ? (
-            <p className="caption py-6">Nenhuma partida sua foi revisada ainda.</p>
+            <p className="caption py-6">{shortGames > 0 ? 'Nenhuma partida sua com lances suficientes foi revisada ainda.' : 'Nenhuma partida sua foi revisada ainda.'}</p>
           ) : (
             <AccuracyChart points={points} />
+          )}
+          {records !== null && shortGames > 0 && (
+            <p className="caption mt-3" data-testid="short-games">
+              {shortGames === 1 ? '1 partida curta ficou de fora' : `${shortGames} partidas curtas ficaram de fora`}: menos de {MIN_MOVES_OUTSIDE_THEORY} lances fora da teoria.
+            </p>
           )}
         </div>
       </section>

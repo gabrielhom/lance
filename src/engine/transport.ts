@@ -19,8 +19,8 @@ export type Connect = (d: EngineDescriptor) => LineTransport
 export const connect: Connect = (d) => (d.kind === 'wasm' ? workerTransport(d.flavor) : webSocketTransport(bridgeEngineUrl(d.url, d.name)))
 
 /** The glue loads the .wasm next to the script and reports download progress on a port it is handed. */
-export function workerTransport(flavor: WasmFlavor): LineTransport {
-  const worker = new Worker(`${import.meta.env.BASE_URL}engine/${WASM_FLAVORS[flavor].script}`)
+function workerTransport(flavor: WasmFlavor): LineTransport {
+  const worker = new Worker(`${import.meta.env.BASE_URL}engine/${import.meta.env.STOCKFISH_VERSION}/${WASM_FLAVORS[flavor].script}`)
   const progress = new MessageChannel()
   let on: (e: TransportEvent) => void = () => {}
   let open = true
@@ -57,7 +57,7 @@ export function workerTransport(flavor: WasmFlavor): LineTransport {
 }
 
 /** One frame per line each way. The bridge closes with 44xx when it refuses the origin or the engine name. */
-export function webSocketTransport(url: string | null): LineTransport {
+function webSocketTransport(url: string | null): LineTransport {
   let on: (e: TransportEvent) => void = () => {}
   if (url === null) {
     queueMicrotask(() => on({ kind: 'closed', reason: { kind: 'unavailable', why: 'bridge-unreachable' } }))

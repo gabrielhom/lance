@@ -131,7 +131,7 @@ export function GameView({ state, setPlay, onNew }: { state: PlayState; setPlay:
             {board}
             {bar(bottom, 'bottom')}
           </div>
-          <div className="min-w-0">
+          <div className="min-w-0 play-side">
             <h1 className="display text-2xl md:text-4xl">{seat.w.name} – {seat.b.name}</h1>
             <p className="dek">{level ? levelLabel(level) : 'Neste aparelho'}<span className="sep">·</span>{formatClock(setup.time)}</p>
             {failure && (
@@ -151,22 +151,22 @@ export function GameView({ state, setPlay, onNew }: { state: PlayState; setPlay:
               minRows={10}
             />
             {entry.error}
-            <div className="actions" role="group" aria-label="Ações da partida">
-              <div className="grp">
-                {vsEngine && (
-                  <button type="button" className="tl" onClick={() => dispatch({ kind: 'takeback', at: Date.now() })} disabled={!canTakeBack}>
-                    Desfazer
-                  </button>
-                )}
-                <button type="button" className="tl tl-danger" onClick={() => setConfirm('resign')}>Abandonar</button>
-                <button type="button" className="tl" onClick={() => (state.moves.length > 0 ? setConfirm('new') : onNew())}>Nova partida</button>
-              </div>
-              <div className="grp">
-                <button type="button" className="tl tl-quiet" onClick={() => setFlipped((f) => !f)} aria-pressed={flipped}>Girar tabuleiro</button>
-                <button type="button" className="tl tl-quiet" onClick={() => setMuted(!muted)} aria-pressed={!muted}>
-                  Som<span aria-hidden>{muted ? ' desligado' : ' ligado'}</span>
+          </div>
+          <div className="actions" role="group" aria-label="Ações da partida">
+            <div className="grp">
+              {vsEngine && (
+                <button type="button" className="tl" onClick={() => dispatch({ kind: 'takeback', at: Date.now() })} disabled={!canTakeBack}>
+                  Desfazer
                 </button>
-              </div>
+              )}
+              <button type="button" className="tl tl-danger" onClick={() => setConfirm('resign')}>Abandonar</button>
+              <button type="button" className="tl" onClick={() => (state.moves.length > 0 ? setConfirm('new') : onNew())}>Nova partida</button>
+            </div>
+            <div className="grp">
+              <button type="button" className="tl tl-quiet" onClick={() => setFlipped((f) => !f)} aria-pressed={flipped}>Girar tabuleiro</button>
+              <button type="button" className="tl tl-quiet" onClick={() => setMuted(!muted)} aria-pressed={!muted}>
+                Som<span aria-hidden>{muted ? ' desligado' : ' ligado'}</span>
+              </button>
             </div>
           </div>
         </div>

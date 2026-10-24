@@ -3,11 +3,13 @@
  *  Bridge URLs: containing "nada" probe as unreachable, "recusa" as refused, "falha" makes the review fail. */
 import { Chess } from 'chess.js'
 import type { Move } from 'chess.js'
+import { keyMoments } from '../../analysis'
 import { perspective } from '../../domain/identity'
 import { loadPlay, savePlay } from '../../play'
+import { buildBackup, planImport } from '../../storage'
+import { accuracyHistory } from '../../review'
 import type {
   AccuracyPct,
-  AccuracyPoint,
   AnalysisProfile,
   BridgeEngine,
   BridgeProbeError,
@@ -25,7 +27,6 @@ import type {
   GraphPoint,
   Identity,
   ImportResult,
-  KeyMoment,
   LibraryRecord,
   MoveReview,
   NonEmpty,
@@ -342,12 +343,6 @@ async function fabricateReview(game: Game, who: Perspective): Promise<GameReview
     const accuracy = mine.length ? (mine.reduce((s, r) => s + r.accuracy, 0) / mine.length) as AccuracyPct : null
     return { player: game.players[c], accuracy, counts }
   }
-  const keyMoments: KeyMoment[] = reviews
-    .map((r) => ({ move: r, swing: Math.abs(r.winAfter - r.winBefore), why: (r.classification === 'blunder' || r.classification === 'mistake' || r.classification === 'brilliant' || r.classification === 'great' || r.classification === 'miss' ? r.classification : 'turning-point') as KeyMoment['why'] }))
-    .filter((k) => k.swing >= 12 || k.why === 'brilliant' || k.why === 'great')
-    .sort((a, b) => b.swing - a.swing)
-    .slice(0, 6)
-    .sort((a, b) => a.move.move.index - b.move.move.index)
 
   return {
     game,
@@ -357,7 +352,7 @@ async function fabricateReview(game: Game, who: Perspective): Promise<GameReview
     moves: reviews,
     players: { w: summary('w'), b: summary('b') },
     graph,
-    keyMoments,
+    keyMoments: keyMoments(reviews),
     opening: lastOpening,
   }
 }
@@ -448,12 +443,29 @@ export function createMockServices(): Services {
       await seeded
       return [...records.values()].sort((a, b) => (b.playedAt ?? 0) - (a.playedAt ?? 0))
     },
+    async unreadable() {
+      return 0
+    },
     async get(id) {
       await seeded
       return records.get(id) ?? null
     },
     async remove(id) {
       records.delete(id)
+    },
+  }
+
+  const backup: Services['backup'] = {
+    async export(settings, at) {
+      await seeded
+      return JSON.stringify(buildBackup({ games: [...records.values()] }, settings, at), null, 2)
+    },
+    async import(text, current) {
+      await seeded
+      const plan = planImport(text, [...records.values()], current)
+      if (!plan.ok) return plan
+      for (const r of plan.value.put) records.set(r.id, r)
+      return { ok: true, value: plan.value.report }
     },
   }
 
@@ -472,6 +484,7 @@ export function createMockServices(): Services {
       return { crossOriginIsolated: globalThis.crossOriginIsolated ?? false, cores: navigator.hardwareConcurrency || 4 }
     },
     library,
+    backup,
     parsePgnText,
     async fetchRecentGames(site, username, { max, signal }): Promise<Result<ImportResult, FetchFailure>> {
       await sleep(900, signal)
@@ -525,17 +538,7 @@ export function createMockServices(): Services {
         throw e
       }
     },
-    accuracyHistory(recs, who): readonly AccuracyPoint[] {
-      const points: AccuracyPoint[] = []
-      for (const r of recs) {
-        const p = perspective(who, r.players, r.source)
-        if (p.kind !== 'me' || r.playedAt === null) continue
-        const accuracy = r.summary.accuracy[p.color]
-        if (accuracy === null) continue
-        points.push({ gameId: r.id, playedAt: r.playedAt, color: p.color, accuracy, result: r.result, opponent: r.players[p.color === 'w' ? 'b' : 'w'] })
-      }
-      return points.sort((a, b) => a.playedAt - b.playedAt)
-    },
+    accuracyHistory,
     async probeBridge(url, signal): Promise<Result<readonly BridgeEngine[], BridgeProbeError>> {
       await sleep(600, signal)
       if (url.includes('nada')) return { ok: false, error: { kind: 'unreachable' } }

@@ -45,6 +45,17 @@ async function until(ok: () => boolean) {
 }
 
 describe('review runs', () => {
+  it('stamps the pace while the engine searches and drops it when the review ends', async () => {
+    const fake = fakeServices()
+    const g = game('pace')
+    startReview(fake.services, g)
+    await until(() => reviewRun(g.id)?.state === ANALYZING)
+    const run = reviewRun(g.id)
+    expect(run?.kind === 'running' && run.pace?.first).toEqual({ at: expect.any(Number), done: 0 })
+    await fake.finish(g)
+    expect(reviewRun(g.id)).toEqual({ kind: 'running', state: DONE })
+  })
+
   it('keeps reviewing a played game after its screen closes and the next game starts', async () => {
     const fake = fakeServices()
     const first = game('a1')
