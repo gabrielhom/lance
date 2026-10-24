@@ -125,6 +125,8 @@ export type Phase = (typeof PHASES)[number]
 export type Division = { readonly middlegame: number | null; readonly endgame: number | null }
 /** Below this many of one player's moves in a phase, the phase gets no accuracy. */
 export const MIN_PHASE_MOVES = 5
+/** A rating read off one accuracy, on Lichess's scale: the median rating of players who played that accurately, and the middle half of them. */
+export type EloEstimate = { readonly elo: number; readonly low: number; readonly high: number }
 export type PlayerSummary = {
   readonly player: PlayerTag
   readonly accuracy: AccuracyPct | null
