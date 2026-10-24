@@ -1,4 +1,6 @@
-import type { BridgeProbeError, Classification, EngineFailureReason, FetchFailure, GameRejection } from '../domain/types'
+import type { BridgeProbeError, Classification, EngineFailureReason, FetchFailure, GameRejection, Phase } from '../domain/types'
+
+export const PHASE_LABEL: Readonly<Record<Phase, string>> = { opening: 'Abertura', middlegame: 'Meio de jogo', endgame: 'Final' }
 
 export const CLASSIFICATION_LABEL: Readonly<Record<Classification, string>> = {
   brilliant: 'Brilhante',

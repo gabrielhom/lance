@@ -5,7 +5,7 @@ import { perspective } from '../../domain/identity'
 import type { Color, Game, GameId, GameReview, Position, ReviewState, Square, Uci } from '../../domain/types'
 import { failureReason } from '../../engine'
 import { boardPosition } from '../../play'
-import { TOO_SHORT_NOTE, formatDate, formatEval, formatAccuracy, formatTimeControl, joinKnown, moveNumberLabel, resultLabel, sourceLabel, tooShort } from '../format'
+import { TOO_SHORT_NOTE, formatDate, formatElo, formatEval, formatAccuracy, formatTimeControl, joinKnown, moveNumberLabel, resultLabel, sourceLabel, tooShort } from '../format'
 import { CopyPgn } from '../CopyPgn'
 import { ERROR_CLASSIFICATIONS } from '../labels'
 import { heldGame } from '../pending'
@@ -201,7 +201,7 @@ function Review({ game, startPly }: { game: Game; startPly: number }) {
           {entry.error}
           <section className="rv-graph" aria-labelledby="grafico-titulo">
             <h3 id="grafico-titulo" className="font-serif font-semibold text-md mb-1.5">Avaliação ao longo da partida</h3>
-            <EvalGraph series={series} labels={labels} moves={game.moves} markers={markers} classes={review ? review.moves.map((r) => r.classification) : null} ply={ply} onSelect={go} />
+            <EvalGraph series={series} labels={labels} moves={game.moves} markers={markers} classes={review ? review.moves.map((r) => r.classification) : null} ply={ply} onSelect={go} division={review?.division ?? null} />
           </section>
         </div>
         <div className="rv-right">
@@ -268,9 +268,12 @@ function ReviewStrip({ review, me }: { review: GameReview; me: Color | null }) {
   const text = me
     ? `você ${formatAccuracy(review.players[me].accuracy)}, oponente ${formatAccuracy(review.players[me === 'w' ? 'b' : 'w'].accuracy)}`
     : `brancas ${formatAccuracy(w.accuracy)}, pretas ${formatAccuracy(b.accuracy)}`
+  const nowrap = (c: Color) => <span className="whitespace-nowrap">{formatElo(review.players[c].elo)}</span>
+  const elo = me ? <>você {nowrap(me)}, oponente {nowrap(me === 'w' ? 'b' : 'w')}</> : <>brancas {nowrap('w')}, pretas {nowrap('b')}</>
   return (
     <p className="lg:hidden mt-1 font-serif italic text-ink-2">
       Precisão: {text}
+      {(w.elo || b.elo) && <span className="block">Elo estimado por esta partida: {elo}</span>}
       {tooShort(review, me) && <span className="block text-sm">{TOO_SHORT_NOTE}</span>}
     </p>
   )

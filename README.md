@@ -1,6 +1,6 @@
 # Lance
 
-Xadrez no navegador contra o Stockfish 19, com revisão de cada partida no fim. Você joga, e o app mostra sua precisão, classifica cada lance (brilhante, ótimo, melhor, excelente, bom, teoria, imprecisão, erro, blunder, chance perdida) e diz qual era o melhor lance e a melhor sequência. Também revisa partidas de fora, coladas como PGN ou buscadas no Lichess e no Chess.com. As revisões ficam salvas no navegador e o histórico mostra sua precisão ao longo do tempo.
+Xadrez no navegador contra o Stockfish 19, com revisão de cada partida no fim. Você joga, e o app mostra sua precisão na partida e em cada fase, com um Elo estimado, classifica cada lance (brilhante, ótimo, melhor, excelente, bom, teoria, imprecisão, erro, blunder, chance perdida) e diz qual era o melhor lance e a melhor sequência. Também revisa partidas de fora, coladas como PGN ou buscadas no Lichess e no Chess.com. As revisões ficam salvas no navegador e o histórico mostra sua precisão ao longo do tempo.
 
 ## Jogar
 
@@ -65,6 +65,27 @@ A classificação usa a chance de vitória perdida no lance, do ponto de vista d
 | Excelente, Bom, Imprecisão, Erro, Blunder | Perdeu menos de 2, 5, 10 ou 20 pontos, ou 20 ou mais |
 
 Os limiares ficam num único objeto, `CLASSIFIER`, em `src/analysis/classify.ts`.
+
+## Fases e Elo estimado
+
+**Fases.** A partida é dividida como no gráfico do Lichess (`Divider.scala`, do scalachess). O meio de jogo começa na primeira posição com 10 ou menos damas, torres, bispos e cavalos, ou com menos de 4 peças na primeira fileira de um dos lados, ou com os dois exércitos misturados. O final começa na primeira posição com 6 ou menos dessas peças. Um lance conta na fase da posição a que ele leva. Um teste compara a divisão com a que o Lichess publica para 5 partidas reais e bate nas 5.
+
+**Precisão por fase.** A mesma fórmula da partida, sobre os lances do jogador naquela fase. Cada lance mantém o peso que tem na precisão da partida, então a janela de volatilidade pode atravessar a fronteira entre fases, como já atravessa os lances do adversário. Com menos de 5 lances numa fase, ela fica sem número.
+
+**Elo estimado.** `node scripts/calibrate-elo.mjs` lê o começo de um mês da base aberta do Lichess, sem baixar o arquivo inteiro, e fica com as partidas que o servidor do Lichess analisou. Com o código do próprio app, calcula a precisão de cada jogador na partida e em cada fase. Depois agrupa por precisão e guarda, em cada faixa, a mediana e os quartis do rating de quem jogou assim. A tabela vai para `src/analysis/elo-table.json`. A revisão mostra a mediana e a faixa entre os quartis, onde cabe metade dos jogadores com aquela precisão.
+
+A tabela atual vem dos primeiros 800 MB de setembro de 2026: 342.375 partidas, 33.565 delas analisadas. Para a partida inteira só entram jogadores com 15 lances ou mais, perto da regra do app de 10 lances fora da teoria. Um quinto das partidas fica de fora do ajuste para medir o erro:
+
+| Escopo | Jogadores | Correlação | Erro médio (chutando a média) | RMSE (chutando a média) | Faixa acerta |
+|---|---|---|---|---|---|
+| Partida | 64.578 | 0,25 | 327 (340) | 404 (419) | 50% |
+| Abertura | 66.978 | 0,35 | 315 (340) | 389 (419) | 50% |
+| Meio de jogo | 62.635 | 0,17 | 332 (339) | 410 (418) | 50% |
+| Final | 32.474 | 0,01 | 337 (338) | 416 (417) | 50% |
+
+Uma partida diz pouco sobre o nível de quem jogou, e o app não esconde isso. A estimativa erra em média uns 330 pontos, só um pouco menos que chutar o rating médio, e por isso vem sempre com a faixa. Acima de uns 85% de precisão na partida a mediana para de subir (cerca de 1730): precisão alta aparece em todos os níveis quando o adversário erra cedo. No final a precisão praticamente não muda com o rating, então o final fica sem Elo. O script marca assim todo escopo que não supera o chute da média em pelo menos 1%. Uma tabela por ritmo baixaria o RMSE em 2 pontos na blitz e 16 no bullet e na rápida. O app usa uma tabela só, que serve também às partidas sem relógio.
+
+O rating é o do Lichess, que não é o da FIDE. As avaliações da base vêm da análise do servidor do Lichess, não do Stockfish 19 do app na profundidade 18, e só entram partidas que alguém pediu para analisar.
 
 ## Testes
 

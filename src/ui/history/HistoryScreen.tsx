@@ -1,10 +1,17 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
-import { MIN_MOVES_OUTSIDE_THEORY, type AccuracyHistory, type LibraryRecord } from '../../domain/types'
+import { MIN_MOVES_OUTSIDE_THEORY, PHASES, type AccuracyHistory, type LibraryRecord } from '../../domain/types'
 import { formatAccuracy } from '../format'
+import { PHASE_LABEL } from '../labels'
 import { LibraryList } from '../import/GameList'
 import { finishedReviews, subscribeReviews } from '../review/runs'
 import { useServices, useSettings } from '../services'
 import { AccuracyChart } from './AccuracyChart'
+
+const EMPTY: AccuracyHistory = {
+  points: [],
+  shortGames: 0,
+  phases: { opening: { accuracy: null, games: 0 }, middlegame: { accuracy: null, games: 0 }, endgame: { accuracy: null, games: 0 } },
+}
 
 export function HistoryScreen() {
   const services = useServices()
@@ -21,7 +28,8 @@ export function HistoryScreen() {
       alive = false
     }
   }, [services, finished])
-  const { points, shortGames }: AccuracyHistory = useMemo(() => (records ? services.accuracyHistory(records, settings.identity) : { points: [], shortGames: 0 }), [services, records, settings])
+  const { points, shortGames, phases }: AccuracyHistory = useMemo(() => (records ? services.accuracyHistory(records, settings.identity) : EMPTY), [services, records, settings])
+  const elo = useMemo(() => new Map(points.flatMap((p) => (p.elo ? [[p.gameId, p.elo] as const] : []))), [points])
   const avg = points.length ? points.reduce((s, p) => s + p.accuracy, 0) / points.length : null
   const wins = points.filter((p) => (p.result === '1-0') === (p.color === 'w') && p.result !== '1/2-1/2' && p.result !== '*').length
   const draws = points.filter((p) => p.result === '1/2-1/2').length
@@ -51,6 +59,16 @@ export function HistoryScreen() {
         <Stat label="Suas partidas" value={records ? String(points.length) : '–'} />
         <Stat label="Vitórias, empates, derrotas" value={records ? `${wins} · ${draws} · ${losses}` : '–'} />
       </section>
+      {points.length > 0 && (
+        <section aria-labelledby="fases-titulo">
+          <h2 id="fases-titulo" className="sec">Precisão média por fase</h2>
+          <div className="stats">
+            {PHASES.map((p) => (
+              <Stat key={p} label={`${PHASE_LABEL[p]}, ${phases[p].games === 1 ? '1 partida' : `${phases[p].games} partidas`}`} value={formatAccuracy(phases[p].accuracy)} />
+            ))}
+          </div>
+        </section>
+      )}
       <section aria-labelledby="grafico-titulo">
         <h2 id="grafico-titulo" className="sec">Precisão ao longo do tempo</h2>
         <div className="ruled">
@@ -71,7 +89,7 @@ export function HistoryScreen() {
       <section aria-labelledby="lista-titulo">
         <h2 id="lista-titulo" className="sec">Partidas</h2>
         <div className="ruled">
-          <LibraryList records={records} identity={settings.identity} />
+          <LibraryList records={records} identity={settings.identity} elo={elo} />
         </div>
       </section>
     </div>

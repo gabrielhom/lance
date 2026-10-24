@@ -1,5 +1,6 @@
-import type { AccuracyPct, ByColor, Color, Game, PositionEval, Score, WinPct } from '../domain'
+import { MIN_PHASE_MOVES, PHASES, type AccuracyPct, type ByColor, type Color, type Division, type Game, type Phase, type PositionEval, type Score, type WinPct } from '../domain'
 import type { CompleteEvals } from './evals'
+import { phaseAt } from './phases'
 
 // Ported from lila modules/analyse/src/main/AccuracyPercent.scala and scalachess core/src/main/scala/eval.scala.
 const CP_CEILING = 1000
@@ -35,13 +36,35 @@ export function moveAccuracy(before: WinPct, after: WinPct): AccuracyPct {
 
 /** Lichess game accuracy: the mean of a volatility-weighted mean and a harmonic mean of move accuracies. */
 export function gameAccuracy(game: Game, evals: CompleteEvals): ByColor<AccuracyPct | null> {
+  const scored = scoredMoves(game, evals)
+  return { w: aggregate(scored.filter((s) => s.mover === 'w')), b: aggregate(scored.filter((s) => s.mover === 'b')) }
+}
+
+/** The same formula over each player's moves in each phase. Every move keeps the weight it has in the game accuracy,
+ *  so a volatility window may reach across a phase boundary, as it reaches across the other player's moves. */
+export function phaseAccuracy(game: Game, evals: CompleteEvals, division: Division): ByColor<Record<Phase, PhaseAccuracy>> {
+  const scored = scoredMoves(game, evals)
+  const of = (c: Color): Record<Phase, PhaseAccuracy> => {
+    const entries = PHASES.map((phase) => {
+      const mine = scored.filter((s, i) => s.mover === c && phaseAt(division, i + 1) === phase)
+      return [phase, { moves: mine.length, accuracy: mine.length < MIN_PHASE_MOVES ? null : aggregate(mine) }] as const
+    })
+    return Object.fromEntries(entries) as Record<Phase, PhaseAccuracy>
+  }
+  return { w: of('w'), b: of('b') }
+}
+export type PhaseAccuracy = { readonly moves: number; readonly accuracy: AccuracyPct | null }
+
+type ScoredMove = { readonly mover: Color; readonly accuracy: AccuracyPct; readonly weight: number }
+
+function scoredMoves(game: Game, evals: CompleteEvals): readonly ScoredMove[] {
   const wins = game.positions.map((p) => winPct(evals.at(p), 'w'))
   const size = clamp(Math.floor((wins.length - 1) / 10), 2, 8)
   const windows = [
     ...Array<number[]>(Math.max(0, Math.min(size, wins.length) - 2)).fill(wins.slice(0, size)),
     ...sliding(wins, size),
   ]
-  const scored = game.moves.map((m, i) => {
+  return game.moves.map((m, i) => {
     const pov = (w: number) => (m.mover === 'w' ? w : 100 - w) as WinPct
     return {
       mover: m.mover,
@@ -49,14 +72,13 @@ export function gameAccuracy(game: Game, evals: CompleteEvals): ByColor<Accuracy
       weight: clamp(stddev(windows[i]), 0.5, 12),
     }
   })
-  const of = (c: Color): AccuracyPct | null => {
-    const mine = scored.filter((s) => s.mover === c)
-    if (mine.length === 0) return null
-    const weighted = mine.reduce((a, s) => a + s.accuracy * s.weight, 0) / mine.reduce((a, s) => a + s.weight, 0)
-    const harmonic = mine.length / mine.reduce((a, s) => a + 1 / Math.max(1, s.accuracy), 0)
-    return ((weighted + harmonic) / 2) as AccuracyPct
-  }
-  return { w: of('w'), b: of('b') }
+}
+
+function aggregate(mine: readonly ScoredMove[]): AccuracyPct | null {
+  if (mine.length === 0) return null
+  const weighted = mine.reduce((a, s) => a + s.accuracy * s.weight, 0) / mine.reduce((a, s) => a + s.weight, 0)
+  const harmonic = mine.length / mine.reduce((a, s) => a + 1 / Math.max(1, s.accuracy), 0)
+  return ((weighted + harmonic) / 2) as AccuracyPct
 }
 
 /** Scala's `sliding`: a list shorter than the window yields itself as the only window. */

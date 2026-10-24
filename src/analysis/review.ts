@@ -1,6 +1,8 @@
 import { Chess } from 'chess.js'
 import {
   CLASSIFICATIONS,
+  MIN_MOVES_OUTSIDE_THEORY,
+  movesOutsideTheory,
   type AnalysisProfile,
   type Classification,
   type Color,
@@ -11,6 +13,7 @@ import {
   type KeyMoment,
   type MoveReview,
   type NonEmpty,
+  type Phase,
   type PlayedMove,
   type PlayerSummary,
   type Perspective,
@@ -21,9 +24,11 @@ import {
   type OpeningBook,
 } from '../domain'
 import { bookPrefix } from '../openings'
-import { gameAccuracy, moveAccuracy, winPct } from './accuracy'
+import { gameAccuracy, moveAccuracy, phaseAccuracy, winPct, type PhaseAccuracy } from './accuracy'
 import { CLASSIFIER_VERSION, classify, moveFacts } from './classify'
+import { estimateElo } from './elo'
 import type { CompleteEvals } from './evals'
+import { divide } from './phases'
 
 const KEY_MOMENTS = { limit: 5, turningSwing: 15 } as const
 const NOTABLE: ReadonlySet<Classification> = new Set(['brilliant', 'great', 'miss', 'mistake', 'blunder'])
@@ -49,11 +54,24 @@ export function buildReview(game: Game, evals: CompleteEvals, book: OpeningBook,
     prev = { move, loss: facts.loss }
   }
   const accuracy = gameAccuracy(game, evals)
-  const summary = (c: Color): PlayerSummary => ({
-    player: game.players[c],
-    accuracy: accuracy[c],
-    counts: countClassifications(moves.filter((m) => m.move.mover === c)),
-  })
+  const division = divide(game.positions.map((p) => p.fen))
+  const phases = phaseAccuracy(game, evals, division)
+  const summary = (c: Color): PlayerSummary => {
+    const counts = countClassifications(moves.filter((m) => m.move.mover === c))
+    const a = accuracy[c]
+    const phase = ({ moves, accuracy }: PhaseAccuracy, p: Phase) => ({ moves, accuracy, elo: accuracy === null ? null : estimateElo(accuracy, p) })
+    return {
+      player: game.players[c],
+      accuracy: a,
+      elo: a === null || movesOutsideTheory(counts) < MIN_MOVES_OUTSIDE_THEORY ? null : estimateElo(a, 'game'),
+      counts,
+      phases: {
+        opening: phase(phases[c].opening, 'opening'),
+        middlegame: phase(phases[c].middlegame, 'middlegame'),
+        endgame: phase(phases[c].endgame, 'endgame'),
+      },
+    }
+  }
   return {
     game,
     profile,
@@ -64,6 +82,7 @@ export function buildReview(game: Game, evals: CompleteEvals, book: OpeningBook,
     graph: graphPoints(game, evals),
     keyMoments: keyMoments(moves),
     opening: shown.at(-1) ?? null,
+    division,
   }
 }
 

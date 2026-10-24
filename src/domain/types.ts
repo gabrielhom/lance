@@ -119,10 +119,27 @@ export type MoveReview = {
 export const MIN_MOVES_OUTSIDE_THEORY = 10
 export const movesOutsideTheory = (counts: Readonly<Record<Classification, number>>): number =>
   CLASSIFICATIONS.reduce((n, k) => (k === 'book' ? n : n + counts[k]), 0)
+export const PHASES = ['opening', 'middlegame', 'endgame'] as const
+export type Phase = (typeof PHASES)[number]
+/** Position index where the middlegame and the endgame start, by Lichess's Divider; null when the game never got there. */
+export type Division = { readonly middlegame: number | null; readonly endgame: number | null }
+/** Below this many of one player's moves in a phase, the phase gets no accuracy. */
+export const MIN_PHASE_MOVES = 5
+/** A rating read off one accuracy, on Lichess's scale: the median rating of players who played that accurately, and the middle half of them. */
+export type EloEstimate = { readonly elo: number; readonly low: number; readonly high: number }
+export type PhaseSummary = {
+  readonly moves: number
+  readonly accuracy: AccuracyPct | null
+  /** null under MIN_PHASE_MOVES, and in a phase where accuracy barely tells ratings apart. */
+  readonly elo: EloEstimate | null
+}
 export type PlayerSummary = {
   readonly player: PlayerTag
   readonly accuracy: AccuracyPct | null
+  /** null when the game is too short to say anything (MIN_MOVES_OUTSIDE_THEORY). */
+  readonly elo: EloEstimate | null
   readonly counts: Readonly<Record<Classification, number>>
+  readonly phases: Readonly<Record<Phase, PhaseSummary>>
 }
 /** label: '+1.3' | '-0.4' | 'M3' | '-M3' (from White) | '#' | '½' */
 export type GraphPoint = { readonly index: number; readonly whiteWin: WinPct; readonly label: string }
@@ -137,6 +154,7 @@ export type GameReview = {
   readonly graph: NonEmpty<GraphPoint>
   readonly keyMoments: readonly KeyMoment[]
   readonly opening: Opening | null
+  readonly division: Division
 }
 
 /** `lookup` answers only for named positions. `has` also knows the unnamed positions between them. */
@@ -202,6 +220,8 @@ export type ReviewSummary = {
   readonly accuracy: ByColor<number | null>
   readonly counts: ByColor<Readonly<Record<Classification, number>>>
   readonly opening: Opening | null
+  /** Accuracy per phase; null in rows saved before phases existed. */
+  readonly phases: ByColor<Readonly<Record<Phase, number | null>>> | null
 }
 export type LibraryRecord = {
   readonly v: 1
@@ -312,9 +332,16 @@ export type AccuracyPoint = {
   readonly accuracy: number
   readonly result: GameResult
   readonly opponent: PlayerTag
+  readonly elo: EloEstimate | null
 }
+/** My mean accuracy in one phase over the counted games that reached it with enough of my moves. */
+export type PhaseAverage = { readonly accuracy: number | null; readonly games: number }
 /** `shortGames` counts my games left out for having too few moves outside theory. */
-export type AccuracyHistory = { readonly points: readonly AccuracyPoint[]; readonly shortGames: number }
+export type AccuracyHistory = {
+  readonly points: readonly AccuracyPoint[]
+  readonly shortGames: number
+  readonly phases: Readonly<Record<Phase, PhaseAverage>>
+}
 export type BridgeEngine = { readonly name: string; readonly idName: string }
 export type BridgeProbeError = { readonly kind: 'unreachable' } | { readonly kind: 'refused' } | { readonly kind: 'not-uci'; readonly detail: string }
 

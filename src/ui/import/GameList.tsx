@@ -1,4 +1,4 @@
-import type { Color, Game, Identity, LibraryRecord } from '../../domain/types'
+import type { Color, EloEstimate, Game, GameId, Identity, LibraryRecord } from '../../domain/types'
 import { perspective } from '../../domain/identity'
 import { OUTCOME_LABEL, formatAccuracy, formatDate, formatTimeControl, joinKnown, opponentOf, outcomeFor, playerLabel, resultLabel, sourceLabel } from '../format'
 import { href } from '../router'
@@ -47,7 +47,8 @@ export function GameList({ games, onPick, highlight }: { games: readonly Game[];
   )
 }
 
-export function LibraryList({ records, identity }: { records: readonly LibraryRecord[] | null; identity: Identity }) {
+/** `elo` holds my estimated rating for the games counted in the history. */
+export function LibraryList({ records, identity, elo }: { records: readonly LibraryRecord[] | null; identity: Identity; elo?: ReadonlyMap<GameId, EloEstimate> }) {
   if (records === null) return <p className="caption" aria-busy="true">Carregando…</p>
   if (records.length === 0) {
     return (
@@ -70,7 +71,14 @@ export function LibraryList({ records, identity }: { records: readonly LibraryRe
               </span>
               <span className="text-right">
                 <span className="row-acc">{color ? formatAccuracy(r.summary.accuracy[color]) : `${formatAccuracy(r.summary.accuracy.w)} · ${formatAccuracy(r.summary.accuracy.b)}`}</span>
-                <span className="block text-sm text-ink-2">{color ? 'sua precisão' : 'brancas · pretas'}</span>
+                <span className="block text-sm text-ink-2">
+                  {color ? 'sua precisão' : 'brancas · pretas'}
+                  {color && elo?.get(r.id) && (
+                    <span className="max-md:block">
+                      <span className="max-md:hidden"> · </span>Elo est. ~{elo.get(r.id)!.elo}
+                    </span>
+                  )}
+                </span>
               </span>
             </a>
           </li>

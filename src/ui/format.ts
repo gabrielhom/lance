@@ -1,5 +1,5 @@
 import { MIN_MOVES_OUTSIDE_THEORY, movesOutsideTheory } from '../domain/types'
-import type { ByColor, Color, GameResult, GameReview, GameSource, PlayerTag, Position, TimeControl } from '../domain/types'
+import type { ByColor, Color, EloEstimate, GameResult, GameReview, GameSource, PlayerTag, Position, TimeControl } from '../domain/types'
 
 const dateFmt = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })
 const shortDateFmt = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit' })
@@ -16,6 +16,11 @@ const decimal = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 1, maxim
 /** Accuracy as Lichess and chess books print it, '84,2', the label beside it saying what it is. */
 export function formatAccuracy(n: number | null): string {
   return n === null ? '–' : decimal.format(n)
+}
+
+/** '~1650 (1400–1900)': the rating that usually goes with the accuracy, then the middle half of the players who played like that. */
+export function formatElo(e: EloEstimate | null): string {
+  return e === null ? '–' : `~${e.elo} (${e.low}–${e.high})`
 }
 
 /** Joins the parts that are known, so a missing date or clock leaves no placeholder behind. */

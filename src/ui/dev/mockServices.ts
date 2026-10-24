@@ -3,10 +3,10 @@
  *  Bridge URLs: containing "nada" probe as unreachable, "recusa" as refused, "falha" makes the review fail. */
 import { Chess } from 'chess.js'
 import type { Move } from 'chess.js'
-import { keyMoments } from '../../analysis'
+import { divide, estimateElo, keyMoments, phaseAt } from '../../analysis'
 import { perspective } from '../../domain/identity'
 import { loadPlay, savePlay } from '../../play'
-import { buildBackup, planImport } from '../../storage'
+import { buildBackup, libraryRecord, planImport } from '../../storage'
 import { checkAnswer, nextSchedule, syncItems } from '../../training'
 import { accuracyHistory } from '../../review'
 import type {
@@ -34,7 +34,10 @@ import type {
   Opening,
   PartialSeries,
   Perspective,
+  Phase,
+  PhaseSummary,
   PlayedMove,
+  PlayerSummary,
   PlayablePosition,
   Position,
   PositionKey,
@@ -50,7 +53,7 @@ import type {
   Uci,
   WinPct,
 } from '../../domain/types'
-import { CLASSIFICATIONS, DEFAULT_SETTINGS } from '../../domain/types'
+import { CLASSIFICATIONS, DEFAULT_SETTINGS, MIN_MOVES_OUTSIDE_THEORY, MIN_PHASE_MOVES, movesOutsideTheory } from '../../domain/types'
 import operaPgn from '../../../e2e/fixtures/opera.pgn?raw'
 import scholarPgn from '../../../e2e/fixtures/scholar.pgn?raw'
 
@@ -341,11 +344,24 @@ async function fabricateReview(game: Game, who: Perspective): Promise<GameReview
     return { index: i, whiteWin, label }
   }) as unknown as NonEmpty<GraphPoint>
 
-  const summary = (c: Color) => {
+  const division = divide(game.positions.map((p) => p.fen))
+  const mean = (rs: readonly MoveReview[]) => (rs.length ? (rs.reduce((s, r) => s + r.accuracy, 0) / rs.length) as AccuracyPct : null)
+  const summary = (c: Color): PlayerSummary => {
     const mine = reviews.filter((r) => r.move.mover === c)
     const counts = Object.fromEntries(CLASSIFICATIONS.map((k) => [k, mine.filter((r) => r.classification === k).length])) as Record<Classification, number>
-    const accuracy = mine.length ? (mine.reduce((s, r) => s + r.accuracy, 0) / mine.length) as AccuracyPct : null
-    return { player: game.players[c], accuracy, counts }
+    const accuracy = mean(mine)
+    const phase = (p: Phase): PhaseSummary => {
+      const inPhase = mine.filter((r) => phaseAt(division, r.move.index + 1) === p)
+      const a = inPhase.length < MIN_PHASE_MOVES ? null : mean(inPhase)
+      return { moves: inPhase.length, accuracy: a, elo: a === null ? null : estimateElo(a, p) }
+    }
+    return {
+      player: game.players[c],
+      accuracy,
+      elo: accuracy === null || movesOutsideTheory(counts) < MIN_MOVES_OUTSIDE_THEORY ? null : estimateElo(accuracy, 'game'),
+      counts,
+      phases: { opening: phase('opening'), middlegame: phase('middlegame'), endgame: phase('endgame') },
+    }
   }
 
   return {
@@ -358,27 +374,7 @@ async function fabricateReview(game: Game, who: Perspective): Promise<GameReview
     graph,
     keyMoments: keyMoments(reviews),
     opening: lastOpening,
-  }
-}
-
-function recordOf(review: GameReview, now: number): LibraryRecord {
-  const g = review.game
-  return {
-    v: 1,
-    id: g.id,
-    source: g.source,
-    players: g.players,
-    result: g.result,
-    playedAt: g.playedAt,
-    reviewedAt: now,
-    pgn: g.pgn,
-    profile: review.profile,
-    summary: {
-      classifierVersion: review.classifierVersion,
-      accuracy: { w: review.players.w.accuracy, b: review.players.b.accuracy },
-      counts: { w: review.players.w.counts, b: review.players.b.counts },
-      opening: review.opening,
-    },
+    division,
   }
 }
 
@@ -444,7 +440,7 @@ export function createMockServices(): Services {
       const game = gameFromSeed(s, i, now)
       const review = await fabricateReview(game, perspective(identity(), game.players, game.source))
       const at = now - s.daysAgo * DAY + 3_600_000
-      records.set(game.id, recordOf(review, at))
+      records.set(game.id, libraryRecord(review, at))
       sync(review, at)
     }),
   ).then(() => {
@@ -456,7 +452,7 @@ export function createMockServices(): Services {
 
   const library: Services['library'] = {
     async put(review, at) {
-      records.set(review.game.id, recordOf(review, at))
+      records.set(review.game.id, libraryRecord(review, at))
       sync(review, at)
     },
     async list() {
