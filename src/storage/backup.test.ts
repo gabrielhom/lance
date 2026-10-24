@@ -87,6 +87,7 @@ describe('planImport', () => {
       value: {
         put: [record('pgn:newer', 300), record('pgn:new', 50)],
         training: [],
+        drop: [],
         report: { imported: 2, alreadyHere: 1, ignored: 2, identity: null },
       },
     })
@@ -95,21 +96,21 @@ describe('planImport', () => {
   it('keeps a newer review already here over an older copy in the file', () => {
     expect(planImport(file([record('pgn:a', 100)]), here([record('pgn:a', 500)]), GABRIEL)).toEqual({
       ok: true,
-      value: { put: [], training: [], report: { imported: 0, alreadyHere: 1, ignored: 0, identity: null } },
+      value: { put: [], training: [], drop: [], report: { imported: 0, alreadyHere: 1, ignored: 0, identity: null } },
     })
   })
 
   it('never overwrites a row here that this version cannot read', () => {
     expect(planImport(file([record('pgn:a', 100)]), here([{ v: 2, id: 'pgn:a' }]), GABRIEL)).toEqual({
       ok: true,
-      value: { put: [], training: [], report: { imported: 0, alreadyHere: 1, ignored: 0, identity: null } },
+      value: { put: [], training: [], drop: [], report: { imported: 0, alreadyHere: 1, ignored: 0, identity: null } },
     })
   })
 
   it('takes the newest of two copies of one game in the file', () => {
     expect(planImport(file([record('pgn:a', 100), record('pgn:a', 200)]), here([]), GABRIEL)).toEqual({
       ok: true,
-      value: { put: [record('pgn:a', 200)], training: [], report: { imported: 1, alreadyHere: 0, ignored: 0, identity: null } },
+      value: { put: [record('pgn:a', 200)], training: [], drop: [], report: { imported: 1, alreadyHere: 0, ignored: 0, identity: null } },
     })
   })
 
@@ -121,7 +122,7 @@ describe('planImport', () => {
   it('reads a backup without games as empty', () => {
     expect(planImport('{"format":"lance-backup","v":1,"stores":{}}', here([]), NOBODY)).toEqual({
       ok: true,
-      value: { put: [], training: [], report: { imported: 0, alreadyHere: 0, ignored: 0, identity: null } },
+      value: { put: [], training: [], drop: [], report: { imported: 0, alreadyHere: 0, ignored: 0, identity: null } },
     })
   })
 
@@ -129,6 +130,25 @@ describe('planImport', () => {
     const text = file([], undefined, { training: [item('g#1', 500), item('g#2', 100), item('g#3', null), item('g#4', 900), { v: 2, id: 'g#5' }] })
     const plan = planImport(text, here([], [item('g#1', 300), item('g#2', 200), { v: 2, id: 'g#4' }]), GABRIEL)
     expect(plan.ok && plan.value.training).toEqual([parsed('g#1', 500), parsed('g#3', null)])
+  })
+
+  describe('the items of a game whose newer review comes in', () => {
+    const ofGame = (id: string, answeredAt: number | null, gameId = 'pgn:a') => ({ ...item(id, answeredAt), gameId, index: Number(id.split('#')[1]) })
+    const local = here([record('pgn:a', 100), record('pgn:b', 100)], [ofGame('pgn:a#3', 50), ofGame('pgn:a#5', 50), ofGame('pgn:b#7', 50, 'pgn:b'), { v: 2, id: 'pgn:a#9', gameId: 'pgn:a' }])
+
+    it('drops the ones here that the file does not have for that game, when the file has a training store', () => {
+      const text = file([record('pgn:a', 200), record('pgn:b', 100)], undefined, { training: [ofGame('pgn:a#3', null), { v: 2, id: 'pgn:a#5' }] })
+      const plan = planImport(text, local, GABRIEL)
+      expect(plan.ok && { put: plan.value.put.map((r) => r.id), drop: plan.value.drop }).toEqual({ put: ['pgn:a'], drop: [] })
+      const without = file([record('pgn:a', 200)], undefined, { training: [ofGame('pgn:a#3', null)] })
+      const dropped = planImport(without, local, GABRIEL)
+      expect(dropped.ok && dropped.value.drop).toEqual(['pgn:a#5'])
+    })
+
+    it('leaves them alone when the file predates training', () => {
+      const plan = planImport(file([record('pgn:a', 200)]), local, GABRIEL)
+      expect(plan.ok && { put: plan.value.put.map((r) => r.id), training: plan.value.training, drop: plan.value.drop }).toEqual({ put: ['pgn:a'], training: [], drop: [] })
+    })
   })
 
   it.each<[string, Identity, unknown, Identity | null]>([

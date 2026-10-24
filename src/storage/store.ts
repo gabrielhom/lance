@@ -117,7 +117,9 @@ function backup(db: Db): Backup {
       const games = tx.objectStore('games')
       const training = tx.objectStore('training')
       const plan = planImport(text, { games: await games.getAll(), training: await training.getAll() }, identity)
-      const writes = plan.ok ? [...plan.value.put.map((r) => games.put(r)), ...plan.value.training.map((i) => training.put(trainingRow(i)))] : []
+      const writes = plan.ok
+        ? [...plan.value.put.map((r) => games.put(r)), ...plan.value.training.map((i) => training.put(trainingRow(i))), ...plan.value.drop.map((id) => training.delete(id))]
+        : []
       await Promise.all([...writes, tx.done])
       return plan.ok ? { ok: true, value: plan.value.report } : plan
     },

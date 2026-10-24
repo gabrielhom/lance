@@ -487,6 +487,7 @@ export function createMockServices(): Services {
       if (!plan.ok) return plan
       for (const r of plan.value.put) records.set(r.id, r)
       for (const i of plan.value.training) items.set(i.id, i)
+      for (const id of plan.value.drop) items.delete(id)
       return { ok: true, value: plan.value.report }
     },
   }

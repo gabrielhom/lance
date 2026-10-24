@@ -364,6 +364,17 @@ describe('training', () => {
     expect((await training.list()).map((i) => i.id)).toEqual([B5])
   })
 
+  it('drops the items of a game a backup brings a newer review of without them', async () => {
+    const { library, training, backup } = await open()
+    await library.put(mine, 1000)
+    const text = JSON.parse(await backup.export(DEFAULT_SETTINGS, evening))
+    text.stores.games[0].reviewedAt = 2000
+    text.stores.training = []
+    await backup.import(JSON.stringify(text), { accounts: [] })
+    expect(await training.list()).toEqual([])
+    expect((await library.list()).map((r) => r.reviewedAt)).toEqual([2000])
+  })
+
   it('comes back from a backup with its schedule', async () => {
     const { library, training, backup } = await open()
     await library.put(mine, 1000)
