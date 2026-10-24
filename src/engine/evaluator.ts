@@ -29,7 +29,7 @@ type Job = {
   attempt: 0 | 1
 }
 
-function evalKey(profile: AnalysisProfile, position: PositionKey): EvalKey {
+export function evalKey(profile: AnalysisProfile, position: PositionKey): EvalKey {
   const limit = profile.limit.kind === 'depth' ? `d${profile.limit.depth}` : `t${profile.limit.ms}`
   return `c3|${profile.engine}|${limit}|mpv2|${position}` as EvalKey
 }

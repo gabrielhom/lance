@@ -241,6 +241,42 @@ export interface Backup {
 }
 export type Store = { readonly evals: EvalCache; readonly library: Library; readonly backup: Backup }
 
+/** The classes that turn one of my moves into a training item. */
+export type TrainingClass = Extract<Classification, 'mistake' | 'blunder' | 'miss'>
+/** Leitner box and the day the item comes back. `due` is a local midnight, except for a new item, due when it was made. */
+export type Schedule = {
+  readonly box: number
+  readonly due: number
+  readonly last: { readonly at: number; readonly correct: boolean } | null
+}
+/** `${gameId}#${index}` */
+export type TrainingItemId = Brand<string, 'TrainingItemId'>
+/** The position before one of my mistakes in a reviewed game. It carries what the question and the answer show,
+ *  so training never rebuilds the game. */
+export type TrainingItem = {
+  readonly id: TrainingItemId
+  readonly gameId: GameId
+  /** Of the move, and of the position before it. */
+  readonly index: number
+  readonly input: EngineInput
+  /** The opponent's move into the position, highlighted on the board. */
+  readonly lastMove: Uci | null
+  readonly played: { readonly san: San; readonly uci: Uci; readonly classification: TrainingClass }
+  readonly best: EvalLine
+  readonly bestLineSan: readonly San[]
+  readonly alternative: EvalLine | null
+  readonly schedule: Schedule
+}
+/** 'close' is a move other than the best that loses less than the accepted margin. */
+export type Verdict = 'best' | 'close' | 'wrong'
+export interface TrainingStore {
+  /** Rows this version can't read are left out. */
+  list(): Promise<readonly TrainingItem[]>
+  answer(id: TrainingItemId, correct: boolean, now: number): Promise<void>
+  /** Makes the game's items match the review, keeping the schedule of each item that stays. */
+  sync(review: GameReview, now: number): Promise<void>
+}
+
 export type Settings = {
   readonly v: 1
   readonly identity: Identity

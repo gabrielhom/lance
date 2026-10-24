@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import opera from '../../e2e/fixtures/opera.pgn?raw'
 import scholar from '../../e2e/fixtures/scholar.pgn?raw'
-import { gameFromPgn, playMove, type Game, type GameSource, type PlayablePosition, type Uci } from '.'
+import { gameFromPgn, playMove, positionAfter, type Game, type GameSource, type PlayablePosition, type Uci } from '.'
 
 const PGN_SOURCE: GameSource = { kind: 'pgn' }
 const epd = (fen: string) => fen.split(' ').slice(0, 4).join(' ')
@@ -178,5 +178,18 @@ describe('playMove', () => {
     const start = r.value.positions[0] as PlayablePosition
     expect(playMove(start, 'e7e8n' as Uci)).toMatchObject({ san: 'e8=N', promotion: 'n', piece: 'p' })
     expect(playMove(start, 'e1e3' as Uci)).toBeNull()
+  })
+})
+
+describe('positionAfter', () => {
+  const game = parse(opera)
+
+  it('reaches the same position as the game after every move, mate included', () => {
+    for (const m of game.moves) expect(positionAfter(m.before.input, m.uci, m.index + 1)).toEqual(game.positions[m.index + 1])
+  })
+
+  it('answers null for an illegal move', () => {
+    const start = game.positions[0]
+    expect(start.kind === 'playable' && positionAfter(start.input, 'e2e5' as Uci, 1)).toBeNull()
   })
 })

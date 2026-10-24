@@ -1,5 +1,5 @@
 export { probeBridge } from './bridge'
 export { runtimeEnv } from './descriptor'
-export { createEvaluator } from './evaluator'
+export { createEvaluator, evalKey } from './evaluator'
 export { EngineFailure } from './failure'
 export { createMovePicker } from './picker'
