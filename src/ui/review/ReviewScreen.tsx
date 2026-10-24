@@ -2,7 +2,8 @@ import { Chess } from 'chess.js'
 import { useEffect, useMemo, useState } from 'react'
 import { evalLabel, winPct } from '../../analysis'
 import { perspective } from '../../domain/identity'
-import type { Color, Game, GameId, GameReview, Position, PositionEval, ReviewState, Square, Uci } from '../../domain/types'
+import type { Color, Game, GameId, GameReview, Position, ReviewState, Square, Uci } from '../../domain/types'
+import { failureReason } from '../../engine'
 import { boardPosition } from '../../play'
 import { TOO_SHORT_NOTE, formatDate, formatEval, formatAccuracy, formatTimeControl, joinKnown, moveNumberLabel, resultLabel, sourceLabel, tooShort } from '../format'
 import { CopyPgn } from '../CopyPgn'
@@ -104,7 +105,7 @@ function Review({ game, startPly }: { game: Game; startPly: number }) {
   const onMove = (uci: string) => setView((v) => moveOnBoard(v, game, uci as Uci))
   const entry = useMoveEntry({ fen: position.fen, disabled: position.kind !== 'playable', placeholder: 'testar um lance', onMove })
   const lineEval = useLineEval(line ? position : null)
-  const known = line && typeof lineEval === 'object' ? lineEval : null
+  const known = lineEval?.kind === 'known' ? lineEval.eval : null
   const badge = moveReview && !line ? { square: moveReview.move.to, kind: moveReview.classification } : null
   const arrow = line
     ? known?.kind === 'searched' ? squares(known.lines[0].pv[0]) : null
@@ -204,7 +205,7 @@ function Review({ game, startPly }: { game: Game; startPly: number }) {
           </section>
         </div>
         <div className="rv-right">
-          {line && <LineCard line={line} evaluation={lineEval} position={position} onAt={(at) => setView({ ...line, at })} onExit={() => go(ply)} />}
+          {line && lineEval && <LineCard line={line} evaluation={lineEval} position={position} onAt={(at) => setView({ ...line, at })} onExit={() => go(ply)} />}
           {status}
           <MoveCard
             move={ply > 0 ? game.moves[ply - 1] : null}
@@ -230,20 +231,20 @@ const squares = (uci: Uci) => ({ from: uci.slice(0, 2) as Square, to: uci.slice(
 /** The engine's eval of a position off the game, searched while it is on the board. The search stops when it leaves. */
 function useLineEval(position: Position | null): LineEval | null {
   const services = useServices()
-  const [found, setFound] = useState<{ position: Position; eval: PositionEval | 'failed' } | null>(null)
+  const [found, setFound] = useState<{ position: Position; eval: LineEval } | null>(null)
   useEffect(() => {
     if (position?.kind !== 'playable') return
     const ac = new AbortController()
     services.evaluatePosition(position, ac.signal).then(
-      (e) => setFound({ position, eval: { kind: 'searched', ...e } }),
-      () => ac.signal.aborted || setFound({ position, eval: 'failed' }),
+      (e) => setFound({ position, eval: { kind: 'known', eval: { kind: 'searched', ...e } } }),
+      (e: unknown) => ac.signal.aborted || setFound({ position, eval: { kind: 'failed', reason: failureReason(e) } }),
     )
     return () => ac.abort()
   }, [services, position])
   if (!position) return null
-  if (position.kind === 'checkmate') return { kind: 'checkmate', loser: position.turn }
-  if (position.kind === 'stalemate') return { kind: 'stalemate' }
-  return found?.position === position ? found.eval : 'searching'
+  if (position.kind === 'checkmate') return { kind: 'known', eval: { kind: 'checkmate', loser: position.turn } }
+  if (position.kind === 'stalemate') return { kind: 'known', eval: { kind: 'stalemate' } }
+  return found?.position === position ? found.eval : { kind: 'searching' }
 }
 
 /** How many training items the saved review left for this game. */

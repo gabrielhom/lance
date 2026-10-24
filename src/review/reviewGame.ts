@@ -2,7 +2,6 @@ import { buildReview, completeEvals, winPct } from '../analysis'
 import {
   perspective,
   type EngineActivity,
-  type EngineFailureReason,
   type EvalProgress,
   type Evaluator,
   type Game,
@@ -15,7 +14,7 @@ import {
   type WinPct,
   type OpeningBook,
 } from '../domain'
-import { EngineFailure } from '../engine'
+import { failureReason } from '../engine'
 
 export type ReviewDeps = {
   readonly evaluator: Evaluator
@@ -125,9 +124,4 @@ export async function* reviewGame(game: Game, deps: ReviewDeps, signal: AbortSig
     signal.removeEventListener('abort', onAbort)
     stop.abort()
   }
-}
-
-function failureReason(error: unknown): EngineFailureReason {
-  if (error instanceof EngineFailure) return error.reason
-  return { kind: 'crashed', detail: error instanceof Error ? error.message : String(error) }
 }

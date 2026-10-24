@@ -1,16 +1,20 @@
 import { evalLabel, pvSan } from '../../analysis'
-import type { PlayedMove, Position, PositionEval } from '../../domain/types'
+import type { EngineFailureReason, PlayedMove, Position, PositionEval } from '../../domain/types'
 import { formatEval, moveNumberLabel } from '../format'
+import { engineFailureText } from '../labels'
 import { San } from '../san'
 
 /** A position off the game is searched on demand, so its eval can still be on the way or fail. */
-export type LineEval = PositionEval | 'searching' | 'failed'
+export type LineEval =
+  | { readonly kind: 'searching' }
+  | { readonly kind: 'failed'; readonly reason: EngineFailureReason }
+  | { readonly kind: 'known'; readonly eval: PositionEval }
 
 const CONTINUATION = 8
 
 type Props = {
   line: { readonly moves: readonly PlayedMove[]; readonly at: number }
-  evaluation: LineEval | null
+  evaluation: LineEval
   /** The position on the board, after `at` moves of the line. */
   position: Position
   onAt: (at: number) => void
@@ -40,9 +44,10 @@ export function LineCard({ line, evaluation, position, onAt, onExit }: Props) {
   )
 }
 
-function Verdict({ evaluation, position }: { evaluation: LineEval | null; position: Position }) {
-  if (evaluation === null || evaluation === 'searching') return <p className="caption mt-2" aria-busy="true">A engine está avaliando a posição…</p>
-  if (evaluation === 'failed') return <p className="caption mt-2">A engine não conseguiu avaliar esta posição.</p>
+function Verdict({ evaluation: e, position }: { evaluation: LineEval; position: Position }) {
+  if (e.kind === 'searching') return <p className="caption mt-2" aria-busy="true">A engine está avaliando a posição…</p>
+  if (e.kind === 'failed') return <p className="caption mt-2">{engineFailureText(e.reason).title}.</p>
+  const evaluation = e.eval
   if (evaluation.kind !== 'searched') return <p className="best mt-2 font-serif text-lg">{evaluation.kind === 'checkmate' ? 'Xeque-mate.' : 'Afogamento. Empate.'}</p>
   const continuation = pvSan(position.fen, evaluation.lines[0].pv).slice(0, CONTINUATION)
   return (
