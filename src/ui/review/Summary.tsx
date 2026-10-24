@@ -1,8 +1,8 @@
 import { useId } from 'react'
 import type { ByColor, Classification, Color, GameReview } from '../../domain/types'
-import { CLASSIFICATIONS } from '../../domain/types'
-import { TOO_SHORT_NOTE, colorLabel, formatAccuracy, tooShort } from '../format'
-import { CLASSIFICATION_LABEL } from '../labels'
+import { CLASSIFICATIONS, MIN_PHASE_MOVES, PHASES } from '../../domain/types'
+import { TOO_SHORT_NOTE, colorLabel, formatAccuracy, formatElo, tooShort } from '../format'
+import { CLASSIFICATION_LABEL, PHASE_LABEL } from '../labels'
 import { Mark } from '../san'
 
 /** Brilliant to good, then book to miss: the two halves print side by side. */
@@ -78,11 +78,54 @@ export function Accuracies({ review, me, names, size }: { review: GameReview; me
           <div key={c} className={me && c !== me ? 'them' : undefined}>
             <p className="v">{formatAccuracy(review.players[c].accuracy)}</p>
             <p className="l">{me === c ? (size === 'hero' ? <b>Sua precisão</b> : 'Você, precisão') : names[c]}</p>
+            {review.players[c].elo && <p className="l">Elo estimado <span className="whitespace-nowrap">{formatElo(review.players[c].elo)}</span></p>}
           </div>
         ))}
       </div>
       {tooShort(review, me) && <p className="caption mt-2">{TOO_SHORT_NOTE}</p>}
     </>
+  )
+}
+
+/** Each player's accuracy and estimated rating per phase, one table per player. */
+export function PhaseTables({ review, columns, heads }: { review: GameReview; columns: readonly Color[]; heads: ByColor<string> }) {
+  return (
+    <div className="ctables">
+      {columns.map((c) => (
+        <table key={c} className="ctable ptable">
+          <caption>{heads[c]}</caption>
+          <thead>
+            <tr>
+              <th scope="col">Fase</th>
+              <th scope="col">Lances</th>
+              <th scope="col">Precisão</th>
+              <th scope="col">Elo estimado</th>
+            </tr>
+          </thead>
+          <tbody>
+            {PHASES.map((p) => {
+              const { moves, accuracy, elo } = review.players[c].phases[p]
+              return (
+                <tr key={p}>
+                  <th scope="row">{PHASE_LABEL[p]}</th>
+                  <td className={moves ? undefined : 'zero'}>{moves}</td>
+                  <td className={accuracy === null ? 'zero' : undefined}>{formatAccuracy(accuracy)}</td>
+                  <td className={elo ? 'elo' : 'elo zero'}>
+                    {elo ? (
+                      <>
+                        ~{elo.elo} <span className="rng">{elo.low}–{elo.high}</span>
+                      </>
+                    ) : (
+                      '–'
+                    )}
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      ))}
+    </div>
   )
 }
 
@@ -94,6 +137,7 @@ export function Summary({ review, me, onJump }: Props) {
   const name = (c: Color) => review.players[c].player.name
   const columns: readonly Color[] = me ? [me, other(me)] : ['w', 'b']
   const heads = me ? { [me]: 'Você', [other(me)]: name(other(me)) } : { w: 'Brancas', b: 'Pretas' }
+  const phaseHeads: ByColor<string> = me ? { w: me === 'w' ? 'Você' : name('w'), b: me === 'b' ? 'Você' : name('b') } : { w: `${name('w')}, brancas`, b: `${name('b')}, pretas` }
   const names: ByColor<string> = me ? { w: name('w'), b: name('b') } : { w: `${name('w')}, brancas`, b: `${name('b')}, pretas` }
   return (
     <section className="summary" aria-labelledby={`${id}-t`}>
@@ -102,6 +146,15 @@ export function Summary({ review, me, onJump }: Props) {
         <Accuracies review={review} me={me} names={names} size="summary" />
       </div>
       <ClassTables review={review} columns={columns} heads={heads} onJump={onJump} />
+      <div>
+        <h3 className="font-serif font-semibold text-xl mb-2">Por fase</h3>
+        <p className="caption">
+          O Elo estimado sai só desta partida: é o rating típico de quem joga com essa precisão no Lichess. Metade desses
+          jogadores fica na faixa indicada. Uma fase com menos de {MIN_PHASE_MOVES} lances fica sem número. O final fica sem Elo:
+          nele a precisão quase não muda com o rating.
+        </p>
+      </div>
+      <PhaseTables review={review} columns={columns} heads={phaseHeads} />
     </section>
   )
 }

@@ -35,7 +35,7 @@ test('reviews a pasted game with Stockfish 19 and explains the blunder', async (
 test('shows accuracy for both sides of a longer game and walks it by keyboard', async ({ page, axe }) => {
   await review(page, opera)
 
-  const accuracies = await page.getByLabel('Resumo').getByText(/^\d+,\d$/).allInnerTexts()
+  const accuracies = await page.getByLabel('Resumo').getByRole('group', { name: 'Precisão' }).getByText(/^\d+,\d$/).allInnerTexts()
   expect(accuracies).toHaveLength(2)
   const [white, black] = accuracies.map((t) => Number.parseFloat(t.replace(',', '.')))
   expect(white).toBeGreaterThan(black)

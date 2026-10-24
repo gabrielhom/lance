@@ -492,6 +492,10 @@
   .ctable tbody th { padding: 0; border-bottom: 1px solid var(--rule); font-weight: 400; text-align: left; }
   .ctable td { width: 4.5em; border-bottom: 1px solid var(--rule); font-family: var(--font-serif); font-size: var(--text-lg); font-variant-numeric: tabular-nums; text-align: right; }
   .ctable td.zero { color: var(--ink-3); }
+  .ptable caption { padding-bottom: 6px; font-weight: 600; text-align: left; }
+  .ptable tbody th { white-space: nowrap; }
+  .ptable td.elo { width: auto; padding-left: 12px; white-space: nowrap; }
+  .ptable .rng { margin-left: 4px; font-size: var(--text-sm); color: var(--ink-3); }
   .sw { display: inline-block; width: 9px; height: 9px; margin-right: 10px; transform: translateY(-1px); }
   .mk-slot { display: inline-block; min-width: 1.9em; font-size: var(--text-base); }
   .count { padding: 0 2px; text-decoration: underline; text-decoration-color: var(--rule); text-underline-offset: 3px; cursor: pointer; }
@@ -501,6 +505,9 @@
 
   @media (width < 48rem) {
     .ctables .ctable + .ctable { margin-top: -1px; }
+    .ctables .ptable + .ptable { margin-top: 28px; }
+    .ptable tbody tr { height: 3rem; }
+    .ptable .rng { display: block; margin: -4px 0 0; line-height: 1.2; }
   }
   @media (width >= 48rem) {
     .play { --board: min(100cqw - 22px, 100dvh - 12rem); }

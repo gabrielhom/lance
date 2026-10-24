@@ -1,6 +1,6 @@
 import { useId, useState } from 'react'
 import type { KeyboardEvent, PointerEvent } from 'react'
-import type { Classification, PartialSeries, PlayedMove } from '../../domain/types'
+import type { Classification, Division, PartialSeries, PlayedMove } from '../../domain/types'
 import { CLASSIFICATION_LABEL, CLASSIFICATION_MARK } from '../labels'
 import { moveNumberLabel } from '../format'
 import { useElementWidth } from '../useElementWidth'
@@ -16,13 +16,15 @@ type Props = {
   classes: readonly Classification[] | null
   ply: number
   onSelect: (ply: number) => void
+  /** Where the middlegame and the endgame start, once reviewed. */
+  division: Division | null
 }
 
 const H = 150
 const PAD = { top: 8, right: 4, bottom: 22, left: 28 }
 
 /** White's winning chance per ply, drawn as one ink line over a wash, with the key moments dotted on it. */
-export function EvalGraph({ series, labels, moves, markers, classes, ply, onSelect }: Props) {
+export function EvalGraph({ series, labels, moves, markers, classes, ply, onSelect, division }: Props) {
   const [ref, width] = useElementWidth<HTMLDivElement>()
   const [hover, setHover] = useState<number | null>(null)
   const id = useId()
@@ -76,6 +78,10 @@ export function EvalGraph({ series, labels, moves, markers, classes, ply, onSele
     const val = w === null ? 'sem avaliação' : labels ? labels[i] : `${Math.round(w)}% brancas`
     return [head, kind && CLASSIFICATION_LABEL[kind], val].filter(Boolean).join(' · ')
   }
+  // Each label sits on the side of the graph away from the line, so the eval never runs through it.
+  const starts = division
+    ? ([['meio de jogo', division.middlegame], ['final', division.endgame]] as const).flatMap(([label, at]) => (at === null || at === 0 ? [] : [{ label, at }]))
+    : []
   const done = series.every((v) => v !== null)
   const cls = ply > 0 ? classes?.[ply - 1] : undefined
   const mark = cls ? CLASSIFICATION_MARK[cls] : ''
@@ -106,6 +112,21 @@ export function EvalGraph({ series, labels, moves, markers, classes, ply, onSele
             <line x1={PAD.left} x2={right} y1={y(100)} y2={y(100)} stroke="var(--rule)" />
             <line x1={PAD.left} x2={right} y1={y(0)} y2={y(0)} stroke="var(--rule)" />
             <path d={areaPath} fill="var(--graph-fill)" />
+            {starts.map((p) => (
+              <g key={p.label}>
+                <line x1={x(p.at)} x2={x(p.at)} y1={PAD.top} y2={H - PAD.bottom} stroke="var(--ink-3)" strokeDasharray="3 3" />
+                <text
+                  x={x(p.at) + (x(p.at) > width - 80 ? -4 : 4)}
+                  y={(series[p.at] ?? 50) > 50 ? H - PAD.bottom - 5 : PAD.top + 10}
+                  textAnchor={x(p.at) > width - 80 ? 'end' : 'start'}
+                  stroke="var(--paper)"
+                  strokeWidth={3}
+                  paintOrder="stroke"
+                >
+                  {p.label}
+                </text>
+              </g>
+            ))}
             <line x1={PAD.left} x2={right} y1={mid} y2={mid} stroke="var(--ink-3)" />
             <path d={linePath} fill="none" stroke="var(--ink)" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
             <text x={PAD.left - 6} y={y(100) + 4} textAnchor="end">100</text>
@@ -141,6 +162,7 @@ export function EvalGraph({ series, labels, moves, markers, classes, ply, onSele
       </div>
       <p id={`${id}-legend`} className="caption mt-1">
         {done ? 'Chance de vitória das brancas, em %. Toque no gráfico para ir ao lance.' : 'Preenche enquanto a análise avança.'}
+        {starts.length > 0 && <span className="sr-only">{` Linhas tracejadas marcam onde começa${starts.length > 1 ? 'm' : ''} o ${starts.map((p) => p.label).join(' e o ')}.`}</span>}
         {markers.length > 0 && done && (
           <span className="sr-only">
             {` Pontos marcam momentos-chave (${[...new Set(markers.map((m) => (m.kind === 'turning-point' ? 'virada' : CLASSIFICATION_LABEL[m.kind].toLowerCase())))].join(', ')}).`}
