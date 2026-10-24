@@ -119,6 +119,12 @@ export type MoveReview = {
 export const MIN_MOVES_OUTSIDE_THEORY = 10
 export const movesOutsideTheory = (counts: Readonly<Record<Classification, number>>): number =>
   CLASSIFICATIONS.reduce((n, k) => (k === 'book' ? n : n + counts[k]), 0)
+export const PHASES = ['opening', 'middlegame', 'endgame'] as const
+export type Phase = (typeof PHASES)[number]
+/** Position index where the middlegame and the endgame start, by Lichess's Divider; null when the game never got there. */
+export type Division = { readonly middlegame: number | null; readonly endgame: number | null }
+/** Below this many of one player's moves in a phase, the phase gets no accuracy. */
+export const MIN_PHASE_MOVES = 5
 export type PlayerSummary = {
   readonly player: PlayerTag
   readonly accuracy: AccuracyPct | null
