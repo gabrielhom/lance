@@ -1,15 +1,19 @@
 import { gameFromPgn, type Game, type GameRejection, type ImportResult } from '../domain'
 
+/** Parsing is synchronous, about 20 ms a game, so a bigger file would freeze the page for seconds. */
+export const MAX_PGN_GAMES = 50
+
 /** A pasted or uploaded PGN file, which may hold many games. */
 export function parsePgnText(text: string): ImportResult {
   const games: Game[] = []
   const rejected: { index: number; rejection: GameRejection }[] = []
-  splitGames(text).forEach((pgn, index) => {
+  const all = splitGames(text)
+  all.slice(0, MAX_PGN_GAMES).forEach((pgn, index) => {
     const r = gameFromPgn(pgn, { kind: 'pgn' })
     if (r.ok) games.push(r.value)
     else rejected.push({ index, rejection: r.error })
   })
-  return { games, rejected }
+  return { games, rejected, omitted: Math.max(0, all.length - MAX_PGN_GAMES) }
 }
 
 /** A new game starts at a tag line that follows movetext. */

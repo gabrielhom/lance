@@ -7,6 +7,7 @@ import september from './fixtures/chesscom-erik-2026-09.json?raw'
 import lichessGames from './fixtures/lichess-thibault.ndjson?raw'
 import lichessVariant from './fixtures/lichess-thibault-variant.ndjson?raw'
 import { fetchRecentGames, parsePgnText } from '.'
+import { MAX_PGN_GAMES } from './pgn'
 
 type Route = { status?: number; body: string; headers?: Record<string, string> }
 const requests: { url: string; accept: string | null }[] = []
@@ -33,6 +34,15 @@ describe('parsePgnText', () => {
     const { games, rejected } = parsePgnText(`﻿${text}`)
     expect(games.map((g) => g.players.w.name)).toEqual(['Paul Morphy', 'gabrielhom'])
     expect(rejected).toEqual([{ index: 1, rejection: expect.objectContaining({ kind: 'unparseable' }) }])
+  })
+
+  it('reads only the first MAX_PGN_GAMES games of a huge file and says how many it left out', () => {
+    const many = Array.from({ length: MAX_PGN_GAMES + 7 }, (_, i) => scholar.replace(/\[Event "[^"]*"\]/, `[Event "g${i}"]`)).join('\n\n')
+    const r = parsePgnText(many)
+    expect(r.games).toHaveLength(MAX_PGN_GAMES)
+    expect(r.rejected).toEqual([])
+    expect(r.omitted).toBe(7)
+    expect(parsePgnText(opera).omitted).toBe(0)
   })
 
   it('accepts bare movetext without tags', () => {

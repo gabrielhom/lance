@@ -237,6 +237,8 @@ export const DEFAULT_SETTINGS: Settings = {
 export type ImportResult = {
   readonly games: readonly Game[]
   readonly rejected: readonly { readonly index: number; readonly rejection: GameRejection }[]
+  /** Games left unread because the text held more than the parser takes at once. */
+  readonly omitted?: number
 }
 export type FetchFailure =
   | { readonly kind: 'not-found' }

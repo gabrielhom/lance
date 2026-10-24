@@ -141,6 +141,14 @@ function ParsedResult({ result, onPick }: { result: ImportResult; onPick: (g: Ga
   if (result.games.length === 0 && result.rejected.length === 0) return null
   return (
     <div className="flex flex-col gap-3">
+      {!!result.omitted && (
+        <div role="alert" className="note">
+          <p>
+            <span className="font-semibold">{result.omitted === 1 ? 'Uma partida ficou de fora.' : `${result.omitted} partidas ficaram de fora.`}</span>{' '}
+            Só as primeiras {result.games.length + result.rejected.length} do arquivo foram lidas. Divida o arquivo para ler o resto.
+          </p>
+        </div>
+      )}
       {result.rejected.length > 0 && (
         <div role="alert" className="note">
           <div>
