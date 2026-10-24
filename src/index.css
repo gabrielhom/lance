@@ -337,6 +337,12 @@
   .sheet .book { font-style: italic; color: var(--ink-2); }
   .sheet .waiting { font-style: italic; color: var(--ink-3); }
   @media (width < 48rem) { .sheet tr.extra { display: none; } }
+  .sheet tr.sect th { padding: 12px 0 4px; border-bottom: 1px solid var(--rule-strong); text-align: left; font-weight: 400; }
+  .sheet tr.sect:first-child th { padding-top: 6px; }
+  .sect-name { font-family: var(--font-serif); font-size: var(--text-sm); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-2); }
+  .sect-acc { margin-left: 10px; font-family: var(--font-serif); font-size: var(--text-sm); font-style: italic; font-variant-numeric: tabular-nums; color: var(--ink-3); }
+  .phase-nav { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-bottom: 6px; }
+  .phase-nav button[aria-current="true"] { color: var(--accent); font-weight: 650; }
   .review-sheet { max-height: 280px; border-bottom: 1px solid var(--rule-strong); }
   .review-sheet td { height: 34px; }
   .review-sheet td.m { font-size: var(--text-md); }
