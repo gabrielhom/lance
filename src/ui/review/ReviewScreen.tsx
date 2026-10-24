@@ -10,6 +10,7 @@ import { ERROR_CLASSIFICATIONS } from '../labels'
 import { heldGame } from '../pending'
 import { useMoveEntry } from '../play/MoveInput'
 import { PlayBoard } from '../play/PlayBoard'
+import { href } from '../router'
 import { useServices, useSettings } from '../services'
 import { AnalyzingPanel, CancelledPanel, FailedPanel } from './Analyzing'
 import { EvalBar } from './EvalBar'
@@ -27,11 +28,11 @@ type GameSlot =
   | { kind: 'missing' }
   | { kind: 'ready'; game: Game; ply: number }
 
-export function ReviewScreen({ id }: { id: GameId }) {
+export function ReviewScreen({ id, ply }: { id: GameId; ply?: number }) {
   const services = useServices()
   const [slot, setSlot] = useState<GameSlot>(() => {
     const held = heldGame(id)
-    return held ? { kind: 'ready', ...held } : { kind: 'loading' }
+    return held ? { kind: 'ready', game: held.game, ply: ply ?? held.ply } : { kind: 'loading' }
   })
   useEffect(() => {
     if (slot.kind !== 'loading') return
@@ -39,12 +40,12 @@ export function ReviewScreen({ id }: { id: GameId }) {
     services.library.get(id).then((record) => {
       if (!alive) return
       const parsed = record ? services.gameFromRecord(record) : null
-      setSlot(parsed?.ok ? { kind: 'ready', game: parsed.value, ply: 0 } : { kind: 'missing' })
+      setSlot(parsed?.ok ? { kind: 'ready', game: parsed.value, ply: ply ?? 0 } : { kind: 'missing' })
     })
     return () => {
       alive = false
     }
-  }, [services, id, slot.kind])
+  }, [services, id, ply, slot.kind])
 
   if (slot.kind === 'loading') {
     return (
@@ -76,6 +77,7 @@ function Review({ game, startPly }: { game: Game; startPly: number }) {
   const review: GameReview | null = state?.phase === 'done' ? state.review : null
   const ply = view.ply
   const line = view.kind === 'line' ? view : null
+  const toTrain = useTrainingCount(game.id, state?.phase === 'done' && state.saved)
 
   const go = (p: number) => setView(gameAt(game, p))
   const errors = review ? review.moves.filter((r) => ERROR_CLASSIFICATIONS.has(r.classification) && (myColor === null || r.move.mover === myColor)) : []
@@ -142,6 +144,12 @@ function Review({ game, startPly }: { game: Game; startPly: number }) {
           <CopyPgn pgn={game.pgn} className="tl tl-quiet p-0" />
         </p>
         {review && <ReviewStrip review={review} me={myColor} />}
+        {toTrain > 0 && (
+          <p className="mt-2">
+            <a href={href({ name: 'training', game: game.id })} className="tl tl-accent">Treinar os erros desta partida</a>
+            <span className="caption ml-2">{toTrain === 1 ? '1 posição' : `${toTrain} posições`}</span>
+          </p>
+        )}
       </header>
         <div className="rv-left">
           <div className="boardwrap">
@@ -236,6 +244,21 @@ function useLineEval(position: Position | null): LineEval | null {
   if (position.kind === 'checkmate') return { kind: 'checkmate', loser: position.turn }
   if (position.kind === 'stalemate') return { kind: 'stalemate' }
   return found?.position === position ? found.eval : 'searching'
+}
+
+/** How many training items the saved review left for this game. */
+function useTrainingCount(game: GameId, saved: boolean): number {
+  const services = useServices()
+  const [count, setCount] = useState(0)
+  useEffect(() => {
+    if (!saved) return
+    let alive = true
+    services.training.list().then((items) => alive && setCount(items.filter((i) => i.gameId === game).length))
+    return () => {
+      alive = false
+    }
+  }, [services, game, saved])
+  return count
 }
 
 /** On a phone the summary sits at the end of a long page, so the accuracies also show under the title. */

@@ -4,6 +4,7 @@ import type { Color, PlaySetup, TimeControl } from '../../domain/types'
 import { LEVELS, levelById, loadChoice, resolveChoice, saveChoice } from '../../play'
 import type { SetupChoice } from '../../play'
 import { formatClock } from '../format'
+import { DueToday } from '../training/DueToday'
 import { levelLabel } from './names'
 import { unlockAudio } from './sound'
 
@@ -49,6 +50,7 @@ export function Setup({ onStart }: { onStart: (setup: PlaySetup) => void }) {
     >
       <div>
         <h1 className="display text-3xl md:text-5xl mb-4 md:mb-6">Nova partida</h1>
+        <DueToday className="-mt-2 mb-4 md:-mt-3 md:mb-6" />
         <fieldset>
           <legend className="sec">Adversário</legend>
           <ol className="levels">
