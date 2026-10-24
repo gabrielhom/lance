@@ -43,10 +43,18 @@ function capturingGame(seed: number, stop: (b: Chess) => boolean = () => false):
   return { moves, board }
 }
 
-function seedWhere(test: (b: Chess) => boolean): number {
-  for (let seed = 1; seed < 200; seed++) if (test(capturingGame(seed).board)) return seed
-  throw new Error('no seed')
-}
+/** Quiet piece moves after a few opening pawn pushes: the fifty-move draw arrives at ply 107 with no position repeated. */
+const FIFTY_MOVE_GAME = `
+b2b3 b8c6 h2h4 e7e6 f2f3 f8a3 d2d4 d8e7 h1h2 c6b4 c1h6 e8f8
+h2h1 b4d5 e1d2 a3c5 d2d3 e7g5 g1h3 g5g6 d3d2 c5b4 b1c3 g6g4
+h6e3 b4d6 h3g5 g4f5 g5h3 f5f6 c3b1 d6e5 e3g1 d5b6 d2c3 f6g6
+b1d2 b6d5 c3b2 g8h6 d2c4 d5e3 c4b6 e5h2 d1b1 g6f5 b2c1 e3g4
+c1b2 f5f4 g1e3 a8b8 e3g1 f4c1 b2c3 c1f4 g1f2 h6g8 b6a4 g8h6
+c3d3 f4f6 h3f4 f6e7 a4b2 e7e8 d3e4 f8g8 b1c1 g4e3 c1d2 e3f5
+d2c3 h2g3 c3d3 g3h2 d3e3 f5g3 e4d3 h2g1 h1h2 g3h5 f4g6 h5f4
+d3c4 h6g4 e3d2 g4e3 c4b5 e3d1 b5a5 d1c3 g6e7 g8f8 h2h1 c3d5
+e7c6 d5b4 d2d1 f4d3 f2e1 b4a6 b2a4 e8e7 e1c3 e7d6 a4c5
+`.trim().split(/\s+/) as Uci[]
 
 describe('moves and endings', () => {
   it('appends a legal move and passes the turn', () => {
@@ -86,14 +94,17 @@ describe('moves and endings', () => {
     expect(s).toMatchObject({ phase: 'over', result: '1/2-1/2', termination: 'repetition' })
   })
 
-  it.each([
-    ['insufficient material', 'insufficient-material', (b: Chess) => b.isInsufficientMaterial()],
-    ['the fifty-move rule', 'fifty-move', (b: Chess) => b.isDrawByFiftyMoves() && !b.isThreefoldRepetition() && !b.isCheckmate()],
-  ])('ends in a draw by %s', (_, termination, test) => {
-    const { moves } = capturingGame(seedWhere(test))
+  it('ends in a draw by insufficient material', () => {
+    const { moves } = capturingGame(12)
     const s = playMoves(newPlay(local, T0), moves)
-    expect(s).toMatchObject({ phase: 'over', result: '1/2-1/2', termination })
+    expect(s).toMatchObject({ phase: 'over', result: '1/2-1/2', termination: 'insufficient-material' })
     expect(s.moves).toEqual(moves)
+  })
+
+  it('ends in a draw by the fifty-move rule', () => {
+    const s = playMoves(newPlay(local, T0), FIFTY_MOVE_GAME)
+    expect(s).toMatchObject({ phase: 'over', result: '1/2-1/2', termination: 'fifty-move' })
+    expect(s.moves).toEqual(FIFTY_MOVE_GAME)
   })
 
   it('ignores every event once the game is over', () => {
