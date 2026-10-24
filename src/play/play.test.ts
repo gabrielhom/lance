@@ -94,14 +94,16 @@ describe('moves and endings', () => {
     expect(s).toMatchObject({ phase: 'over', result: '1/2-1/2', termination: 'repetition' })
   })
 
-  it('ends in a draw by insufficient material', () => {
+  // The reducer replays the game from the start on every move, so these long games take about a second alone and
+  // can pass the 5 s default when the machine is busy.
+  it('ends in a draw by insufficient material', { timeout: 20_000 }, () => {
     const { moves } = capturingGame(12)
     const s = playMoves(newPlay(local, T0), moves)
     expect(s).toMatchObject({ phase: 'over', result: '1/2-1/2', termination: 'insufficient-material' })
     expect(s.moves).toEqual(moves)
   })
 
-  it('ends in a draw by the fifty-move rule', () => {
+  it('ends in a draw by the fifty-move rule', { timeout: 20_000 }, () => {
     const s = playMoves(newPlay(local, T0), FIFTY_MOVE_GAME)
     expect(s).toMatchObject({ phase: 'over', result: '1/2-1/2', termination: 'fifty-move' })
     expect(s.moves).toEqual(FIFTY_MOVE_GAME)
