@@ -15,7 +15,7 @@ const NAV: readonly { route: Route; label: string }[] = [
 
 export function AppShell({ children }: { children: ReactNode }) {
   const route = useRoute()
-  const current = route.name === 'review' ? 'import' : route.name
+  const current = route.name === 'review' ? 'import' : route.name === 'puzzles' ? 'training' : route.name
   // Hash routing keeps the scroll offset of the previous screen, which lands a new screen mid-page.
   const where = route.name === 'review' ? `review:${route.id}` : route.name === 'training' ? `training:${route.game}` : route.name
   useEffect(() => {

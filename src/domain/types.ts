@@ -259,7 +259,13 @@ export interface Backup {
   /** Merges by game id, keeping the newer review. Writes nothing when it rejects the file. */
   import(text: string, identity: Identity): Promise<Result<BackupReport, BackupRejection>>
 }
-export type Store = { readonly evals: EvalCache; readonly library: Library; readonly backup: Backup; readonly training: TrainingStore }
+export type Store = {
+  readonly evals: EvalCache
+  readonly library: Library
+  readonly backup: Backup
+  readonly training: TrainingStore
+  readonly puzzles: PuzzleStore
+}
 
 /** The classes that turn one of my moves into a training item. */
 export type TrainingClass = Extract<Classification, 'mistake' | 'blunder' | 'miss'>
@@ -295,6 +301,46 @@ export interface TrainingStore {
   answer(id: TrainingItemId, correct: boolean, now: number): Promise<void>
   /** Makes the game's items match the review, keeping the schedule of each item that stays. */
   sync(review: GameReview, now: number): Promise<void>
+}
+
+/** The Lichess puzzle themes the app names; the others are dropped when the puzzles are bundled. */
+export const PUZZLE_THEMES = [
+  'mateIn1', 'mateIn2', 'mateIn3', 'mateIn4', 'mateIn5', 'mate', 'backRankMate', 'smotheredMate',
+  'fork', 'pin', 'skewer', 'discoveredAttack', 'discoveredCheck', 'doubleCheck', 'xRayAttack', 'sacrifice', 'deflection',
+  'attraction', 'clearance', 'interference', 'intermezzo', 'capturingDefender', 'hangingPiece', 'trappedPiece',
+  'quietMove', 'defensiveMove', 'zugzwang', 'advancedPawn', 'promotion', 'underPromotion', 'enPassant', 'castling',
+  'kingsideAttack', 'queensideAttack', 'exposedKing', 'attackingF2F7', 'advantage', 'crushing', 'equality',
+  'opening', 'middlegame', 'endgame', 'pawnEndgame', 'rookEndgame', 'bishopEndgame', 'knightEndgame', 'queenEndgame', 'queenRookEndgame',
+] as const
+export type PuzzleTheme = (typeof PUZZLE_THEMES)[number]
+export type PuzzleId = Brand<string, 'PuzzleId'>
+/** One puzzle from the Lichess puzzle database. */
+export type Puzzle = {
+  readonly id: PuzzleId
+  /** Before the opponent's move that sets the puzzle up. */
+  readonly fen: Fen
+  /** moves[0] is the opponent's setup move; then the player and the opponent alternate, so the player's moves sit at odd
+   *  indexes and the last move is the player's. */
+  readonly moves: readonly [Uci, Uci, ...Uci[]]
+  /** Lichess's Glicko-2 rating of the puzzle. */
+  readonly rating: number
+  readonly themes: readonly PuzzleTheme[]
+  /** https://lichess.org/..., the game the puzzle comes from. */
+  readonly gameUrl: string
+}
+/** Only the first attempt at a puzzle counts toward the rating, as on Lichess, so a puzzle has at most one. */
+export type PuzzleAttempt = {
+  readonly id: PuzzleId
+  readonly at: number
+  readonly solved: boolean
+  /** The puzzle's rating then, so a rebuilt puzzle set never rewrites the player's rating. */
+  readonly puzzleRating: number
+}
+export interface PuzzleStore {
+  /** Rows this version can't read are left out. */
+  list(): Promise<readonly PuzzleAttempt[]>
+  /** Keeps the earliest attempt at each puzzle, so recording one again changes nothing. */
+  record(attempt: PuzzleAttempt): Promise<void>
 }
 
 export type Settings = {
@@ -371,6 +417,14 @@ export interface Services {
   loadPlay(): PlayState | null
   savePlay(state: PlayState | null): void
   readonly training: Training
+  readonly puzzles: Puzzles
+}
+
+export interface Puzzles {
+  /** The puzzles bundled with the app, loaded on first use. */
+  list(): Promise<readonly Puzzle[]>
+  attempts(): Promise<readonly PuzzleAttempt[]>
+  record(attempt: PuzzleAttempt): Promise<void>
 }
 
 export interface Training {

@@ -1,13 +1,14 @@
 import { openDB, type DBSchema, type IDBPDatabase, type IDBPObjectStore, type IDBPTransaction, type StoreNames } from 'idb'
-import type { Backup, EvalCache, GameReview, Library, LibraryRecord, Phase, PlayerSummary, Store, TrainingStore } from '../domain/types'
+import type { Backup, EvalCache, GameReview, Library, LibraryRecord, Phase, PlayerSummary, PuzzleStore, Store, TrainingStore } from '../domain/types'
 import { nextSchedule, syncItems } from '../training/training'
 import { buildBackup, planImport } from './backup'
-import { evalRow, parseEvalRow, parseLibraryRecord, parseTrainingItem, trainingRow } from './parse'
+import { evalRow, parseEvalRow, parseLibraryRecord, parsePuzzleAttempt, puzzleRow, parseTrainingItem, trainingRow } from './parse'
 
 interface Schema extends DBSchema {
   evals: { key: string; value: unknown }
   games: { key: string; value: unknown; indexes: { playedAt: number } }
   training: { key: string; value: unknown; indexes: { gameId: string } }
+  puzzles: { key: string; value: unknown }
 }
 type Db = IDBPDatabase<Schema>
 type Step = (db: Db, tx: IDBPTransaction<Schema, StoreNames<Schema>[], 'versionchange'>) => void
@@ -21,6 +22,9 @@ export const STEPS: readonly Step[] = [
   },
   (db) => {
     db.createObjectStore('training', { keyPath: 'id' }).createIndex('gameId', 'gameId')
+  },
+  (db) => {
+    db.createObjectStore('puzzles', { keyPath: 'id' })
   },
 ]
 
@@ -50,7 +54,7 @@ export async function openStore(on: StoreEvents, steps: readonly Step[] = STEPS)
     if (e instanceof DOMException && e.name === 'VersionError') on.outdated()
     throw e
   })
-  return { evals: evalCache(db), library: library(db), backup: backup(db), training: training(db) }
+  return { evals: evalCache(db), library: library(db), backup: backup(db), training: training(db), puzzles: puzzles(db) }
 }
 
 function evalCache(db: Db): EvalCache {
@@ -107,18 +111,40 @@ function training(db: Db): TrainingStore {
   }
 }
 
+function puzzles(db: Db): PuzzleStore {
+  return {
+    list: async () => (await db.getAll('puzzles')).map(parsePuzzleAttempt).filter((a) => a !== null),
+    async record(attempt) {
+      const tx = db.transaction('puzzles', 'readwrite')
+      const here = parsePuzzleAttempt(await tx.store.get(attempt.id))
+      const writes = here && here.at <= attempt.at ? [] : [tx.store.put(puzzleRow(attempt))]
+      await Promise.all([...writes, tx.done])
+    },
+  }
+}
+
 function backup(db: Db): Backup {
   return {
     export: async (settings, now) =>
-      JSON.stringify(buildBackup({ games: await db.getAll('games'), training: await db.getAll('training') }, settings, now), null, 2),
+      JSON.stringify(
+        buildBackup({ games: await db.getAll('games'), training: await db.getAll('training'), puzzles: await db.getAll('puzzles') }, settings, now),
+        null,
+        2,
+      ),
     async import(text, identity) {
       // One transaction, so a review saved meanwhile in another tab can't be overwritten by an older copy.
-      const tx = db.transaction(['games', 'training'], 'readwrite')
+      const tx = db.transaction(['games', 'training', 'puzzles'], 'readwrite')
       const games = tx.objectStore('games')
       const training = tx.objectStore('training')
-      const plan = planImport(text, { games: await games.getAll(), training: await training.getAll() }, identity)
+      const puzzles = tx.objectStore('puzzles')
+      const plan = planImport(text, { games: await games.getAll(), training: await training.getAll(), puzzles: await puzzles.getAll() }, identity)
       const writes = plan.ok
-        ? [...plan.value.put.map((r) => games.put(r)), ...plan.value.training.map((i) => training.put(trainingRow(i))), ...plan.value.drop.map((id) => training.delete(id))]
+        ? [
+            ...plan.value.put.map((r) => games.put(r)),
+            ...plan.value.training.map((i) => training.put(trainingRow(i))),
+            ...plan.value.drop.map((id) => training.delete(id)),
+            ...plan.value.puzzles.map((a) => puzzles.put(puzzleRow(a))),
+          ]
         : []
       await Promise.all([...writes, tx.done])
       return plan.ok ? { ok: true, value: plan.value.report } : plan

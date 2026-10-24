@@ -3,6 +3,7 @@ import { createEvaluator, createMovePicker, probeBridge, runtimeEnv } from '../e
 import { fetchRecentGames, parsePgnText } from '../import'
 import { loadBook } from '../openings'
 import { loadPlay, savePlay } from '../play'
+import { loadPuzzles } from '../puzzles'
 import { accuracyHistory, reviewGame } from '../review'
 import { loadSettings, openStore, saveSettings } from '../storage'
 import { backfill, checkAnswer } from '../training'
@@ -44,6 +45,18 @@ export async function createServices(): Promise<Services> {
       .then((b) => backfill({ ...store, book: b, identity: loadSettings().identity }, Date.now()))
       .catch((e: unknown) => console.warn('training backfill failed', e)))
 
+  // Loaded once, on first use; a failed load (offline before the chunk was ever stored) is tried again next time.
+  let puzzleSet: ReturnType<typeof loadPuzzles> | null = null
+  const puzzles: Services['puzzles'] = {
+    list: () =>
+      (puzzleSet ??= loadPuzzles().catch((e: unknown) => {
+        puzzleSet = null
+        throw e
+      })),
+    attempts: () => store.puzzles.list(),
+    record: (attempt) => store.puzzles.record(attempt),
+  }
+
   // A position off any review is searched ahead of the review queue, since someone is waiting on it.
   const evaluatePosition: Services['evaluatePosition'] = (p, signal) => evaluatorFor(loadSettings()).evaluate(p, signal, undefined, true)
 
@@ -72,6 +85,7 @@ export async function createServices(): Promise<Services> {
       answer: (id, correct, now) => store.training.answer(id, correct, now),
       check: (item, move, signal) => checkAnswer(item, move, (p) => evaluatePosition(p, signal)),
     },
+    puzzles,
   }
 }
 

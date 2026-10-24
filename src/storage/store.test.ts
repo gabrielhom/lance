@@ -15,6 +15,7 @@ import {
   type GameReview,
   type GameSource,
   type PositionKey,
+  type PuzzleId,
   type SearchedEval,
   type TrainingItemId,
   type Uci,
@@ -89,7 +90,7 @@ function review(
 }
 
 /** Only after `open`: it opens the database at the current version without upgrading it. */
-async function writeRaw(store: 'evals' | 'games' | 'training', value: unknown, key?: string) {
+async function writeRaw(store: 'evals' | 'games' | 'training' | 'puzzles', value: unknown, key?: string) {
   const db = await openDB('lance', STEPS.length)
   await db.put(store, value, key)
   db.close()
@@ -158,11 +159,21 @@ describe('schema', () => {
 
   it('upgrades a first-release database with the training store and keeps every row', async () => {
     await seedFirstRelease()
-    const { library, evals, training } = await open()
+    const { library, evals, training } = await openStore(QUIET, STEPS.slice(0, 2))
     expect(await library.list()).toEqual([READ])
     expect(await evals.get(KEY)).toEqual(EVAL)
     expect(await training.list()).toEqual([])
     expect(await storeNames(2)).toEqual(['evals', 'games', 'training'])
+  })
+
+  it('upgrades a database with training to one with puzzles and keeps every row', async () => {
+    const old = await openStore(QUIET, STEPS.slice(0, 2))
+    await old.library.put(operaReview({ kind: 'me', color: 'b' }), 1000)
+    const { library, training, puzzles } = await open()
+    expect((await library.list()).map((r) => r.id)).toEqual(['pgn:2dbw2vp1o9w'])
+    expect((await training.list()).map((i) => i.id)).toEqual(['pgn:2dbw2vp1o9w#17'])
+    expect(await puzzles.list()).toEqual([])
+    expect(await storeNames(3)).toEqual(['evals', 'games', 'puzzles', 'training'])
   })
 
   it('upgrades to a new version by running only the new step and keeps every row', async () => {
@@ -171,12 +182,12 @@ describe('schema', () => {
     const { library } = await openStore(QUIET, [...STEPS, step])
     expect(step).toHaveBeenCalledTimes(1)
     expect(await library.list()).toEqual([])
-    expect(await storeNames(NEXT)).toEqual(['evals', 'games', 'later', 'training'])
+    expect(await storeNames(NEXT)).toEqual(['evals', 'games', 'later', 'puzzles', 'training'])
   })
 
   it('creates every store on a fresh browser', async () => {
     await open()
-    expect(await storeNames(STEPS.length)).toEqual(['evals', 'games', 'training'])
+    expect(await storeNames(STEPS.length)).toEqual(['evals', 'games', 'puzzles', 'training'])
   })
 
   it('tells an old tab that the database is newer than its code', async () => {
@@ -419,5 +430,38 @@ describe('training', () => {
     const fresh = await open()
     await fresh.backup.import(text, { accounts: [] })
     expect((await fresh.training.list()).map((i) => [i.id, i.schedule])).toEqual([[B5, answered]])
+  })
+})
+
+describe('puzzles', () => {
+  const first = { id: '05AVd' as PuzzleId, at: 2000, solved: false, puzzleRating: 1262 }
+
+  it('keeps only the earliest attempt at a puzzle', async () => {
+    const { puzzles } = await open()
+    await puzzles.record(first)
+    await puzzles.record({ ...first, at: 3000, solved: true })
+    expect(await puzzles.list()).toEqual([first])
+    await puzzles.record({ ...first, at: 1000, solved: true })
+    expect(await puzzles.list()).toEqual([{ ...first, at: 1000, solved: true }])
+  })
+
+  it('leaves out a row it cannot read', async () => {
+    const { puzzles } = await open()
+    await puzzles.record(first)
+    await writeRaw('puzzles', { v: 2, id: '00sHx' })
+    expect(await puzzles.list()).toEqual([first])
+  })
+
+  it('comes back from a backup', async () => {
+    const { puzzles, backup } = await open()
+    await puzzles.record(first)
+    const text = await backup.export(DEFAULT_SETTINGS, 5000)
+    expect(JSON.parse(text).stores.puzzles).toEqual([{ v: 1, ...first }])
+
+    vi.stubGlobal('indexedDB', new IDBFactory())
+    const fresh = await open()
+    await fresh.puzzles.record({ id: '00sHx' as PuzzleId, at: 4000, solved: true, puzzleRating: 1760 })
+    await fresh.backup.import(text, { accounts: [] })
+    expect((await fresh.puzzles.list()).map((a) => a.id)).toEqual(['00sHx', '05AVd'])
   })
 })

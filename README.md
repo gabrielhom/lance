@@ -12,7 +12,13 @@ A partida em andamento sobrevive a um recarregamento, com os relógios onde esta
 
 ## Treinar
 
-Cada erro, blunder ou chance perdida seu numa partida revisada vira uma posição de treino: você tenta achar um lance melhor no tabuleiro. Conta como certo o lance da engine ou outro que perca menos de 2 pontos de chance de vitória, o limite do "excelente". As posições seguem caixas de Leitner: acertar adia a próxima vez (3, 7, 14 e 30 dias), errar traz de volta no dia seguinte. A posição errada também volta uma vez no fim da mesma sessão, para tentar de novo, sem mudar a agenda. A tela inicial mostra quantas estão para hoje, e a revisão leva ao treino dos erros daquela partida.
+Cada erro, blunder ou chance perdida seu numa partida revisada vira uma posição de treino: você tenta achar um lance melhor no tabuleiro. Conta como certo o lance da engine ou outro que perca menos de 2 pontos de chance de vitória, o limite do "excelente". As posições seguem caixas de Leitner: acertar adia a próxima vez (3, 7, 14 e 30 dias), errar traz de volta no dia seguinte. A posição errada também volta uma vez no fim da mesma sessão, para tentar de novo, sem mudar a agenda. A tela inicial mostra quantas estão para hoje, ou um atalho para os puzzles quando não há nenhuma, e a revisão leva ao treino dos erros daquela partida.
+
+**Puzzles.** Na mesma tela, a aba Puzzles traz 3.600 puzzles da base aberta do Lichess, que funcionam offline como o resto do app. O adversário faz o primeiro lance e você acha a sequência. Um lance fora da solução erra o puzzle, menos quando o lance da solução dá mate e o seu também dá, como no Lichess. "Ver solução" conta como erro. Depois do resultado dá para passar a solução lance a lance e abrir a partida original no Lichess. O próximo puzzle vem a até 100 pontos do seu rating, e a janela abre para 200 e 400 antes de repetir um puzzle já feito. Dá para filtrar por tema.
+
+**Rating de puzzles.** Começa em 1500 e muda a cada puzzle pelo Elo contra o rating do puzzle no Lichess, com K = 800 / (puzzles feitos + 5), nunca abaixo de 16. É mais ou menos o passo com que o Elo converge para o rating mais provável, como uma média das partidas, e o +5 vale como cinco puzzles imaginários em 1500, para os primeiros não balançarem demais. Do 45º puzzle em diante o K fica em 16, e o rating continua acompanhando quem melhora. Só a primeira tentativa em cada puzzle conta, como no Lichess. O rating não fica guardado: ele sai das tentativas refeitas em ordem, então o backup junta as tentativas de dois aparelhos sem deixar o rating fora de compasso.
+
+**De onde vêm os puzzles.** `node scripts/build-puzzles.mjs` lê a base inteira de puzzles do Lichess (`lichess_db_puzzle.csv.zst`, 307 MB, CC0) sem guardar o arquivo e fica com os puzzles de popularidade 80 ou mais, jogados 300 vezes ou mais e com desvio de rating até 90. Pega 150 em cada faixa de 100 pontos, de 400 a 2799, alternando entre os temas do filtro para que cada tema apareça em todo nível que o tem. A seleção atual vem da base atualizada em 5 de outubro de 2026: 6.157.341 puzzles lidos, 3.600 guardados em `src/puzzles/puzzles.json`. São 217 kB com gzip, baixados na primeira vez que alguém abre os puzzles.
 
 ## Rodar
 
@@ -106,5 +112,6 @@ O e2e usa a engine nativa em `engines/stockfish-19` para testar a ponte e pula e
 - `src/play`: as regras da partida jogada aqui, relógios, níveis, PGN e a partida em andamento salva.
 - `src/review`: orquestra a análise de uma partida e o histórico de precisão.
 - `src/training`: posições de treino, agenda e conferência da resposta. `TRAINING` guarda os limites.
+- `src/puzzles`: os puzzles do Lichess, a tentativa como máquina de estados, o rating e a escolha do próximo puzzle.
 - `src/ui`: a interface em React.
 - `bridge/server.mjs`: a ponte para engines nativas.

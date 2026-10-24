@@ -8,6 +8,7 @@ import { perspective } from '../../domain/identity'
 import { loadPlay, savePlay } from '../../play'
 import { buildBackup, libraryRecord, planImport } from '../../storage'
 import { checkAnswer, nextSchedule, syncItems } from '../../training'
+import { fromTuple, type PuzzleTuple } from '../../puzzles'
 import { accuracyHistory } from '../../review'
 import type {
   AccuracyPct,
@@ -50,6 +51,8 @@ import type {
   Settings,
   TrainingItem,
   TrainingItemId,
+  PuzzleAttempt,
+  PuzzleId,
   Uci,
   WinPct,
 } from '../../domain/types'
@@ -379,6 +382,17 @@ async function fabricateReview(game: Game, who: Perspective): Promise<GameReview
 }
 
 const DAY = 86_400_000
+
+/** A few puzzles from the bundled set around the starting rating, so the puzzle mode works without loading the chunk. */
+const PUZZLES: readonly PuzzleTuple[] = [
+  ['05AVd', 'r6k/p3RQbp/2pq2pB/1p5n/8/2N4P/PP3PP1/6K1 b - - 2 23', 'a8f8 h6g7 h5g7 f7f8', 1262, 'fork mate mateIn2 middlegame', 'https://lichess.org/gFIz2Iat/black#46'],
+  ['06Xkp', '4r1k1/R5b1/6pp/3p4/5N1P/8/Pr4P1/5RK1 w - - 2 32', 'f4g6 g7d4 g1h2 d4a7', 1416, 'advantage endgame fork', 'https://lichess.org/1XcUQxoh#63'],
+  ['04q5c', '6r1/4kB2/3p1p2/2q1pP2/1p2b3/pQ4P1/PPP5/1K1R4 b - - 0 33', 'g8g3 b3e6 e7d8 d1d6 c5d6 e6d6', 1482, 'crushing deflection endgame', 'https://lichess.org/IQNFsvDW/black#66'],
+  ['03Yux', '1R6/4bkpp/5q2/2p5/2Q4P/2P1P1P1/P4P1K/3r4 b - - 4 37', 'f7g6 c4g4 g6h6 g4d1', 1515, 'advantage endgame fork', 'https://lichess.org/rwZWmqY5/black#74'],
+  ['01RWL', '8/1B1K4/p4k2/8/1P4p1/5p2/P7/8 w - - 0 46', 'b7a6 g4g3 b4b5 g3g2 b5b6 g2g1q', 1556, 'advancedPawn bishopEndgame crushing endgame promotion', 'https://lichess.org/mp7s11NO#91'],
+  ['00LNH', '1k2r3/pp2r2p/2pqbpp1/3n4/2BP1p2/5N1P/PPQB1PP1/1K1RR3 w - - 2 22', 'c4b3 e6f5 c2f5 g6f5', 1593, 'advantage middlegame pin', 'https://lichess.org/gVcbpusg#43'],
+  ['07MiZ', '5rk1/ppp2qbp/3p1np1/3Pp3/1PP5/4P2Q/P5PP/3R1RK1 b - - 0 22', 'f7d7 f1f6 d7h3 f6f8 g8f8 g2h3', 1660, 'advantage kingsideAttack middlegame', 'https://lichess.org/uVtYwAW8/black#44'],
+]
 type Seed = { pgn: string; white: string; black: string; result: GameResult; daysAgo: number; tc: string; source: 'lichess' | 'chesscom' | 'pgn' }
 const SEEDS: readonly Seed[] = [
   { pgn: operaPgn, white: 'Paul Morphy', black: 'Duke Karl / Count Isouard', result: '1-0', daysAgo: 1, tc: '-', source: 'pgn' },
@@ -472,18 +486,29 @@ export function createMockServices(): Services {
     },
   }
 
+  const attempts = new Map<PuzzleId, PuzzleAttempt>()
+  const puzzles: Services['puzzles'] = {
+    list: async () => PUZZLES.map(fromTuple),
+    attempts: async () => [...attempts.values()],
+    async record(a) {
+      const here = attempts.get(a.id)
+      if (!here || a.at < here.at) attempts.set(a.id, a)
+    },
+  }
+
   const backup: Services['backup'] = {
     async export(settings, at) {
       await seeded
-      return JSON.stringify(buildBackup({ games: [...records.values()], training: [...items.values()] }, settings, at), null, 2)
+      return JSON.stringify(buildBackup({ games: [...records.values()], training: [...items.values()], puzzles: [...attempts.values()] }, settings, at), null, 2)
     },
     async import(text, current) {
       await seeded
-      const plan = planImport(text, { games: [...records.values()], training: [...items.values()] }, current)
+      const plan = planImport(text, { games: [...records.values()], training: [...items.values()], puzzles: [...attempts.values()] }, current)
       if (!plan.ok) return plan
       for (const r of plan.value.put) records.set(r.id, r)
       for (const i of plan.value.training) items.set(i.id, i)
       for (const id of plan.value.drop) items.delete(id)
+      for (const a of plan.value.puzzles) attempts.set(a.id, a)
       return { ok: true, value: plan.value.report }
     },
   }
@@ -506,6 +531,7 @@ export function createMockServices(): Services {
 
   return {
     training,
+    puzzles,
     async engineMove(input, _level, signal) {
       await sleep(250 + Math.random() * 350, signal)
       return mockMove(input)

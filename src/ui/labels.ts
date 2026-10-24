@@ -1,4 +1,4 @@
-import type { BridgeProbeError, Classification, EngineFailureReason, FetchFailure, GameRejection, Phase } from '../domain/types'
+import type { BridgeProbeError, Classification, EngineFailureReason, FetchFailure, GameRejection, Phase, PuzzleTheme } from '../domain/types'
 
 export const PHASE_LABEL: Readonly<Record<Phase, string>> = { opening: 'Abertura', middlegame: 'Meio de jogo', endgame: 'Final' }
 
@@ -13,6 +13,57 @@ export const CLASSIFICATION_LABEL: Readonly<Record<Classification, string>> = {
   mistake: 'Erro',
   blunder: 'Blunder',
   miss: 'Chance perdida',
+}
+
+export const THEME_LABEL: Readonly<Record<PuzzleTheme, string>> = {
+  mateIn1: 'Mate em 1',
+  mateIn2: 'Mate em 2',
+  mateIn3: 'Mate em 3',
+  mateIn4: 'Mate em 4',
+  mateIn5: 'Mate em 5 ou mais',
+  mate: 'Mate',
+  backRankMate: 'Mate no corredor',
+  smotheredMate: 'Mate sufocado',
+  fork: 'Garfo',
+  pin: 'Cravada',
+  skewer: 'Espeto',
+  discoveredAttack: 'Ataque descoberto',
+  discoveredCheck: 'Xeque descoberto',
+  doubleCheck: 'Xeque duplo',
+  xRayAttack: 'Raio X',
+  sacrifice: 'Sacrifício',
+  deflection: 'Desvio',
+  attraction: 'Atração',
+  clearance: 'Abertura de linha',
+  interference: 'Interferência',
+  intermezzo: 'Lance intermediário',
+  capturingDefender: 'Captura do defensor',
+  hangingPiece: 'Peça solta',
+  trappedPiece: 'Peça presa',
+  quietMove: 'Lance silencioso',
+  defensiveMove: 'Defesa',
+  zugzwang: 'Zugzwang',
+  advancedPawn: 'Peão avançado',
+  promotion: 'Promoção',
+  underPromotion: 'Subpromoção',
+  enPassant: 'En passant',
+  castling: 'Roque',
+  kingsideAttack: 'Ataque na ala do rei',
+  queensideAttack: 'Ataque na ala da dama',
+  exposedKing: 'Rei exposto',
+  attackingF2F7: 'Ataque em f2 ou f7',
+  advantage: 'Vantagem',
+  crushing: 'Vantagem decisiva',
+  equality: 'Igualdade',
+  opening: 'Abertura',
+  middlegame: 'Meio de jogo',
+  endgame: 'Final',
+  pawnEndgame: 'Final de peões',
+  rookEndgame: 'Final de torres',
+  bishopEndgame: 'Final de bispos',
+  knightEndgame: 'Final de cavalos',
+  queenEndgame: 'Final de damas',
+  queenRookEndgame: 'Final de dama e torre',
 }
 
 /** The classifications "próximo erro" stops at. */
