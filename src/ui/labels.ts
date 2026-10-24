@@ -16,19 +16,21 @@ export const CLASSIFICATION_LABEL: Readonly<Record<Classification, string>> = {
 /** The classifications "próximo erro" stops at. */
 export const ERROR_CLASSIFICATIONS: ReadonlySet<Classification> = new Set(['inaccuracy', 'mistake', 'blunder', 'miss'])
 
-export function fetchFailureText(f: FetchFailure, username: string): { title: string; detail: string } {
+/** `technical` is the raw English detail from the network or the site, for a disclosure only. */
+export function fetchFailureText(f: FetchFailure, username: string): { title: string; text: string; technical: string | null } {
   switch (f.kind) {
     case 'not-found':
-      return { title: `Usuário "${username}" não encontrado`, detail: 'Confira a grafia do nome de usuário e o site escolhido.' }
+      return { title: `Usuário "${username}" não encontrado`, text: 'Confira a grafia do nome de usuário e o site escolhido.', technical: null }
     case 'rate-limited':
       return {
         title: 'Muitas requisições',
-        detail: f.retryAfterS ? `O site pediu para esperar ${f.retryAfterS} s antes de tentar de novo.` : 'O site pediu para esperar um pouco antes de tentar de novo.',
+        text: f.retryAfterS ? `O site pediu para esperar ${f.retryAfterS} s antes de tentar de novo.` : 'O site pediu para esperar um pouco antes de tentar de novo.',
+        technical: null,
       }
     case 'network':
-      return { title: 'Sem conexão com o site', detail: f.detail }
+      return { title: 'Sem conexão com o site', text: 'Não deu para falar com o site. Confira sua conexão com a internet e tente de novo.', technical: f.detail }
     case 'bad-response':
-      return { title: 'Resposta inesperada do site', detail: f.detail }
+      return { title: 'Resposta inesperada do site', text: 'O site respondeu de um jeito que o app não entende. Tente de novo em instantes.', technical: f.detail }
   }
 }
 

@@ -254,7 +254,13 @@ function FetchBody({ state, onPick, onRetry }: { state: FetchState; onPick: (g: 
         <div role="alert" className="note mt-0">
           <div>
             <p className="font-semibold">{t.title}</p>
-            <p className="text-ink-2 mt-0.5">{t.detail}</p>
+            <p className="text-ink-2 mt-0.5">{t.text}</p>
+            {t.technical && (
+              <details className="mt-1">
+                <summary className="cursor-pointer text-sm">Detalhes técnicos</summary>
+                <code className="block mt-1 text-xs break-words">{t.technical}</code>
+              </details>
+            )}
             {state.failure.kind !== 'not-found' && (
               <button type="button" className="tl mt-1" onClick={onRetry}>
                 Tentar de novo
