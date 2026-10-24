@@ -3,8 +3,10 @@ import { CLASSIFICATIONS, type EngineId, type GameId, type GameSource, type Libr
 import { accuracyHistory } from '.'
 
 const NO_COUNTS = Object.fromEntries(CLASSIFICATIONS.map((c) => [c, 0])) as LibraryRecord['summary']['counts']['w']
+const counts = (c: Partial<typeof NO_COUNTS>) => ({ ...NO_COUNTS, ...c })
+const FULL = counts({ book: 6, good: 12 })
 
-function record(id: string, white: string, black: string, opts: Partial<LibraryRecord> & { acc?: [number | null, number | null] }): LibraryRecord {
+function record(id: string, white: string, black: string, opts: Partial<LibraryRecord> & { acc?: [number | null, number | null]; counts?: LibraryRecord['summary']['counts'] }): LibraryRecord {
   const source: GameSource = opts.source ?? { kind: 'lichess', id, url: `https://lichess.org/${id}` }
   return {
     v: 1,
@@ -19,7 +21,7 @@ function record(id: string, white: string, black: string, opts: Partial<LibraryR
     summary: {
       classifierVersion: 1,
       accuracy: { w: opts.acc ? opts.acc[0] : 80, b: opts.acc ? opts.acc[1] : 70 },
-      counts: { w: NO_COUNTS, b: NO_COUNTS },
+      counts: opts.counts ?? { w: FULL, b: FULL },
       opening: null,
     },
   }
@@ -29,7 +31,7 @@ describe('accuracyHistory', () => {
   const identity = { accounts: [{ site: 'lichess', username: 'gabrielhom' }] } as const
 
   it('plots my accuracy with my color and opponent, oldest first', () => {
-    const points = accuracyHistory(
+    const { points } = accuracyHistory(
       [
         record('new', 'rival', 'GabrielHom', { playedAt: 3000, result: '0-1', acc: [60, 91] }),
         record('old', 'gabrielhom', 'rival', { playedAt: 2000 }),
@@ -44,7 +46,7 @@ describe('accuracyHistory', () => {
 
   it('leaves out games I did not play, other sites, and moves I never made', () => {
     const chesscom: GameSource = { kind: 'chesscom', uuid: 'u', url: 'https://www.chess.com/game/live/1' }
-    const points = accuracyHistory(
+    const { points } = accuracyHistory(
       [
         record('a', 'someone', 'else', {}),
         record('b', 'gabrielhom', 'x', { source: chesscom }),
@@ -56,13 +58,29 @@ describe('accuracyHistory', () => {
   })
 
   it('places an undated game at the time it was reviewed', () => {
-    const [point] = accuracyHistory([record('p', 'gabrielhom', 'x', { playedAt: null, reviewedAt: 7777 })], identity)
+    const [point] = accuracyHistory([record('p', 'gabrielhom', 'x', { playedAt: null, reviewedAt: 7777 })], identity).points
     expect(point.playedAt).toBe(7777)
   })
 
   it('counts a game played in Lance with no account set', () => {
     const played: GameSource = { kind: 'played', id: 'k3x9', you: 'b' }
-    const points = accuracyHistory([record('k3x9', 'Stockfish (Iniciante)', 'Você', { source: played, acc: [99, 64] })], { accounts: [] })
+    const { points } = accuracyHistory([record('k3x9', 'Stockfish (Iniciante)', 'Você', { source: played, acc: [99, 64] })], { accounts: [] })
     expect(points).toMatchObject([{ gameId: 'played:k3x9', color: 'b', accuracy: 64, opponent: { name: 'Stockfish (Iniciante)' } }])
+  })
+
+  it('leaves out games with fewer than 10 of my moves outside theory and counts them', () => {
+    const short = { w: counts({ book: 2 }), b: counts({ good: 9, book: 20 }) }
+    const edge = { w: counts({ good: 4, inaccuracy: 3, blunder: 3, book: 1 }), b: FULL }
+    const history = accuracyHistory(
+      [
+        record('twomoves', 'gabrielhom', 'x', { counts: short, acc: [100, 50] }),
+        record('nine', 'x', 'gabrielhom', { counts: short, playedAt: 2000, acc: [50, 88] }),
+        record('ten', 'gabrielhom', 'x', { counts: edge, playedAt: 3000, acc: [71, 50] }),
+        record('stranger', 'a', 'b', { counts: short }),
+      ],
+      identity,
+    )
+    expect(history.points.map((p) => [p.gameId, p.accuracy])).toEqual([['lichess:ten', 71]])
+    expect(history.shortGames).toBe(2)
   })
 })

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
-import type { AccuracyPoint, LibraryRecord } from '../../domain/types'
+import { MIN_MOVES_OUTSIDE_THEORY, type AccuracyHistory, type LibraryRecord } from '../../domain/types'
 import { formatAccuracy } from '../format'
 import { LibraryList } from '../import/GameList'
 import { finishedReviews, subscribeReviews } from '../review/runs'
@@ -21,7 +21,7 @@ export function HistoryScreen() {
       alive = false
     }
   }, [services, finished])
-  const points: readonly AccuracyPoint[] = useMemo(() => (records ? services.accuracyHistory(records, settings.identity) : []), [services, records, settings])
+  const { points, shortGames }: AccuracyHistory = useMemo(() => (records ? services.accuracyHistory(records, settings.identity) : { points: [], shortGames: 0 }), [services, records, settings])
   const avg = points.length ? points.reduce((s, p) => s + p.accuracy, 0) / points.length : null
   const wins = points.filter((p) => (p.result === '1-0') === (p.color === 'w') && p.result !== '1/2-1/2' && p.result !== '*').length
   const draws = points.filter((p) => p.result === '1/2-1/2').length
@@ -57,9 +57,14 @@ export function HistoryScreen() {
           {records === null ? (
             <p className="caption" aria-busy="true">Carregando…</p>
           ) : points.length === 0 ? (
-            <p className="caption py-6">Nenhuma partida sua foi revisada ainda.</p>
+            <p className="caption py-6">{shortGames > 0 ? 'Nenhuma partida sua com lances suficientes foi revisada ainda.' : 'Nenhuma partida sua foi revisada ainda.'}</p>
           ) : (
             <AccuracyChart points={points} />
+          )}
+          {records !== null && shortGames > 0 && (
+            <p className="caption mt-3" data-testid="short-games">
+              {shortGames === 1 ? '1 partida curta ficou de fora' : `${shortGames} partidas curtas ficaram de fora`}: menos de {MIN_MOVES_OUTSIDE_THEORY} lances fora da teoria.
+            </p>
           )}
         </div>
       </section>

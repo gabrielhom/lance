@@ -115,6 +115,10 @@ export type MoveReview = {
   readonly alternative: EvalLine | null
   readonly opening: Opening | null
 }
+/** Below this many moves outside opening theory, an accuracy says too little to enter the history. */
+export const MIN_MOVES_OUTSIDE_THEORY = 10
+export const movesOutsideTheory = (counts: Readonly<Record<Classification, number>>): number =>
+  CLASSIFICATIONS.reduce((n, k) => (k === 'book' ? n : n + counts[k]), 0)
 export type PlayerSummary = {
   readonly player: PlayerTag
   readonly accuracy: AccuracyPct | null
@@ -273,6 +277,8 @@ export type AccuracyPoint = {
   readonly result: GameResult
   readonly opponent: PlayerTag
 }
+/** `shortGames` counts my games left out for having too few moves outside theory. */
+export type AccuracyHistory = { readonly points: readonly AccuracyPoint[]; readonly shortGames: number }
 export type BridgeEngine = { readonly name: string; readonly idName: string }
 export type BridgeProbeError = { readonly kind: 'unreachable' } | { readonly kind: 'refused' } | { readonly kind: 'not-uci'; readonly detail: string }
 
@@ -292,7 +298,7 @@ export interface Services {
   gameFromRecord(record: LibraryRecord): Result<Game, GameRejection>
   /** Uses the engine and identity from the current settings, saves to the library when done. Ends silently on abort. */
   reviewGame(game: Game, signal: AbortSignal): AsyncIterable<ReviewState>
-  accuracyHistory(records: readonly LibraryRecord[], identity: Identity): readonly AccuracyPoint[]
+  accuracyHistory(records: readonly LibraryRecord[], identity: Identity): AccuracyHistory
   probeBridge(url: string, signal: AbortSignal): Promise<Result<readonly BridgeEngine[], BridgeProbeError>>
   /** Uses the engine from the current settings. */
   engineMove(input: EngineInput, level: PlayLevel, signal: AbortSignal): Promise<Uci>

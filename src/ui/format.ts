@@ -1,4 +1,5 @@
-import type { ByColor, Color, GameResult, GameSource, PlayerTag, Position, TimeControl } from '../domain/types'
+import { MIN_MOVES_OUTSIDE_THEORY, movesOutsideTheory } from '../domain/types'
+import type { ByColor, Color, GameResult, GameReview, GameSource, PlayerTag, Position, TimeControl } from '../domain/types'
 
 const dateFmt = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })
 const shortDateFmt = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit' })
@@ -108,3 +109,6 @@ export function formatTimeLeft(seconds: number): string {
   if (seconds < 60) return `cerca de ${Math.round(seconds / 5) * 5} s restantes`
   return `cerca de ${Math.round(seconds / 60)} min restantes`
 }
+
+export const TOO_SHORT_NOTE = 'Poucos lances fora da teoria: a precisão diz pouco.'
+export const tooShort = (review: GameReview, me: Color | null): boolean => me !== null && movesOutsideTheory(review.players[me].counts) < MIN_MOVES_OUTSIDE_THEORY

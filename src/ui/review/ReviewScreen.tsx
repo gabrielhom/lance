@@ -2,7 +2,7 @@ import { Chess } from 'chess.js'
 import { useEffect, useMemo, useState } from 'react'
 import { perspective } from '../../domain/identity'
 import type { Color, Game, GameId, GameReview, ReviewState, Square } from '../../domain/types'
-import { formatDate, formatEval, formatAccuracy, formatTimeControl, joinKnown, resultLabel, sourceLabel } from '../format'
+import { TOO_SHORT_NOTE, formatDate, formatEval, formatAccuracy, formatTimeControl, joinKnown, resultLabel, sourceLabel, tooShort } from '../format'
 import { CopyPgn } from '../CopyPgn'
 import { ERROR_CLASSIFICATIONS } from '../labels'
 import { heldGame } from '../pending'
@@ -240,5 +240,10 @@ function ReviewStrip({ review, me }: { review: GameReview; me: Color | null }) {
   const text = me
     ? `você ${formatAccuracy(review.players[me].accuracy)}, oponente ${formatAccuracy(review.players[me === 'w' ? 'b' : 'w'].accuracy)}`
     : `brancas ${formatAccuracy(w.accuracy)}, pretas ${formatAccuracy(b.accuracy)}`
-  return <p className="lg:hidden mt-1 font-serif italic text-ink-2">Precisão: {text}</p>
+  return (
+    <p className="lg:hidden mt-1 font-serif italic text-ink-2">
+      Precisão: {text}
+      {tooShort(review, me) && <span className="block text-sm">{TOO_SHORT_NOTE}</span>}
+    </p>
+  )
 }

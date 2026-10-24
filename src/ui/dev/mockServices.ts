@@ -7,9 +7,9 @@ import { keyMoments } from '../../analysis'
 import { perspective } from '../../domain/identity'
 import { loadPlay, savePlay } from '../../play'
 import { buildBackup, planImport } from '../../storage'
+import { accuracyHistory } from '../../review'
 import type {
   AccuracyPct,
-  AccuracyPoint,
   AnalysisProfile,
   BridgeEngine,
   BridgeProbeError,
@@ -538,17 +538,7 @@ export function createMockServices(): Services {
         throw e
       }
     },
-    accuracyHistory(recs, who): readonly AccuracyPoint[] {
-      const points: AccuracyPoint[] = []
-      for (const r of recs) {
-        const p = perspective(who, r.players, r.source)
-        if (p.kind !== 'me' || r.playedAt === null) continue
-        const accuracy = r.summary.accuracy[p.color]
-        if (accuracy === null) continue
-        points.push({ gameId: r.id, playedAt: r.playedAt, color: p.color, accuracy, result: r.result, opponent: r.players[p.color === 'w' ? 'b' : 'w'] })
-      }
-      return points.sort((a, b) => a.playedAt - b.playedAt)
-    },
+    accuracyHistory,
     async probeBridge(url, signal): Promise<Result<readonly BridgeEngine[], BridgeProbeError>> {
       await sleep(600, signal)
       if (url.includes('nada')) return { ok: false, error: { kind: 'unreachable' } }
