@@ -1,5 +1,6 @@
 import {
   CLASSIFICATIONS,
+  PHASES,
   WASM_FLAVORS,
   type Account,
   type AnalysisProfile,
@@ -18,6 +19,7 @@ import {
   type LibraryRecord,
   type NonEmpty,
   type Opening,
+  type Phase,
   type PlayerTag,
   type ReviewSummary,
   type San,
@@ -158,8 +160,15 @@ function parseSummary(x: unknown): ReviewSummary | null {
   const accuracy = isObj(a) && isAccuracy(a.w) && isAccuracy(a.b) ? { w: a.w, b: a.b } : null
   const counts = byColor(x.counts, parseCounts)
   const opening = x.opening === null ? null : parseOpening(x.opening)
-  if (!accuracy || !counts || opening === undefined) return null
-  return { classifierVersion: x.classifierVersion, accuracy, counts, opening }
+  // Rows saved before phases existed have none; a malformed value is still a bad row.
+  const phases = x.phases === undefined || x.phases === null ? null : (byColor(x.phases, parsePhases) ?? undefined)
+  if (!accuracy || !counts || opening === undefined || phases === undefined) return null
+  return { classifierVersion: x.classifierVersion, accuracy, counts, opening, phases }
+}
+
+function parsePhases(x: unknown): Readonly<Record<Phase, number | null>> | null {
+  if (!isObj(x) || !PHASES.every((p) => isAccuracy(x[p]))) return null
+  return Object.fromEntries(PHASES.map((p) => [p, x[p]])) as Record<Phase, number | null>
 }
 
 const isAccuracy = (a: unknown): a is number | null => a === null || isNum(a)

@@ -1,5 +1,5 @@
 import { openDB, type DBSchema, type IDBPDatabase, type IDBPObjectStore, type IDBPTransaction, type StoreNames } from 'idb'
-import type { Backup, EvalCache, GameReview, Library, LibraryRecord, Store, TrainingStore } from '../domain/types'
+import type { Backup, EvalCache, GameReview, Library, LibraryRecord, Phase, PlayerSummary, Store, TrainingStore } from '../domain/types'
 import { nextSchedule, syncItems } from '../training/training'
 import { buildBackup, planImport } from './backup'
 import { evalRow, parseEvalRow, parseLibraryRecord, parseTrainingItem, trainingRow } from './parse'
@@ -131,7 +131,7 @@ function sortTime(r: LibraryRecord): number {
   return r.playedAt ?? r.reviewedAt
 }
 
-function libraryRecord(review: GameReview, now: number): LibraryRecord {
+export function libraryRecord(review: GameReview, now: number): LibraryRecord {
   const { game, players } = review
   return {
     v: 1,
@@ -148,6 +148,11 @@ function libraryRecord(review: GameReview, now: number): LibraryRecord {
       accuracy: { w: players.w.accuracy, b: players.b.accuracy },
       counts: { w: players.w.counts, b: players.b.counts },
       opening: review.opening,
+      phases: { w: phaseAccuracies(players.w), b: phaseAccuracies(players.b) },
     },
   }
+}
+
+function phaseAccuracies({ phases }: PlayerSummary): Record<Phase, number | null> {
+  return { opening: phases.opening.accuracy, middlegame: phases.middlegame.accuracy, endgame: phases.endgame.accuracy }
 }

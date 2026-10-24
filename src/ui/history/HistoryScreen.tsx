@@ -6,6 +6,12 @@ import { finishedReviews, subscribeReviews } from '../review/runs'
 import { useServices, useSettings } from '../services'
 import { AccuracyChart } from './AccuracyChart'
 
+const EMPTY: AccuracyHistory = {
+  points: [],
+  shortGames: 0,
+  phases: { opening: { accuracy: null, games: 0 }, middlegame: { accuracy: null, games: 0 }, endgame: { accuracy: null, games: 0 } },
+}
+
 export function HistoryScreen() {
   const services = useServices()
   const [settings] = useSettings()
@@ -21,7 +27,7 @@ export function HistoryScreen() {
       alive = false
     }
   }, [services, finished])
-  const { points, shortGames }: AccuracyHistory = useMemo(() => (records ? services.accuracyHistory(records, settings.identity) : { points: [], shortGames: 0 }), [services, records, settings])
+  const { points, shortGames }: AccuracyHistory = useMemo(() => (records ? services.accuracyHistory(records, settings.identity) : EMPTY), [services, records, settings])
   const avg = points.length ? points.reduce((s, p) => s + p.accuracy, 0) / points.length : null
   const wins = points.filter((p) => (p.result === '1-0') === (p.color === 'w') && p.result !== '1/2-1/2' && p.result !== '*').length
   const draws = points.filter((p) => p.result === '1/2-1/2').length

@@ -18,7 +18,7 @@ function record(id: string, reviewedAt: number) {
     reviewedAt,
     pgn: '1. e4 1-0',
     profile: { engine: 'sf19/nn-61e7af4bb97d', limit: { kind: 'depth', depth: 18 } },
-    summary: { classifierVersion: 1, accuracy: { w: 91.5, b: null }, counts: { w: ZERO, b: ZERO }, opening: null },
+    summary: { classifierVersion: 1, accuracy: { w: 91.5, b: null }, counts: { w: ZERO, b: ZERO }, opening: null, phases: null },
   }
 }
 

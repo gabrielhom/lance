@@ -58,12 +58,33 @@ function review(
     classifierVersion: 1,
     moves: [],
     players: {
-      w: { player: game.players.w, accuracy: accuracy.w as AccuracyPct | null, counts: { ...ZERO, best: 12, excellent: 4, blunder: 1 } },
-      b: { player: game.players.b, accuracy: accuracy.b as AccuracyPct | null, counts: { ...ZERO, mistake: 3 } },
+      w: {
+        player: game.players.w,
+        accuracy: accuracy.w as AccuracyPct | null,
+        elo: { elo: 1800, low: 1500, high: 2100 },
+        counts: { ...ZERO, best: 12, excellent: 4, blunder: 1 },
+        phases: {
+          opening: { moves: 8, accuracy: 96.5 as AccuracyPct, elo: { elo: 1700, low: 1400, high: 2000 } },
+          middlegame: { moves: 9, accuracy: 88.25 as AccuracyPct, elo: { elo: 1900, low: 1600, high: 2200 } },
+          endgame: { moves: 0, accuracy: null, elo: null },
+        },
+      },
+      b: {
+        player: game.players.b,
+        accuracy: accuracy.b as AccuracyPct | null,
+        elo: null,
+        counts: { ...ZERO, mistake: 3 },
+        phases: {
+          opening: { moves: 3, accuracy: null, elo: null },
+          middlegame: { moves: 0, accuracy: null, elo: null },
+          endgame: { moves: 0, accuracy: null, elo: null },
+        },
+      },
     },
     graph: [{ index: 0, whiteWin: 50 as WinPct, label: '+0.3' }],
     keyMoments: [],
     opening: { eco: 'B00', name: "King's Pawn Game" },
+    division: { middlegame: 16, endgame: null },
   }
 }
 
@@ -99,6 +120,9 @@ const RECORD = {
   },
 }
 
+/** RECORD as this version reads it: rows from before phases existed have none. */
+const READ = { ...RECORD, summary: { ...RECORD.summary, phases: null } }
+
 /** The database exactly as the first release created it, before upgrades went through STEPS. */
 async function seedFirstRelease() {
   const db = await openDB('lance', 1, {
@@ -128,14 +152,14 @@ describe('schema', () => {
   it('reads a database created by the first release', async () => {
     await seedFirstRelease()
     const { library, evals } = await open()
-    expect(await library.list()).toEqual([RECORD])
+    expect(await library.list()).toEqual([READ])
     expect(await evals.get(KEY)).toEqual(EVAL)
   })
 
   it('upgrades a first-release database with the training store and keeps every row', async () => {
     await seedFirstRelease()
     const { library, evals, training } = await open()
-    expect(await library.list()).toEqual([RECORD])
+    expect(await library.list()).toEqual([READ])
     expect(await evals.get(KEY)).toEqual(EVAL)
     expect(await training.list()).toEqual([])
     expect(await storeNames(2)).toEqual(['evals', 'games', 'training'])
@@ -171,7 +195,7 @@ describe('schema', () => {
     const newer = await openStore({ ...QUIET, blocked }, [...STEPS, NEXT_STEP])
     expect(stale).toHaveBeenCalledTimes(1)
     expect(blocked).not.toHaveBeenCalled()
-    expect(await newer.library.list()).toEqual([RECORD])
+    expect(await newer.library.list()).toEqual([READ])
     await expect(old.library.list()).rejects.toThrow(/closed|InvalidState/i)
   })
 
@@ -183,7 +207,7 @@ describe('schema', () => {
     const opening = openStore({ ...QUIET, blocked }, [...STEPS, NEXT_STEP])
     await vi.waitFor(() => expect(blocked).toHaveBeenCalledTimes(1))
     oldTab.close()
-    expect(await (await opening).library.list()).toEqual([RECORD])
+    expect(await (await opening).library.list()).toEqual([READ])
   })
 })
 
@@ -235,6 +259,10 @@ describe('library', () => {
         accuracy: { w: 91.5, b: 73.2 },
         counts: { w: { ...ZERO, best: 12, excellent: 4, blunder: 1 }, b: { ...ZERO, mistake: 3 } },
         opening: { eco: 'B00', name: "King's Pawn Game" },
+        phases: {
+          w: { opening: 96.5, middlegame: 88.25, endgame: null },
+          b: { opening: null, middlegame: null, endgame: null },
+        },
       },
     })
   })
@@ -304,6 +332,12 @@ describe('library', () => {
     expect(await library.unreadable()).toBe(2)
     expect(await library.get('lichess:bad00000' as GameId)).toBeNull()
   })
+
+  it('misses a row whose phases are malformed', async () => {
+    const { library } = await open()
+    await writeRaw('games', { ...RECORD, summary: { ...RECORD.summary, phases: { w: { opening: 'high' }, b: null } } })
+    expect(await library.get('lichess:abcd1234' as GameId)).toBeNull()
+  })
 })
 
 describe('backup', () => {
@@ -322,7 +356,7 @@ describe('backup', () => {
       ok: true,
       value: { imported: 1, alreadyHere: 0, ignored: 1, identity: { accounts: [{ site: 'lichess', username: 'gabrielhom' }] } },
     })
-    expect(await library.list()).toEqual([RECORD])
+    expect(await library.list()).toEqual([READ])
     expect(await library.unreadable()).toBe(0)
     expect(await backup.import(text, settings.identity)).toEqual({ ok: true, value: { imported: 0, alreadyHere: 1, ignored: 1, identity: null } })
   })

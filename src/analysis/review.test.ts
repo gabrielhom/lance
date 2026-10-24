@@ -57,6 +57,22 @@ describe('buildReview', () => {
     expect(r.players.w.accuracy).toBe(100)
   })
 
+  it('splits the game into phases and scores each player in each', () => {
+    const r = review(opera)
+    expect(r.division).toEqual({ middlegame: 17, endgame: 32 })
+    expect(r.players.w.phases.opening).toMatchObject({ moves: 8, accuracy: 100 })
+    expect(r.players.b.phases.middlegame).toMatchObject({ moves: 7, accuracy: 100 })
+    expect(r.players.w.phases.endgame).toEqual({ moves: 1, accuracy: null, elo: null })
+    expect(r.players.w.phases.opening.elo).not.toBeNull()
+    expect(r.players.w.elo).not.toBeNull()
+  })
+
+  it('gives no estimated rating for a game too short to say anything', () => {
+    const r = review('1. e4 e5 2. Qh5 Nc6 3. Bc4 Nf6 4. Qxf7# 1-0')
+    expect(r.players.w.accuracy).toBe(100)
+    expect(r.players.w.elo).toBeNull()
+  })
+
   it('writes the best line in SAN from the position before the move', () => {
     const r = review(opera)
     expect(r.moves[22].bestLineSan).toEqual(['O-O-O'])

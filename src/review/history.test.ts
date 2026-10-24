@@ -6,7 +6,7 @@ const NO_COUNTS = Object.fromEntries(CLASSIFICATIONS.map((c) => [c, 0])) as Libr
 const counts = (c: Partial<typeof NO_COUNTS>) => ({ ...NO_COUNTS, ...c })
 const FULL = counts({ book: 6, good: 12 })
 
-function record(id: string, white: string, black: string, opts: Partial<LibraryRecord> & { acc?: [number | null, number | null]; counts?: LibraryRecord['summary']['counts'] }): LibraryRecord {
+function record(id: string, white: string, black: string, opts: Partial<LibraryRecord> & { acc?: [number | null, number | null]; counts?: LibraryRecord['summary']['counts']; phases?: LibraryRecord['summary']['phases'] }): LibraryRecord {
   const source: GameSource = opts.source ?? { kind: 'lichess', id, url: `https://lichess.org/${id}` }
   return {
     v: 1,
@@ -23,6 +23,7 @@ function record(id: string, white: string, black: string, opts: Partial<LibraryR
       accuracy: { w: opts.acc ? opts.acc[0] : 80, b: opts.acc ? opts.acc[1] : 70 },
       counts: opts.counts ?? { w: FULL, b: FULL },
       opening: null,
+      phases: opts.phases ?? null,
     },
   }
 }
@@ -38,10 +39,11 @@ describe('accuracyHistory', () => {
       ],
       identity,
     )
-    expect(points).toEqual([
+    expect(points.map((p) => ({ ...p, elo: undefined }))).toEqual([
       { gameId: 'lichess:old', playedAt: 2000, color: 'w', accuracy: 80, result: '1-0', opponent: { name: 'rival', rating: 1600 } },
       { gameId: 'lichess:new', playedAt: 3000, color: 'b', accuracy: 91, result: '0-1', opponent: { name: 'rival', rating: 1500 } },
     ])
+    expect(points[1].elo!.elo).toBeGreaterThan(points[0].elo!.elo)
   })
 
   it('leaves out games I did not play, other sites, and moves I never made', () => {
@@ -82,5 +84,23 @@ describe('accuracyHistory', () => {
     )
     expect(history.points.map((p) => [p.gameId, p.accuracy])).toEqual([['lichess:ten', 71]])
     expect(history.shortGames).toBe(2)
+  })
+
+  it('averages my accuracy per phase over counted games that have it', () => {
+    const short = { w: counts({ book: 2 }), b: FULL }
+    const { phases } = accuracyHistory(
+      [
+        record('a', 'gabrielhom', 'x', { phases: { w: { opening: 90, middlegame: 70, endgame: null }, b: { opening: 10, middlegame: 10, endgame: 10 } } }),
+        record('b', 'x', 'gabrielhom', { phases: { w: { opening: 10, middlegame: 10, endgame: 10 }, b: { opening: 96, middlegame: 80, endgame: 66 } } }),
+        record('saved-before-phases', 'gabrielhom', 'x', {}),
+        record('short', 'gabrielhom', 'x', { counts: short, phases: { w: { opening: 0, middlegame: 0, endgame: 0 }, b: { opening: 0, middlegame: 0, endgame: 0 } } }),
+      ],
+      identity,
+    )
+    expect(phases).toEqual({
+      opening: { accuracy: 93, games: 2 },
+      middlegame: { accuracy: 75, games: 2 },
+      endgame: { accuracy: 66, games: 1 },
+    })
   })
 })
