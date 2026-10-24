@@ -118,4 +118,8 @@ test('an old tab facing a newer database asks for a reload instead of a blank pa
   await page.evaluate("new Promise((resolve) => { const r = indexedDB.open('lance', 99); r.onsuccess = () => resolve(r.result.close()) })")
   await reloaded
   await expect(page.getByText('Esta aba tem uma versão antiga do Lance. Recarregue a página para abrir a nova.')).toBeVisible()
+  const again = page.waitForEvent('load')
+  await page.getByRole('button', { name: 'Recarregar' }).click()
+  await again
+  await expect(page.getByRole('button', { name: 'Recarregar' })).toBeVisible()
 })

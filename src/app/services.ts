@@ -11,7 +11,7 @@ export async function createServices(): Promise<Services> {
   const store = await openStore({
     blocked: () => showNotice('Feche as outras abas do Lance para abrir esta. Elas usam uma versão antiga do app.'),
     stale: () => location.reload(),
-    outdated: () => showNotice('Esta aba tem uma versão antiga do Lance. Recarregue a página para abrir a nova.'),
+    outdated: () => showNotice('Esta aba tem uma versão antiga do Lance. Recarregue a página para abrir a nova.', true),
   })
   const env = runtimeEnv()
   const book = loadBook()
@@ -76,9 +76,17 @@ export async function createServices(): Promise<Services> {
 }
 
 /** Shown before React mounts; the first render replaces it. */
-function showNotice(text: string) {
+function showNotice(text: string, reload = false) {
   const p = document.createElement('p')
   p.className = 'm-8 max-w-[40ch] text-lg'
   p.textContent = text
-  document.getElementById('root')?.replaceChildren(p)
+  const root = document.getElementById('root')
+  root?.replaceChildren(p)
+  if (!reload) return
+  const b = document.createElement('button')
+  b.type = 'button'
+  b.className = 'btn mx-8'
+  b.textContent = 'Recarregar'
+  b.onclick = () => location.reload()
+  root?.append(b)
 }
