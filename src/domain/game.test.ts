@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import opera from '../../e2e/fixtures/opera.pgn?raw'
 import scholar from '../../e2e/fixtures/scholar.pgn?raw'
-import { gameFromPgn, type Game, type GameSource } from '.'
+import { gameFromPgn, playableAt, playMove, type Fen, type Game, type GameSource, type PlayablePosition, type Uci } from '.'
 
 const PGN_SOURCE: GameSource = { kind: 'pgn' }
 const epd = (fen: string) => fen.split(' ').slice(0, 4).join(' ')
@@ -136,5 +136,62 @@ describe('site metadata', () => {
     expect(g.result).toBe('0-1')
     const c = parse(pgn, { kind: 'chesscom', uuid: 'u-1', url: 'https://www.chess.com/game/live/1' })
     expect(c.id).toBe('chesscom:u-1')
+  })
+})
+
+describe('playMove', () => {
+  const game = parse(opera)
+  const playable = (i: number): PlayablePosition => {
+    const p = game.positions[i]
+    if (p.kind !== 'playable') throw new Error(`position ${i} is terminal`)
+    return p
+  }
+
+  it('builds the same moves and positions as the parser when it replays a game', () => {
+    let at = playable(0)
+    for (const played of game.moves.slice(0, 32)) {
+      const m = playMove(at, played.uci)
+      expect(m && { san: m.san, index: m.index, after: m.after }).toEqual({ san: played.san, index: played.index, after: played.after })
+      at = m!.after as PlayablePosition
+    }
+    expect(playMove(at, 'd1d8' as Uci)?.after).toEqual({ index: 33, fen: game.positions[33].fen, turn: 'b', kind: 'checkmate' })
+  })
+
+  it('extends the engine tail after a quiet move and restarts it after a pawn move', () => {
+    const afterNf3 = playable(3)
+    const quiet = playMove(afterNf3, 'b8c6' as Uci)!
+    expect(quiet.san).toBe('Nc6')
+    expect(quiet.after).toMatchObject({
+      index: 4,
+      kind: 'playable',
+      input: { root: game.positions[2].fen, tail: ['g1f3', 'b8c6'] },
+      key: `${game.positions[2].fen}|g1f3 b8c6`,
+    })
+    const pawn = playMove(afterNf3, 'd7d5' as Uci)!
+    expect(pawn.san).toBe('d5')
+    expect(pawn.after).toMatchObject({ input: { root: 'rnbqkbnr/ppp2ppp/8/3pp3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 0 3', tail: [] } })
+  })
+
+  it('promotes with the piece letter and refuses an illegal move', () => {
+    const r = gameFromPgn('[SetUp "1"]\n[FEN "8/4P3/8/8/8/8/k7/4K3 w - - 0 1"]\n\n1. Kd2 *', PGN_SOURCE)
+    if (!r.ok) throw new Error(r.error.detail)
+    const start = r.value.positions[0] as PlayablePosition
+    expect(playMove(start, 'e7e8n' as Uci)).toMatchObject({ san: 'e8=N', promotion: 'n', piece: 'p' })
+    expect(playMove(start, 'e1e3' as Uci)).toBeNull()
+  })
+})
+
+describe('playableAt', () => {
+  const game = parse(opera)
+
+  it('rebuilds every playable position of a game from its engine input alone', () => {
+    for (const p of game.positions) if (p.kind === 'playable') expect(playableAt(p.input, p.index)).toEqual(p)
+  })
+
+  it('answers null for an illegal move in the input and for a checkmate', () => {
+    const start = game.positions[0]
+    expect(start.kind === 'playable' && playableAt({ root: start.input.root, tail: ['e2e5' as Uci] }, 1)).toBeNull()
+    const foolsMate = 'rnb1kbnr/pppp1ppp/8/4p3/6Pq/5P2/PPPPP2P/RNBQKBNR w KQkq - 1 3' as Fen
+    expect(playableAt({ root: foolsMate, tail: [] }, 4)).toBeNull()
   })
 })

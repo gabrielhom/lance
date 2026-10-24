@@ -199,6 +199,28 @@ describe('abort', () => {
     expect(made).toHaveLength(1)
   })
 
+  it('searches an urgent job before the jobs queued ahead of it', async () => {
+    const engine = fakeEngine('lite', { hold: true })
+    const { evaluator } = setup({ engines: [engine] })
+    const running = evaluator.evaluate(recordedPosition('mate-in-1'), live())
+    await searching(engine)
+    const queued = evaluator.evaluate(recordedPosition('black-to-move'), live())
+    const urgent = evaluator.evaluate(recordedPosition('tail'), live(), undefined, true)
+    play(engine, 'mate-in-1')
+    await running
+    await searching(engine, 2)
+    play(engine, 'tail')
+    await urgent
+    await searching(engine, 3)
+    play(engine, 'black-to-move')
+    await queued
+    expect(engine.sent.filter((l) => l.startsWith('position'))).toEqual([
+      'position fen 6k1/5ppp/8/8/8/8/5PPP/R5K1 w - - 0 1',
+      'position fen rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 moves g1f3 g8f6 f3g1 f6g8',
+      'position fen rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1',
+    ])
+  })
+
   it('drops a queued job without touching the engine', async () => {
     const engine = fakeEngine('lite', { hold: true })
     const { evaluator } = setup({ engines: [engine] })

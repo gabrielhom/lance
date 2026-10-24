@@ -7,8 +7,10 @@ import {
   type Classification,
   type EngineDescriptor,
   type EngineId,
+  type EngineInput,
   type EngineTuning,
   type EvalLine,
+  type Fen,
   type GameId,
   type GameResult,
   type GameSource,
@@ -18,9 +20,13 @@ import {
   type Opening,
   type PlayerTag,
   type ReviewSummary,
+  type San,
+  type Schedule,
   type Score,
   type SearchedEval,
   type SearchLimit,
+  type TrainingItem,
+  type TrainingItemId,
   type Uci,
 } from '../domain/types'
 
@@ -74,6 +80,56 @@ export function parseLibraryRecord(row: unknown): LibraryRecord | null {
   const playedAt = row.playedAt === null ? null : isNum(row.playedAt) ? row.playedAt : undefined
   if (!source || !players || !profile || !summary || !result || playedAt === undefined || !isNum(row.reviewedAt)) return null
   return { v: 1, id: row.id as GameId, source, players, result, playedAt, reviewedAt: row.reviewedAt, pgn: row.pgn, profile, summary }
+}
+
+export type StoredTrainingItem = TrainingItem & { readonly v: 1 }
+
+export function trainingRow(item: TrainingItem): StoredTrainingItem {
+  return { v: 1, ...item }
+}
+
+export function parseTrainingItem(row: unknown): TrainingItem | null {
+  if (!isObj(row) || row.v !== 1 || !isStr(row.id) || !isStr(row.gameId) || !isInt(row.index, 0)) return null
+  const input = parseInput(row.input)
+  const lastMove = row.lastMove === null ? null : isUci(row.lastMove) ? row.lastMove : undefined
+  const played = parsePlayed(row.played)
+  const best = parseLine(row.best)
+  const alternative = row.alternative === null ? null : (parseLine(row.alternative) ?? undefined)
+  const schedule = parseSchedule(row.schedule)
+  const sans = Array.isArray(row.bestLineSan) && row.bestLineSan.every(isStr) ? (row.bestLineSan as San[]) : null
+  if (!input || lastMove === undefined || !played || !best || alternative === undefined || !schedule || !sans) return null
+  return {
+    id: row.id as TrainingItemId,
+    gameId: row.gameId as GameId,
+    index: row.index,
+    input,
+    lastMove,
+    played,
+    best,
+    bestLineSan: sans,
+    alternative,
+    schedule,
+  }
+}
+
+const isUci = (x: unknown): x is Uci => typeof x === 'string' && UCI.test(x)
+
+function parseInput(x: unknown): EngineInput | null {
+  if (!isObj(x) || !isStr(x.root) || !Array.isArray(x.tail) || !x.tail.every(isUci)) return null
+  return { root: x.root as Fen, tail: x.tail }
+}
+
+function parsePlayed(x: unknown): TrainingItem['played'] | null {
+  if (!isObj(x) || !isStr(x.san) || !isUci(x.uci)) return null
+  const c = x.classification
+  return c === 'mistake' || c === 'blunder' || c === 'miss' ? { san: x.san as San, uci: x.uci, classification: c } : null
+}
+
+function parseSchedule(x: unknown): Schedule | null {
+  if (!isObj(x) || !isInt(x.box, 0) || !isNum(x.due)) return null
+  const l = x.last
+  const last = l === null ? null : isObj(l) && isNum(l.at) && typeof l.correct === 'boolean' ? { at: l.at, correct: l.correct } : undefined
+  return last === undefined ? null : { box: x.box, due: x.due, last }
 }
 
 function parseSource(x: unknown): GameSource | null {

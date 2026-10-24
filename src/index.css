@@ -543,6 +543,7 @@
   .rv-right > .status { order: 3; margin-top: 16px; }
   .rv-right > .annot { order: 4; margin-top: 16px; }
   .rv-right > .line { order: 5; }
+  .rv-right > .variation { order: 3; margin-top: 16px; }
   .rv-flip { order: 6; }
   .rv-graph { order: 7; margin-top: 26px; }
   .rv-sheet { order: 8; margin-top: 26px; }
@@ -591,6 +592,7 @@
   .line .moves button { padding: 1px 4px; border-bottom: 1px dotted var(--ink-3); cursor: pointer; }
   .line .moves button:hover, .line .moves button[aria-pressed="true"] { border-bottom: 1px solid var(--accent); background: var(--accent-soft); color: var(--accent); }
   .line .moves .n { margin-right: 1px; font-variant-numeric: tabular-nums; color: var(--ink-3); }
+  .line .moves button[aria-pressed="true"] .n { color: inherit; }
   .line .moves button.first { border-bottom-color: var(--accent); font-weight: 650; color: var(--accent); }
   .line .moves button.more { border: 0; font-family: var(--font-sans); font-size: var(--text-sm); font-style: italic; color: var(--ink-2); text-decoration: underline; text-decoration-color: var(--rule); text-underline-offset: 3px; }
   .line .moves button.more:hover { background: none; color: var(--ink); }
@@ -617,6 +619,7 @@
     .boardwrap { margin-top: 0; }
     .rv-right > .status, .rv-right > .annot { margin-top: 0; }
     .rv-right > .status + .annot { margin-top: 22px; }
+    .rv-right > .variation { margin: 0 0 22px; }
     .rv-graph { padding-left: 22px; }
   }
 

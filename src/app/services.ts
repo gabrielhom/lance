@@ -5,11 +5,13 @@ import { loadBook } from '../openings'
 import { loadPlay, savePlay } from '../play'
 import { accuracyHistory, reviewGame } from '../review'
 import { loadSettings, openStore, saveSettings } from '../storage'
+import { backfill, checkAnswer } from '../training'
 
 export async function createServices(): Promise<Services> {
   const store = await openStore({
     blocked: () => showNotice('Feche as outras abas do Lance para abrir esta. Elas usam uma versão antiga do app.'),
     stale: () => location.reload(),
+    outdated: () => showNotice('Esta aba tem uma versão antiga do Lance. Recarregue a página para abrir a nova.', true),
   })
   const env = runtimeEnv()
   const book = loadBook()
@@ -35,6 +37,16 @@ export async function createServices(): Promise<Services> {
     return picker.picker
   }
 
+  // Once per page, before the first list, so the counts include games reviewed before training existed.
+  let backfilled: Promise<void> | null = null
+  const ready = () =>
+    (backfilled ??= book
+      .then((b) => backfill({ ...store, book: b, identity: loadSettings().identity }, Date.now()))
+      .catch((e: unknown) => console.warn('training backfill failed', e)))
+
+  // A position off any review is searched ahead of the review queue, since someone is waiting on it.
+  const evaluatePosition: Services['evaluatePosition'] = (p, signal) => evaluatorFor(loadSettings()).evaluate(p, signal, undefined, true)
+
   return {
     loadSettings,
     saveSettings,
@@ -49,18 +61,32 @@ export async function createServices(): Promise<Services> {
       const deps = { evaluator: evaluatorFor(settings), book: await book, identity: settings.identity, library: store.library }
       yield* reviewGame(game, deps, signal)
     },
+    evaluatePosition,
     accuracyHistory,
     probeBridge,
     engineMove: (input, level, signal) => pickerFor(loadSettings()).pick(input, level, signal),
     loadPlay,
     savePlay,
+    training: {
+      list: () => ready().then(() => store.training.list()),
+      answer: (id, correct, now) => store.training.answer(id, correct, now),
+      check: (item, move, signal) => checkAnswer(item, move, (p) => evaluatePosition(p, signal)),
+    },
   }
 }
 
 /** Shown before React mounts; the first render replaces it. */
-function showNotice(text: string) {
+function showNotice(text: string, reload = false) {
   const p = document.createElement('p')
   p.className = 'm-8 max-w-[40ch] text-lg'
   p.textContent = text
-  document.getElementById('root')?.replaceChildren(p)
+  const root = document.getElementById('root')
+  root?.replaceChildren(p)
+  if (!reload) return
+  const b = document.createElement('button')
+  b.type = 'button'
+  b.className = 'btn mx-8'
+  b.textContent = 'Recarregar'
+  b.onclick = () => location.reload()
+  root?.append(b)
 }

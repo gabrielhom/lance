@@ -24,6 +24,12 @@ function describe(r: EngineFailureReason): string {
   }
 }
 
+/** What went wrong in a search, whatever was thrown. */
+export function failureReason(error: unknown): EngineFailureReason {
+  if (error instanceof EngineFailure) return error.reason
+  return { kind: 'crashed', detail: error instanceof Error ? error.message : String(error) }
+}
+
 export function abortError(): DOMException {
   return new DOMException('The evaluation was aborted.', 'AbortError')
 }

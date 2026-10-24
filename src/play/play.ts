@@ -165,15 +165,19 @@ export function replay(moves: readonly Uci[]): Chess {
 /** A legal destination. A promotion needs its piece letter appended before it is a move. */
 type Target = { readonly to: Square; readonly promotion: boolean }
 
-/** Everything the board and move list read about the current position, derived once per move list. */
-export type PlayPosition = {
+/** What the interactive board reads: the pieces, whose turn, check, and each piece's legal destinations. */
+export type BoardPosition = {
   readonly fen: Fen
   readonly turn: Color
   readonly check: boolean
   readonly kingSquare: Square
   readonly lastMove: { readonly from: Square; readonly to: Square } | null
-  readonly sans: readonly San[]
   readonly targets: ReadonlyMap<Square, readonly Target[]>
+}
+
+/** Everything the board and move list read about the current position, derived once per move list. */
+export type PlayPosition = BoardPosition & {
+  readonly sans: readonly San[]
   readonly input: EngineInput
   /** Material on the board, pawns 1 to queens 9. */
   readonly material: ByColor<number>
@@ -181,33 +185,34 @@ export type PlayPosition = {
 
 const VALUE: Readonly<Record<string, number>> = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 }
 
-export function playPosition(moves: readonly Uci[]): PlayPosition {
-  const board = replay(moves)
-  const history = board.history({ verbose: true })
+export function boardPosition(board: Chess, lastMove: BoardPosition['lastMove']): BoardPosition {
   const targets = new Map<Square, Target[]>()
   for (const m of board.moves({ verbose: true })) {
     const list = targets.get(m.from) ?? []
     if (!m.promotion || m.promotion === 'q') list.push({ to: m.to, promotion: !!m.promotion })
     targets.set(m.from, list)
   }
-  let kingSquare: Square = 'e1'
-  const material = { w: 0, b: 0 }
-  for (const row of board.board()) {
-    for (const sq of row) {
-      if (!sq) continue
-      material[sq.color] += VALUE[sq.type]
-      if (sq.type === 'k' && sq.color === board.turn()) kingSquare = sq.square
-    }
-  }
-  const last = history.at(-1)
   return {
     fen: board.fen() as Fen,
     turn: board.turn(),
     check: board.inCheck(),
-    kingSquare,
-    lastMove: last ? { from: last.from, to: last.to } : null,
-    sans: history.map((m) => m.san as San),
+    kingSquare: board.findPiece({ type: 'k', color: board.turn() })[0] ?? 'e1',
+    lastMove,
     targets,
+  }
+}
+
+export function playPosition(moves: readonly Uci[]): PlayPosition {
+  const board = replay(moves)
+  const history = board.history({ verbose: true })
+  const material = { w: 0, b: 0 }
+  for (const row of board.board()) {
+    for (const sq of row) if (sq) material[sq.color] += VALUE[sq.type]
+  }
+  const last = history.at(-1)
+  return {
+    ...boardPosition(board, last ? { from: last.from, to: last.to } : null),
+    sans: history.map((m) => m.san as San),
     input: engineInput(history),
     material,
   }
