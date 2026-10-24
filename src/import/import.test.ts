@@ -67,6 +67,16 @@ describe('fetchRecentGames from Lichess', () => {
     ])
   })
 
+  it('rejects a Lichess game whose id could break out of the URL', async () => {
+    const [good, other] = lichessGames.trim().split('\n')
+    const evil = other.replace('"id":"aDN8u0zd"', '"id":"../x?y=1"')
+    serve({ [URL]: { body: [good, evil].join('\n') } })
+    const r = await fetchRecentGames('lichess', 'thibault', { max: 3, signal: signal() })
+    if (!r.ok) throw new Error(r.error.kind)
+    expect(r.value.games.map((g) => g.id)).toEqual(['lichess:k8OVq8Y5'])
+    expect(r.value.rejected).toHaveLength(1)
+  })
+
   it('maps a missing user, rate limiting and a garbled body to their failures', async () => {
     serve({})
     expect(await fetchRecentGames('lichess', 'no_such_user_qqzx', { max: 3, signal: signal() })).toEqual({
@@ -127,6 +137,20 @@ describe('fetchRecentGames from Chess.com', () => {
     expect(r.value.games.map((g) => g.source.kind === 'chesscom' && g.source.uuid.slice(0, 8))).toEqual([
       '5d1a47d2', '5d134718', 'f50693fe', '3eddda8a', 'eb30a876',
     ])
+  })
+
+  it('rejects a game whose URL is not an https chess.com page', async () => {
+    const month = JSON.parse(october) as { games: { url: string; end_time: number }[] }
+    const newest = [...month.games].sort((a, b) => b.end_time - a.end_time)
+    const urls = ['javascript:alert(1)', 'http://www.chess.com/game/live/1', 'https://evil.example/www.chess.com/game/live/1', 'https://www.chess.com.evil.example/game/live/1']
+    urls.forEach((u, i) => (newest[i].url = u))
+    serve({ ...routes, [`${BASE}/2026/10`]: { body: JSON.stringify(month) } })
+    const r = await fetchRecentGames('chesscom', 'erik', { max: 5, signal: signal() })
+    if (!r.ok) throw new Error(r.error.kind)
+    expect(r.value.rejected.map((x) => x.rejection).filter((x) => x.kind === 'unparseable')).toEqual(
+      urls.map((u) => ({ kind: 'unparseable', detail: `unexpected Chess.com game URL: ${u}` })),
+    )
+    expect(r.value.games.map((g) => g.source.kind === 'chesscom' && g.source.url.startsWith('https://www.chess.com/'))).toEqual([true, true, true, true, true])
   })
 
   it('moves on to older months and rejects Chess960', async () => {

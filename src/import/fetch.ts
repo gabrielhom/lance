@@ -6,6 +6,7 @@ type Found =
   | { readonly rejection: GameRejection }
 
 const LICHESS_VARIANTS = ['standard', 'fromPosition']
+const LICHESS_ID = /^[A-Za-z0-9]{8}$/
 const CHESSCOM_ARCHIVE = 'https://api.chess.com/pub/player/'
 
 /** The user's most recent finished games, newest first. Rejects with the signal's AbortError when aborted. */
@@ -40,7 +41,7 @@ async function lichess(user: string, max: number, signal: AbortSignal): Promise<
   for (const line of body.value.split('\n')) {
     if (line.trim() === '') continue
     const g = parseJson(line)
-    if (!isRecord(g) || typeof g.id !== 'string' || typeof g.variant !== 'string' || typeof g.pgn !== 'string') {
+    if (!isRecord(g) || typeof g.id !== 'string' || !LICHESS_ID.test(g.id) || typeof g.variant !== 'string' || typeof g.pgn !== 'string') {
       found.push({ rejection: { kind: 'unparseable', detail: `unexpected Lichess game: ${line.slice(0, 80)}` } })
       continue
     }
@@ -74,6 +75,10 @@ async function chesscom(user: string, max: number, signal: AbortSignal): Promise
     if (!games || !games.every(isChessComGame)) return badResponse(`unexpected Chess.com archive ${url}`)
     for (const g of [...games].sort((a, b) => b.end_time - a.end_time)) {
       if (standard >= max) break
+      if (!isChessComGameUrl(g.url)) {
+        found.push({ rejection: { kind: 'unparseable', detail: `unexpected Chess.com game URL: ${g.url.slice(0, 80)}` } })
+        continue
+      }
       const variant = g.rules === 'chess' ? null : g.rules
       if (!variant) standard++
       found.push({ pgn: g.pgn, source: { kind: 'chesscom', uuid: g.uuid, url: g.url }, variant })
@@ -93,6 +98,16 @@ function isChessComGame(g: unknown): g is ChessComGame {
     typeof g.end_time === 'number' &&
     typeof g.pgn === 'string'
   )
+}
+
+/** The URL ends up in an href, so only a game page on chess.com itself is trusted. */
+function isChessComGameUrl(url: string): boolean {
+  try {
+    const u = new URL(url)
+    return u.protocol === 'https:' && u.hostname === 'www.chess.com' && u.username === '' && u.password === ''
+  } catch {
+    return false
+  }
 }
 
 async function getJson(url: string, signal: AbortSignal): Promise<Result<unknown, FetchFailure>> {
