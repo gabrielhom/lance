@@ -6,6 +6,7 @@ import {
   type AnalysisProfile,
   type ByColor,
   type Classification,
+  type Division,
   type EngineDescriptor,
   type EngineId,
   type EngineInput,
@@ -20,6 +21,7 @@ import {
   type NonEmpty,
   type Opening,
   type Phase,
+  type PhaseErrors,
   type PlayerTag,
   type PuzzleAttempt,
   type PuzzleId,
@@ -175,8 +177,28 @@ function parseSummary(x: unknown): ReviewSummary | null {
   const opening = x.opening === null ? null : parseOpening(x.opening)
   // Rows saved before phases existed have none; a malformed value is still a bad row.
   const phases = x.phases === undefined || x.phases === null ? null : (byColor(x.phases, parsePhases) ?? undefined)
-  if (!accuracy || !counts || opening === undefined || phases === undefined) return null
-  return { classifierVersion: x.classifierVersion, accuracy, counts, opening, phases }
+  const division = absent(x.division) ? null : parseDivision(x.division)
+  const phaseErrors = absent(x.phaseErrors) ? null : (byColor(x.phaseErrors, parsePhaseErrors) ?? undefined)
+  const bookExit = absent(x.bookExit) ? null : isNum(x.bookExit) ? x.bookExit : undefined
+  if (!accuracy || !counts || opening === undefined || phases === undefined || division === undefined || phaseErrors === undefined || bookExit === undefined) return null
+  return { classifierVersion: x.classifierVersion, accuracy, counts, opening, phases, division, phaseErrors, bookExit }
+}
+
+const absent = (x: unknown): x is null | undefined => x === undefined || x === null
+
+function parseDivision(x: unknown): Division | undefined {
+  const at = (i: unknown) => (i === null ? null : isInt(i, 0) ? i : undefined)
+  if (!isObj(x)) return undefined
+  const middlegame = at(x.middlegame)
+  const endgame = at(x.endgame)
+  return middlegame === undefined || endgame === undefined ? undefined : { middlegame, endgame }
+}
+
+function parsePhaseErrors(x: unknown): Readonly<Record<Phase, PhaseErrors>> | null {
+  const errors = (e: unknown) => (isObj(e) && isInt(e.mistake, 0) && isInt(e.blunder, 0) && isInt(e.miss, 0) ? { mistake: e.mistake, blunder: e.blunder, miss: e.miss } : null)
+  if (!isObj(x)) return null
+  const parsed = PHASES.map((p) => [p, errors(x[p])] as const)
+  return parsed.every(([, e]) => e) ? (Object.fromEntries(parsed) as Record<Phase, PhaseErrors>) : null
 }
 
 function parsePhases(x: unknown): Readonly<Record<Phase, number | null>> | null {

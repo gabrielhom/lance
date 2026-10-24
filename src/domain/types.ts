@@ -222,7 +222,14 @@ export type ReviewSummary = {
   readonly opening: Opening | null
   /** Accuracy per phase; null in rows saved before phases existed. */
   readonly phases: ByColor<Readonly<Record<Phase, number | null>>> | null
+  /** The fields below are null in rows saved before they existed. */
+  readonly division: Division | null
+  /** Mistakes, blunders and misses in each phase, counted like `counts`. */
+  readonly phaseErrors: ByColor<Readonly<Record<Phase, PhaseErrors>>> | null
+  /** White's win% at the first position out of opening theory; also null when the game never left it. */
+  readonly bookExit: number | null
 }
+export type PhaseErrors = Readonly<Record<TrainingClass, number>>
 export type LibraryRecord = {
   readonly v: 1
   readonly id: GameId

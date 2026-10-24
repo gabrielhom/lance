@@ -24,6 +24,9 @@ function record(id: string, white: string, black: string, opts: Partial<LibraryR
       counts: opts.counts ?? { w: FULL, b: FULL },
       opening: null,
       phases: opts.phases ?? null,
+      division: null,
+      phaseErrors: null,
+      bookExit: null,
     },
   }
 }
