@@ -1,5 +1,5 @@
 export { winPct, moveAccuracy, gameAccuracy, phaseAccuracy } from './accuracy'
-export { estimateElo } from './elo'
+export { accuracyPercentile, estimateElo } from './elo'
 export { divide, phaseAt } from './phases'
 export { completeEvals, type CompleteEvals } from './evals'
 export { CLASSIFIER, CLASSIFIER_VERSION, isSacrifice } from './classify'
