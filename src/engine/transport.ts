@@ -20,7 +20,7 @@ export const connect: Connect = (d) => (d.kind === 'wasm' ? workerTransport(d.fl
 
 /** The glue loads the .wasm next to the script and reports download progress on a port it is handed. */
 function workerTransport(flavor: WasmFlavor): LineTransport {
-  const worker = new Worker(`${import.meta.env.BASE_URL}engine/${WASM_FLAVORS[flavor].script}`)
+  const worker = new Worker(`${import.meta.env.BASE_URL}engine/${import.meta.env.STOCKFISH_VERSION}/${WASM_FLAVORS[flavor].script}`)
   const progress = new MessageChannel()
   let on: (e: TransportEvent) => void = () => {}
   let open = true
