@@ -1,6 +1,6 @@
 import { Chess } from 'chess.js'
 import { useEffect, useMemo, useState } from 'react'
-import { evalLabel, winPct } from '../../analysis'
+import { divide, evalLabel, winPct } from '../../analysis'
 import { perspective } from '../../domain/identity'
 import type { Color, Game, GameId, GameReview, Position, ReviewState, Square, Uci } from '../../domain/types'
 import { failureReason } from '../../engine'
@@ -77,6 +77,8 @@ function Review({ game, startPly }: { game: Game; startPly: number }) {
   const state: ReviewState | null = run.state
   const review: GameReview | null = state?.phase === 'done' ? state.review : null
   const ply = view.ply
+  // Depends on positions alone, so the sections show while the review runs; the review's own is the same value.
+  const division = useMemo(() => review?.division ?? divide(game.positions.map((p) => p.fen)), [review, game])
   const line = view.kind === 'line' ? view : null
   const toTrain = useTrainingCount(game.id, state?.phase === 'done' && state.saved)
 
@@ -217,7 +219,7 @@ function Review({ game, startPly }: { game: Game; startPly: number }) {
             onPreview={(plies) => setView(plies === null || !moveReview ? gameAt(game, ply) : bestLine(moveReview.move, moveReview.best.pv, plies))}
           />
           <section className="rv-sheet" aria-label="Lances">
-            <MoveList moves={game.moves} reviews={review?.moves ?? null} ply={ply} onSelect={go} />
+            <MoveList moves={game.moves} reviews={review?.moves ?? null} division={division} review={review} me={myColor} ply={ply} onSelect={go} />
           </section>
         </div>
       </div>
