@@ -17,7 +17,13 @@ npm install
 npm run dev
 ```
 
-O `npm install` copia o Stockfish 19 (WASM) para `public/engine`. Abra http://localhost:5173 e jogue. Para revisar partidas do Lichess, do Chess.com ou de um PGN, informe seus usuários em Configurações para o app saber de que lado você jogou nelas.
+O `npm install` copia o Stockfish 19 (WASM) para `public/engine/<versão do pacote>`. Abra http://localhost:5173 e jogue. Para revisar partidas do Lichess, do Chess.com ou de um PGN, informe seus usuários em Configurações para o app saber de que lado você jogou nelas.
+
+## Instalar
+
+No Chrome ou no Edge, clique em "Instalar o Lance" em Configurações, ou no ícone de instalar na barra de endereço. O Lance passa a abrir numa janela própria, com ícone como um programa do computador.
+
+Depois da primeira visita ele abre sem internet. A engine fica guardada depois de carregar uma vez, então dá para jogar e revisar offline. Buscar partidas no Lichess e no Chess.com continua precisando de internet. Quem guarda tudo é o service worker em `public/sw.js`, registrado só no build de produção (`npm run build`), nunca no `npm run dev`. Os ícones saem de `public/favicon.svg` com `node scripts/build-icons.mjs`.
 
 ## Engines
 

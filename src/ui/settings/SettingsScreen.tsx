@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { BridgeEngine, BridgeProbeError, EngineDescriptor, SearchLimit, Settings } from '../../domain/types'
 import { WASM_FLAVORS } from '../../domain/types'
 import { formatBytes } from '../format'
+import { useInstall } from '../install'
 import { probeErrorText } from '../labels'
 import { useServices, useSettings } from '../services'
 
@@ -21,6 +22,7 @@ export function SettingsScreen() {
   const account = (site: 'lichess' | 'chesscom') => settings.identity.accounts.find((a) => a.site === site)?.username ?? ''
   const advanced = useRef<HTMLDetailsElement>(null)
   const [advancedAtStart] = useState(settings.engine.kind === 'bridge')
+  const install = useInstall()
   const setAccount = (site: 'lichess' | 'chesscom', username: string) => {
     const rest = settings.identity.accounts.filter((a) => a.site !== site)
     const u = username.trim()
@@ -86,6 +88,18 @@ export function SettingsScreen() {
         </div>
         <p className="caption mt-2">Profundidade da busca em cada posição. Mais profundidade, análise mais precisa e mais demorada.</p>
       </section>
+
+      {install && (
+        <section aria-labelledby="instalar-titulo">
+          <h2 id="instalar-titulo" className="sec">Aplicativo</h2>
+          <div className="ruled flex flex-col items-start gap-4">
+            <p className="text-ink-2">Instalado, o Lance abre numa janela própria, como um programa. Depois que a engine carrega uma vez, ele funciona sem internet.</p>
+            <button type="button" className="btn" onClick={install}>
+              Instalar o Lance
+            </button>
+          </div>
+        </section>
+      )}
 
       <details ref={advanced} open={advancedAtStart} className="advanced">
         <summary>

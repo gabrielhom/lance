@@ -16,6 +16,8 @@ const stockfish = JSON.parse(readFileSync(createRequire(import.meta.url).resolve
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   define: { 'import.meta.env.STOCKFISH_VERSION': JSON.stringify(stockfish.version) },
+  // public/sw.js reads this list to keep every file of the current build offline.
+  build: { manifest: 'build-manifest.json' },
   server: { headers: isolation },
   preview: { headers: isolation },
   test: {

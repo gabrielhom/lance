@@ -44,11 +44,14 @@ describe('vercel.json headers', () => {
     ['/', revalidate],
     ['/index.html', revalidate],
     ['/sw.js', revalidate],
+    ['/build-manifest.json', revalidate],
+    ['/manifest.webmanifest', revalidate],
     ['/assets/index-BpyK9ZoK.js', forever],
     ['/assets/source-serif-4-latin-wght-normal-Ct8b9OQn.woff2', forever],
     ['/engine/19.0.1/stockfish-19-lite-single.wasm', forever],
     ['/engine/19.0.1/stockfish-19.js', forever],
     ['/favicon.svg', base],
+    ['/icons/icon-512.png', base],
   ])('%s', (path, expected) => {
     expect(headersFor(path)).toEqual(expected)
   })
