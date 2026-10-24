@@ -1,4 +1,4 @@
-import { openDB, type DBSchema, type IDBPDatabase } from 'idb'
+import { openDB, type DBSchema, type IDBPDatabase, type IDBPTransaction, type StoreNames } from 'idb'
 import type { EvalCache, GameReview, Library, LibraryRecord, Store } from '../domain/types'
 import { evalRow, parseEvalRow, parseLibraryRecord } from './parse'
 
@@ -7,13 +7,36 @@ interface Schema extends DBSchema {
   games: { key: string; value: unknown; indexes: { playedAt: number } }
 }
 type Db = IDBPDatabase<Schema>
+type Step = (db: Db, tx: IDBPTransaction<Schema, StoreNames<Schema>[], 'versionchange'>) => void
 
-export async function openStore(): Promise<Store> {
+/** STEPS[n] takes the database from version n to n + 1. A new version is one more step at the end; a shipped step never
+ *  changes, because some browser out there already ran it. */
+export const STEPS: readonly Step[] = [
+  (db) => {
+    db.createObjectStore('evals')
+    db.createObjectStore('games', { keyPath: 'id' }).createIndex('playedAt', 'playedAt')
+  },
+]
+
+/** What the app does when another tab needs the database at a newer version. */
+export type StoreEvents = {
+  /** An older tab keeps its connection open, so this one waits until it closes. */
+  blocked(): void
+  /** This tab closed its connection to let a newer tab upgrade; its code is out of date and every call now fails. */
+  stale(): void
+}
+
+/** `steps` is only for tests, which rehearse the next version with one more step. */
+export async function openStore(on: StoreEvents, steps: readonly Step[] = STEPS): Promise<Store> {
   globalThis.navigator?.storage?.persist?.().catch(() => false)
-  const db = await openDB<Schema>('lance', 1, {
-    upgrade(db) {
-      db.createObjectStore('evals')
-      db.createObjectStore('games', { keyPath: 'id' }).createIndex('playedAt', 'playedAt')
+  const db = await openDB<Schema>('lance', steps.length, {
+    upgrade(upgrading, oldVersion, _newVersion, tx) {
+      for (const step of steps.slice(oldVersion)) step(upgrading, tx)
+    },
+    blocked: () => on.blocked(),
+    blocking() {
+      db.close()
+      on.stale()
     },
   })
   return { evals: evalCache(db), library: library(db) }

@@ -7,7 +7,10 @@ import { accuracyHistory, reviewGame } from '../review'
 import { loadSettings, openStore, saveSettings } from '../storage'
 
 export async function createServices(): Promise<Services> {
-  const store = await openStore()
+  const store = await openStore({
+    blocked: () => showNotice('Feche as outras abas do Lance para abrir esta. Elas usam uma versão antiga do app.'),
+    stale: () => location.reload(),
+  })
   const env = runtimeEnv()
   const book = loadBook()
   // One evaluator per engine setup, so its warm workers survive between reviews and die when the settings change.
@@ -51,4 +54,12 @@ export async function createServices(): Promise<Services> {
     loadPlay,
     savePlay,
   }
+}
+
+/** Shown before React mounts; the first render replaces it. */
+function showNotice(text: string) {
+  const p = document.createElement('p')
+  p.className = 'm-8 max-w-[40ch] text-lg'
+  p.textContent = text
+  document.getElementById('root')?.replaceChildren(p)
 }
