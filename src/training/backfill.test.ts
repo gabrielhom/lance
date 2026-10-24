@@ -2,13 +2,14 @@ import { IDBFactory } from 'fake-indexeddb'
 import 'fake-indexeddb/auto'
 import { openDB } from 'idb'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { Identity, Store, TrainingItemId } from '../domain'
+import type { GameId, Identity, Store, TrainingItemId } from '../domain'
 import { evalKey } from '../engine'
 import { STEPS, openStore } from '../storage/store'
 import { backfill } from './backfill'
 import { NO_BOOK, PROFILE, operaEvals, operaReview } from './testing'
 
-const B5 = 'pgn:2dbw2vp1o9w#17' as TrainingItemId
+const OPERA = 'pgn:2dbw2vp1o9w' as GameId
+const B5 = `${OPERA}#17` as TrainingItemId
 const BLACK: Identity = { accounts: [{ site: 'any', username: 'Duke Karl / Count Isouard' }] }
 const NOW = new Date(2026, 9, 24, 20).getTime()
 
@@ -24,6 +25,17 @@ async function reviewedBeforeTraining(uncached: number | null = null): Promise<S
   for (const p of review.game.positions) {
     if (p.kind === 'playable' && p.index !== uncached) await store.evals.put(evalKey(PROFILE, p.key), evals.get(p.key)!)
   }
+  return store
+}
+
+/** A library saved before the summary held phases, errors per phase and the exit from theory, with its cached evals. */
+async function reviewedBeforePhases(uncached: number | null = null): Promise<Store> {
+  const store = await reviewedBeforeTraining(uncached)
+  const db = await openDB('lance', STEPS.length)
+  const row = await db.get('games', OPERA)
+  const { phases: _phases, division: _division, phaseErrors: _errors, bookExit: _exit, ...summary } = row.summary
+  await db.put('games', { ...row, summary })
+  db.close()
   return store
 }
 
@@ -60,5 +72,44 @@ describe('backfill', () => {
     const store = await reviewedBeforeTraining()
     await run(store, { accounts: [] })
     expect(await store.training.list()).toEqual([])
+  })
+})
+
+describe('backfill of old summaries', () => {
+  const NONE = { mistake: 0, blunder: 0, miss: 0 }
+
+  it('fills the phases, errors per phase and exit from theory of an old row from the cached evals, keeping when it was reviewed', async () => {
+    const store = await reviewedBeforePhases()
+    expect((await store.library.get(OPERA))!.summary).toMatchObject({ phases: null, division: null, phaseErrors: null, bookExit: null })
+    await run(store, BLACK)
+    const record = (await store.library.get(OPERA))!
+    expect(record.reviewedAt).toBe(1000)
+    expect(record.summary).toMatchObject({
+      division: { middlegame: 17, endgame: 32 },
+      phaseErrors: {
+        w: { opening: NONE, middlegame: NONE, endgame: NONE },
+        b: { opening: NONE, middlegame: { mistake: 0, blunder: 1, miss: 0 }, endgame: NONE },
+      },
+      bookExit: 50,
+    })
+    expect(Math.round(record.summary.phases!.b.middlegame! * 10) / 10).toBe(37.3)
+    expect((await store.training.list()).map((i) => i.id)).toEqual([B5])
+  })
+
+  it('leaves an old row as it is when an eval is missing from the cache', async () => {
+    const store = await reviewedBeforePhases(17)
+    const before = await store.library.get(OPERA)
+    await run(store, BLACK)
+    expect(await store.library.get(OPERA)).toEqual(before)
+  })
+
+  it('refreshes the summary of a game I did not play without touching training, and changes nothing on a second run', async () => {
+    const store = await reviewedBeforePhases()
+    await run(store, { accounts: [] })
+    const once = await store.library.get(OPERA)
+    expect(once!.summary.division).toEqual({ middlegame: 17, endgame: 32 })
+    expect(await store.training.list()).toEqual([])
+    await run(store, { accounts: [] }, NOW + 1000)
+    expect(await store.library.get(OPERA)).toEqual(once)
   })
 })

@@ -1,4 +1,5 @@
 import { HistoryScreen } from './ui/history/HistoryScreen'
+import { WeaknessesScreen } from './ui/history/WeaknessesScreen'
 import { ImportScreen } from './ui/import/ImportScreen'
 import { PlayScreen } from './ui/play/PlayScreen'
 import { ReviewScreen } from './ui/review/ReviewScreen'
@@ -18,8 +19,8 @@ export default function App() {
       {route.name === 'review' && <ReviewScreen key={route.id} id={route.id} ply={route.ply} />}
       {route.name === 'training' && (
         <>
-          {route.game === null && <TrainingModes current="mistakes" />}
-          <TrainingScreen key={route.game} game={route.game} />
+          {route.games.length === 0 && <TrainingModes current="mistakes" />}
+          <TrainingScreen key={route.games.join(',')} games={route.games} />
         </>
       )}
       {route.name === 'puzzles' && (
@@ -29,6 +30,7 @@ export default function App() {
         </>
       )}
       {route.name === 'history' && <HistoryScreen />}
+      {route.name === 'weaknesses' && <WeaknessesScreen />}
       {route.name === 'settings' && <SettingsScreen />}
     </AppShell>
   )

@@ -24,8 +24,8 @@ type Session = { readonly queue: readonly TrainingItem[]; readonly at: number; r
 
 const ASKING: Turn = { kind: 'asking', error: null }
 
-/** `game` trains that game's items, due ones first. Without it the run takes what is due today. */
-export function TrainingScreen({ game }: { game: GameId | null }) {
+/** `games` trains those games' items, due ones first. Without any the run takes what is due today. */
+export function TrainingScreen({ games }: { games: readonly GameId[] }) {
   const services = useServices()
   // Read with the time it was read, so what is due stays put between renders.
   const [loaded, setLoaded] = useState<{ items: readonly TrainingItem[]; now: number } | null>(null)
@@ -37,23 +37,22 @@ export function TrainingScreen({ game }: { game: GameId | null }) {
     services.training.list().then((all) => {
       if (!alive) return
       const now = Date.now()
-      const { due, later } = trainingQueue(game ? all.filter((i) => i.gameId === game) : all, now)
+      const { due, later } = trainingQueue(only(all, games), now)
       setLoaded({ items: all, now })
-      const queue = game ? [...due, ...later] : due
+      const queue = games.length ? [...due, ...later] : due
       if (queue.length > 0) setSession({ queue, at: 0, turn: ASKING })
     })
     return () => {
       alive = false
     }
-  }, [services, game])
+  }, [services, games])
 
   if (!loaded) return <p className="caption" aria-busy="true">Abrindo o treino…</p>
   const { items, now } = loaded
   const progress = trainingProgress(items, now)
   const item = session?.queue[session.at]
   if (!session || !item) {
-    const mine = game ? items.filter((i) => i.gameId === game) : items
-    return <Idle items={mine} now={now} game={game} progress={progress} onStart={(queue) => setSession({ queue, at: 0, turn: ASKING })} />
+    return <Idle items={only(items, games)} now={now} games={games} progress={progress} onStart={(queue) => setSession({ queue, at: 0, turn: ASKING })} />
   }
   return (
     <Question
@@ -73,6 +72,10 @@ export function TrainingScreen({ game }: { game: GameId | null }) {
   )
 }
 
+function only(items: readonly TrainingItem[], games: readonly GameId[]): readonly TrainingItem[] {
+  return games.length ? items.filter((i) => games.includes(i.gameId)) : items
+}
+
 function plural(n: number, one: string, many: string): string {
   return `${n} ${n === 1 ? one : many}`
 }
@@ -82,17 +85,17 @@ function progressLine(p: TrainingProgress): string {
   return p.done === 0 ? due : `${due} · ${plural(p.done, 'feita', 'feitas')} hoje, ${plural(p.right, 'certa', 'certas')}`
 }
 
-type IdleProps = { items: readonly TrainingItem[]; now: number; game: GameId | null; progress: TrainingProgress; onStart: (queue: readonly TrainingItem[]) => void }
+type IdleProps = { items: readonly TrainingItem[]; now: number; games: readonly GameId[]; progress: TrainingProgress; onStart: (queue: readonly TrainingItem[]) => void }
 
-function Idle({ items, now, game, progress, onStart }: IdleProps) {
+function Idle({ items, now, games, progress, onStart }: IdleProps) {
   const { due, later } = trainingQueue(items, now)
-  const title = game ? 'Treino desta partida' : 'Treino'
+  const title = games.length === 0 ? 'Treino' : games.length === 1 ? 'Treino desta partida' : `Treino de ${plural(games.length, 'partida', 'partidas')}`
   if (items.length === 0) {
     return (
       <div className="max-w-lg">
         <h1 className="display text-3xl md:text-5xl">{title}</h1>
-        {game ? (
-          <p className="text-ink-2 mt-3">Esta partida não tem erros seus para treinar.</p>
+        {games.length ? (
+          <p className="text-ink-2 mt-3">{games.length === 1 ? 'Esta partida não tem' : 'Estas partidas não têm'} erros seus para treinar.</p>
         ) : (
           <>
             <p className="text-ink-2 mt-3">
@@ -109,7 +112,7 @@ function Idle({ items, now, game, progress, onStart }: IdleProps) {
       <h1 className="display text-3xl md:text-5xl">{title}</h1>
       <p className="dek" role="status">{progressLine(progress)}</p>
       {due.length > 0 ? (
-        <button type="button" className="btn mt-6" onClick={() => onStart(game ? [...due, ...later] : due)}>Começar</button>
+        <button type="button" className="btn mt-6" onClick={() => onStart(games.length ? [...due, ...later] : due)}>Começar</button>
       ) : (
         <>
           <p className="mt-6 font-serif text-xl">{progress.done > 0 ? 'Pronto por hoje.' : 'Nada para treinar hoje.'}</p>

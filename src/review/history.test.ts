@@ -6,7 +6,7 @@ const NO_COUNTS = Object.fromEntries(CLASSIFICATIONS.map((c) => [c, 0])) as Libr
 const counts = (c: Partial<typeof NO_COUNTS>) => ({ ...NO_COUNTS, ...c })
 const FULL = counts({ book: 6, good: 12 })
 
-function record(id: string, white: string, black: string, opts: Partial<LibraryRecord> & { acc?: [number | null, number | null]; counts?: LibraryRecord['summary']['counts']; phases?: LibraryRecord['summary']['phases'] }): LibraryRecord {
+function record(id: string, white: string, black: string, opts: Partial<LibraryRecord> & { acc?: [number | null, number | null]; counts?: LibraryRecord['summary']['counts'] }): LibraryRecord {
   const source: GameSource = opts.source ?? { kind: 'lichess', id, url: `https://lichess.org/${id}` }
   return {
     v: 1,
@@ -23,7 +23,10 @@ function record(id: string, white: string, black: string, opts: Partial<LibraryR
       accuracy: { w: opts.acc ? opts.acc[0] : 80, b: opts.acc ? opts.acc[1] : 70 },
       counts: opts.counts ?? { w: FULL, b: FULL },
       opening: null,
-      phases: opts.phases ?? null,
+      phases: null,
+      division: null,
+      phaseErrors: null,
+      bookExit: null,
     },
   }
 }
@@ -86,21 +89,4 @@ describe('accuracyHistory', () => {
     expect(history.shortGames).toBe(2)
   })
 
-  it('averages my accuracy per phase over counted games that have it', () => {
-    const short = { w: counts({ book: 2 }), b: FULL }
-    const { phases } = accuracyHistory(
-      [
-        record('a', 'gabrielhom', 'x', { phases: { w: { opening: 90, middlegame: 70, endgame: null }, b: { opening: 10, middlegame: 10, endgame: 10 } } }),
-        record('b', 'x', 'gabrielhom', { phases: { w: { opening: 10, middlegame: 10, endgame: 10 }, b: { opening: 96, middlegame: 80, endgame: 66 } } }),
-        record('saved-before-phases', 'gabrielhom', 'x', {}),
-        record('short', 'gabrielhom', 'x', { counts: short, phases: { w: { opening: 0, middlegame: 0, endgame: 0 }, b: { opening: 0, middlegame: 0, endgame: 0 } } }),
-      ],
-      identity,
-    )
-    expect(phases).toEqual({
-      opening: { accuracy: 93, games: 2 },
-      middlegame: { accuracy: 75, games: 2 },
-      endgame: { accuracy: 66, games: 1 },
-    })
-  })
 })

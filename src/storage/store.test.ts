@@ -14,6 +14,7 @@ import {
   type GameId,
   type GameReview,
   type GameSource,
+  type OpeningBook,
   type PositionKey,
   type PuzzleId,
   type SearchedEval,
@@ -21,7 +22,8 @@ import {
   type Uci,
   type WinPct,
 } from '../domain/types'
-import { operaReview } from '../training/testing'
+import { buildReview, completeEvals } from '../analysis'
+import { PROFILE, operaEvals, operaGame, operaReview } from '../training/testing'
 import { STEPS, openStore, type StoreEvents } from './store'
 
 const START = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1' as Fen
@@ -122,7 +124,8 @@ const RECORD = {
 }
 
 /** RECORD as this version reads it: rows from before phases existed have none. */
-const READ = { ...RECORD, summary: { ...RECORD.summary, phases: null } }
+const READ = { ...RECORD, summary: { ...RECORD.summary, phases: null, division: null, phaseErrors: null, bookExit: null } }
+const NO_ERRORS = { mistake: 0, blunder: 0, miss: 0 }
 
 /** The database exactly as the first release created it, before upgrades went through STEPS. */
 async function seedFirstRelease() {
@@ -274,8 +277,31 @@ describe('library', () => {
           w: { opening: 96.5, middlegame: 88.25, endgame: null },
           b: { opening: null, middlegame: null, endgame: null },
         },
+        division: { middlegame: 16, endgame: null },
+        phaseErrors: {
+          w: { opening: NO_ERRORS, middlegame: NO_ERRORS, endgame: NO_ERRORS },
+          b: { opening: NO_ERRORS, middlegame: NO_ERRORS, endgame: NO_ERRORS },
+        },
+        bookExit: null,
       },
     })
+  })
+
+  it('stores where each side erred by phase and how the game stood when it left theory', async () => {
+    const { library } = await open()
+    const game = operaGame()
+    const book: OpeningBook = { has: (fen) => game.positions.slice(1, 5).some((p) => p.fen === fen), lookup: () => null }
+    const evals = completeEvals(game, operaEvals(game))
+    if (!evals.ok) throw new Error('missing evals')
+    const review = buildReview(game, evals.value, book, { kind: 'me', color: 'b' }, PROFILE)
+    await library.put(review, 2000)
+    const { summary } = (await library.get(game.id))!
+    expect(summary.division).toEqual({ middlegame: 17, endgame: 32 })
+    expect(summary.phaseErrors).toEqual({
+      w: { opening: NO_ERRORS, middlegame: NO_ERRORS, endgame: NO_ERRORS },
+      b: { opening: NO_ERRORS, middlegame: { mistake: 0, blunder: 1, miss: 0 }, endgame: NO_ERRORS },
+    })
+    expect(summary.bookExit).toBe(50)
   })
 
   it('upserts by game id, so a re-review replaces the record', async () => {
@@ -344,9 +370,14 @@ describe('library', () => {
     expect(await library.get('lichess:bad00000' as GameId)).toBeNull()
   })
 
-  it('misses a row whose phases are malformed', async () => {
+  it.each([
+    ['phases', { w: { opening: 'high' }, b: null }],
+    ['division', { middlegame: -1, endgame: null }],
+    ['phaseErrors', { w: { opening: NO_ERRORS }, b: null }],
+    ['bookExit', '50'],
+  ])('misses a row whose %s are malformed', async (field, value) => {
     const { library } = await open()
-    await writeRaw('games', { ...RECORD, summary: { ...RECORD.summary, phases: { w: { opening: 'high' }, b: null } } })
+    await writeRaw('games', { ...RECORD, summary: { ...RECORD.summary, [field]: value } })
     expect(await library.get('lichess:abcd1234' as GameId)).toBeNull()
   })
 })

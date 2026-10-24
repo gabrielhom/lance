@@ -28,4 +28,21 @@ export function interpolate(points: readonly EloPoint[], accuracy: number): EloP
   return [accuracy, at(1), at(2), at(3)]
 }
 
+/** The share of the calibration players, 0 to 100, who played this accurately or worse in that scope. The table's points
+ *  are equal-count bins at their median accuracy, so point i of n sits near the (i + 0.5) / n quantile. Flat past either
+ *  end, like `interpolate`. Works for every scope, the endgame too, where accuracy says nothing of rating but still
+ *  ranks a game against the others. */
+export function accuracyPercentile(accuracy: number, scope: EloScope): number {
+  return percentile(table.scopes[scope].points as unknown as readonly EloPoint[], accuracy)
+}
+
+export function percentile(points: readonly EloPoint[], accuracy: number): number {
+  const at = (i: number) => ((i + 0.5) / points.length) * 100
+  if (accuracy <= points[0][0]) return at(0)
+  if (accuracy >= points[points.length - 1][0]) return at(points.length - 1)
+  const i = points.findIndex((p) => p[0] >= accuracy)
+  const t = (accuracy - points[i - 1][0]) / (points[i][0] - points[i - 1][0])
+  return at(i - 1) + t * (at(i) - at(i - 1))
+}
+
 const round10 = (x: number) => Math.round(x / 10) * 10

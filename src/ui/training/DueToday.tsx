@@ -24,7 +24,7 @@ export function DueToday({ className }: { className?: string }) {
   if (!nudge) return null
   return nudge.kind === 'due' ? (
     <p className={className}>
-      <a href={href({ name: 'training', game: null })} className="tl tl-accent">Treinar {nudge.due === 1 ? '1 posição' : `${nudge.due} posições`} dos seus erros</a>
+      <a href={href({ name: 'training', games: [] })} className="tl tl-accent">Treinar {nudge.due === 1 ? '1 posição' : `${nudge.due} posições`} dos seus erros</a>
       <span className="caption ml-2">para hoje</span>
     </p>
   ) : (

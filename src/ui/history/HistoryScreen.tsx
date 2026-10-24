@@ -1,34 +1,21 @@
-import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
-import { MIN_MOVES_OUTSIDE_THEORY, PHASES, type AccuracyHistory, type LibraryRecord } from '../../domain/types'
-import { formatAccuracy } from '../format'
+import { useMemo } from 'react'
+import { MIN_MOVES_OUTSIDE_THEORY, type AccuracyHistory, type LibraryRecord } from '../../domain/types'
+import { weaknesses } from '../../review'
+import { colorLabel, formatAccuracy } from '../format'
 import { PHASE_LABEL } from '../labels'
 import { LibraryList } from '../import/GameList'
-import { finishedReviews, subscribeReviews } from '../review/runs'
+import { href } from '../router'
 import { useServices, useSettings } from '../services'
 import { AccuracyChart } from './AccuracyChart'
+import { useLibrary } from './useLibrary'
 
-const EMPTY: AccuracyHistory = {
-  points: [],
-  shortGames: 0,
-  phases: { opening: { accuracy: null, games: 0 }, middlegame: { accuracy: null, games: 0 }, endgame: { accuracy: null, games: 0 } },
-}
+const EMPTY: AccuracyHistory = { points: [], shortGames: 0 }
 
 export function HistoryScreen() {
   const services = useServices()
   const [settings] = useSettings()
-  const [records, setRecords] = useState<readonly LibraryRecord[] | null>(null)
-  const [unreadable, setUnreadable] = useState(0)
-  // A game played just before keeps being reviewed in the background and lands in the library when it finishes.
-  const finished = useSyncExternalStore(subscribeReviews, finishedReviews)
-  useEffect(() => {
-    let alive = true
-    services.library.list().then((l) => alive && setRecords(l))
-    services.library.unreadable().then((n) => alive && setUnreadable(n))
-    return () => {
-      alive = false
-    }
-  }, [services, finished])
-  const { points, shortGames, phases }: AccuracyHistory = useMemo(() => (records ? services.accuracyHistory(records, settings.identity) : EMPTY), [services, records, settings])
+  const { records, unreadable } = useLibrary()
+  const { points, shortGames }: AccuracyHistory = useMemo(() => (records ? services.accuracyHistory(records, settings.identity) : EMPTY), [services, records, settings])
   const elo = useMemo(() => new Map(points.flatMap((p) => (p.elo ? [[p.gameId, p.elo] as const] : []))), [points])
   const avg = points.length ? points.reduce((s, p) => s + p.accuracy, 0) / points.length : null
   const wins = points.filter((p) => (p.result === '1-0') === (p.color === 'w') && p.result !== '1/2-1/2' && p.result !== '*').length
@@ -59,16 +46,7 @@ export function HistoryScreen() {
         <Stat label="Suas partidas" value={records ? String(points.length) : '–'} />
         <Stat label="Vitórias, empates, derrotas" value={records ? `${wins} · ${draws} · ${losses}` : '–'} />
       </section>
-      {points.length > 0 && (
-        <section aria-labelledby="fases-titulo">
-          <h2 id="fases-titulo" className="sec">Precisão média por fase</h2>
-          <div className="stats">
-            {PHASES.map((p) => (
-              <Stat key={p} label={`${PHASE_LABEL[p]}, ${phases[p].games === 1 ? '1 partida' : `${phases[p].games} partidas`}`} value={formatAccuracy(phases[p].accuracy)} />
-            ))}
-          </div>
-        </section>
-      )}
+      {records && points.length > 0 && <WeaknessesTeaser records={records} />}
       <section aria-labelledby="grafico-titulo">
         <h2 id="grafico-titulo" className="sec">Precisão ao longo do tempo</h2>
         <div className="ruled">
@@ -93,6 +71,26 @@ export function HistoryScreen() {
         </div>
       </section>
     </div>
+  )
+}
+
+/** The report's headline, and the way to it. */
+function WeaknessesTeaser({ records }: { records: readonly LibraryRecord[] }) {
+  const [settings] = useSettings()
+  const { openings, phases } = useMemo(() => weaknesses(records, settings.identity), [records, settings])
+  const weak = openings.groups.find((g) => g.verdict === 'weak')
+  const lines = [
+    weak ? `Abertura mais fraca: ${weak.name} de ${colorLabel(weak.color)}.` : null,
+    phases.weakest ? `Fase mais fraca: ${PHASE_LABEL[phases.weakest].toLowerCase()}.` : null,
+  ].filter((l) => l !== null)
+  return (
+    <section aria-labelledby="pontos-titulo">
+      <h2 id="pontos-titulo" className="sec">Seus pontos fracos</h2>
+      <div className="ruled">
+        <p>{lines.length ? lines.join(' ') : 'Aberturas, fases e erros de todas as suas partidas, cada um com o que treinar.'}</p>
+        <a href={href({ name: 'weaknesses' })} className="tl tl-accent inline-block mt-1">Ver seus pontos fracos</a>
+      </div>
+    </section>
   )
 }
 

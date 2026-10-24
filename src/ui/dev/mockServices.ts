@@ -236,23 +236,24 @@ function scoreFromCp(cp: number, mateIn: { winner: Color; moves: number } | null
 
 /** A plausible line from a position: the best move is the played one when the move was good, else a different legal move. */
 function fabricateLine(fen: string, playedSan: string | null, keepPlayed: boolean, random: () => number, cp: number, mate: { winner: Color; moves: number } | null): { line: EvalLine; san: San[] } {
+  // SAN lists, not verbose ones: chess.js builds two FENs per verbose move, which made seeding take seconds.
   const chess = new Chess(fen)
-  const legal = chess.moves({ verbose: true })
-  let first = legal.find((m) => m.san === playedSan)
+  const legal = chess.moves()
+  let first = legal.find((m) => m === playedSan)
   if (!keepPlayed || !first) {
-    const others = legal.filter((m) => m.san !== playedSan)
-    const captures = others.filter((m) => m.captured)
+    const others = legal.filter((m) => m !== playedSan)
+    const captures = others.filter((m) => m.includes('x'))
     const pool = captures.length && random() < 0.5 ? captures : others.length ? others : legal
     first = pool[Math.floor(random() * pool.length)]
   }
   const pv: Uci[] = []
   const san: San[] = []
-  let m: Move | undefined = first
+  let m: string | undefined = first
   for (let i = 0; m && i < 5; i++) {
-    chess.move(m.san)
-    pv.push(m.lan as Uci)
-    san.push(m.san as San)
-    const next = chess.moves({ verbose: true })
+    const played = chess.move(m)
+    pv.push(played.lan as Uci)
+    san.push(played.san as San)
+    const next = chess.moves()
     m = next.length ? next[Math.floor(random() * next.length)] : undefined
   }
   return { line: { score: scoreFromCp(cp, mate), pv: pv as unknown as NonEmpty<Uci> }, san }
@@ -405,6 +406,55 @@ const SEEDS: readonly Seed[] = [
   { pgn: scholarPgn, white: USER, black: 'rookie_99', result: '1-0', daysAgo: 30, tc: '60+1', source: 'lichess' },
 ]
 
+/** Opening moves for the games of the weaknesses report; `playOut` finishes each one. */
+const LINES = {
+  caro: 'e4 c6 d4 d5 e5 Bf5 Nf3 e6',
+  sicilian: 'e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 a6',
+  italian: 'e4 e5 Nf3 Nc6 Bc4 Bc5 c3 Nf6',
+  qgd: 'd4 d5 c4 e6 Nc3 Nf6 Bg5 Be7',
+  london: 'd4 d5 Bf4 Nf6 e3 e6 Nf3 c5',
+  french: 'e4 e6 d4 d5 Nc3 Bb4',
+} as const
+
+/** The line, then seeded play that mates when it can and mostly captures, so the game trades down into an endgame. */
+function playOut(line: string, seed: number): string {
+  const random = rng(seed)
+  const chess = new Chess()
+  for (const san of line.split(' ')) chess.move(san)
+  for (let ply = chess.history().length; ply < 90 && !chess.isGameOver(); ply++) {
+    const legal = chess.moves()
+    const mate = legal.find((m) => m.endsWith('#'))
+    const captures = legal.filter((m) => m.includes('x'))
+    const pool = mate ? [mate] : captures.length && random() < 0.7 ? captures : legal
+    chess.move(pool[Math.floor(random() * pool.length)])
+  }
+  return chess.pgn()
+}
+
+/** My games in the report's openings: the Caro-Kann and the Queen's Gambit lose, the London and the French have too few games. */
+const REPORT: readonly [keyof typeof LINES, Color, GameResult][] = [
+  ['italian', 'w', '1-0'], ['caro', 'b', '1-0'], ['sicilian', 'b', '0-1'], ['qgd', 'w', '1-0'], ['italian', 'w', '1-0'],
+  ['caro', 'b', '1/2-1/2'], ['london', 'w', '1-0'], ['sicilian', 'b', '1-0'], ['italian', 'w', '1/2-1/2'], ['qgd', 'w', '0-1'],
+  ['caro', 'b', '1-0'], ['sicilian', 'b', '0-1'], ['french', 'b', '0-1'], ['italian', 'w', '1-0'], ['qgd', 'w', '0-1'],
+  ['caro', 'b', '1-0'], ['london', 'w', '0-1'], ['sicilian', 'b', '1/2-1/2'], ['italian', 'w', '0-1'],
+]
+const RIVALS = ['torre_forte', 'bispo_mau', 'gambito77', 'roque_longo', 'zugzwang_br', 'cavaleiro', 'en_passant', 'dama_preta']
+
+function reportSeeds(): Seed[] {
+  return REPORT.map(([line, color, result], i) => {
+    const rival = RIVALS[i % RIVALS.length]
+    return {
+      pgn: playOut(LINES[line], 7919 * (i + 1)),
+      white: color === 'w' ? USER : rival,
+      black: color === 'w' ? rival : USER,
+      result,
+      daysAgo: 33 + (REPORT.length - i) * 3,
+      tc: i % 3 ? '300+3' : '600+5',
+      source: i % 4 === 3 ? 'chesscom' : 'lichess',
+    }
+  })
+}
+
 function gameFromSeed(s: Seed, i: number, now: number): Game {
   const chess = new Chess()
   chess.loadPgn(s.pgn)
@@ -450,7 +500,7 @@ export function createMockServices(): Services {
 
   // Older seeds' items were answered before, so some come due today and some later.
   const seeded = Promise.all(
-    SEEDS.map(async (s, i) => {
+    [...SEEDS, ...reportSeeds()].map(async (s, i) => {
       const game = gameFromSeed(s, i, now)
       const review = await fabricateReview(game, perspective(identity(), game.players, game.source))
       const at = now - s.daysAgo * DAY + 3_600_000
@@ -468,6 +518,10 @@ export function createMockServices(): Services {
     async put(review, at) {
       records.set(review.game.id, libraryRecord(review, at))
       sync(review, at)
+    },
+    async refresh(review) {
+      const record = records.get(review.game.id)
+      if (record) records.set(record.id, { ...record, summary: libraryRecord(review, record.reviewedAt).summary })
     },
     async list() {
       await seeded

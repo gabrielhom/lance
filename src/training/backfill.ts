@@ -21,14 +21,18 @@ export type BackfillDeps = {
   readonly identity: Identity
 }
 
-/** Games reviewed before training existed have no items. Their evals sit in the cache under the profile that reviewed
- *  them, so the review is rebuilt from the cache alone and the engine never starts; a game missing any eval gets its
- *  items at its next review. Safe to run on every start: a game with items is skipped, and sync keeps schedules. */
+/** Games reviewed before training existed have no items, and games reviewed before the summary held phases, errors
+ *  per phase and the exit from theory have nulls there. Their evals sit in the cache under the profile that reviewed
+ *  them, so the review is rebuilt from the cache alone and the engine never starts; a game missing any eval waits for
+ *  its next review. Safe to run on every start: a game with items and a full summary is skipped, sync keeps schedules,
+ *  and a refreshed summary has no nulls left to fill. */
 export async function backfill(deps: BackfillDeps, now: number): Promise<void> {
   const [records, items] = await Promise.all([deps.library.list(), deps.training.list()])
   const done = new Set<string>(items.map((i) => i.gameId))
   for (const record of records) {
-    if (done.has(record.id) || !hasMyMistakes(record, deps.identity)) continue
+    const needsItems = !done.has(record.id) && hasMyMistakes(record, deps.identity)
+    const needsSummary = isOldSummary(record)
+    if (!needsItems && !needsSummary) continue
     const game = gameFromPgn(record.pgn, record.source)
     if (!game.ok) continue
     const found = new Map<PositionKey, SearchedEval>()
@@ -41,8 +45,15 @@ export async function backfill(deps: BackfillDeps, now: number): Promise<void> {
     const evals = completeEvals(game.value, found)
     if (!evals.ok) continue
     const who = perspective(deps.identity, game.value.players, game.value.source)
-    await deps.training.sync(buildReview(game.value, evals.value, deps.book, who, record.profile), now)
+    const review = buildReview(game.value, evals.value, deps.book, who, record.profile)
+    if (needsSummary) await deps.library.refresh(review)
+    if (needsItems) await deps.training.sync(review, now)
   }
+}
+
+/** `bookExit` is left out: it stays null for a game that never left theory. */
+function isOldSummary({ summary }: LibraryRecord): boolean {
+  return summary.phases === null || summary.division === null || summary.phaseErrors === null
 }
 
 /** Read from the stored summary, so a game with nothing to train costs no rebuild. */

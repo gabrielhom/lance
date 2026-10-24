@@ -1,5 +1,6 @@
 import { openDB, type DBSchema, type IDBPDatabase, type IDBPObjectStore, type IDBPTransaction, type StoreNames } from 'idb'
-import type { Backup, EvalCache, GameReview, Library, LibraryRecord, Phase, PlayerSummary, PuzzleStore, Store, TrainingStore } from '../domain/types'
+import { phaseAt } from '../analysis'
+import { PHASES, type Backup, type ByColor, type EvalCache, type GameReview, type Library, type LibraryRecord, type Phase, type PhaseErrors, type PlayerSummary, type PuzzleStore, type Store, type TrainingStore } from '../domain/types'
 import { nextSchedule, syncItems } from '../training/training'
 import { buildBackup, planImport } from './backup'
 import { evalRow, parseEvalRow, parseLibraryRecord, parsePuzzleAttempt, puzzleRow, parseTrainingItem, trainingRow } from './parse'
@@ -78,6 +79,12 @@ function library(db: Db): Library {
     put: async (review, now) => {
       const tx = db.transaction(['games', 'training'], 'readwrite')
       await Promise.all([tx.objectStore('games').put(libraryRecord(review, now)), syncTraining(tx.objectStore('training'), review, now), tx.done])
+    },
+    refresh: async (review) => {
+      const tx = db.transaction('games', 'readwrite')
+      const record = parseLibraryRecord(await tx.store.get(review.game.id))
+      if (record) await tx.store.put({ ...record, summary: libraryRecord(review, record.reviewedAt).summary })
+      await tx.done
     },
     list: async () =>
       (await db.getAll('games'))
@@ -175,8 +182,29 @@ export function libraryRecord(review: GameReview, now: number): LibraryRecord {
       counts: { w: players.w.counts, b: players.b.counts },
       opening: review.opening,
       phases: { w: phaseAccuracies(players.w), b: phaseAccuracies(players.b) },
+      division: review.division,
+      phaseErrors: phaseErrors(review),
+      bookExit: bookExit(review),
     },
   }
+}
+
+function phaseErrors({ moves, division }: GameReview): ByColor<Record<Phase, PhaseErrors>> {
+  const errors = { w: zeroErrors(), b: zeroErrors() }
+  for (const { move, classification: c } of moves) {
+    if (c === 'mistake' || c === 'blunder' || c === 'miss') errors[move.mover][phaseAt(division, move.index + 1)][c]++
+  }
+  return errors
+}
+
+function zeroErrors(): Record<Phase, Record<keyof PhaseErrors, number>> {
+  return Object.fromEntries(PHASES.map((p) => [p, { mistake: 0, blunder: 0, miss: 0 }])) as Record<Phase, Record<keyof PhaseErrors, number>>
+}
+
+/** Book moves only ever come first, so theory ends at the first move that is not one. */
+function bookExit({ moves, graph }: GameReview): number | null {
+  const i = moves.findIndex((m) => m.classification !== 'book')
+  return i === -1 ? null : graph[i].whiteWin
 }
 
 function phaseAccuracies({ phases }: PlayerSummary): Record<Phase, number | null> {

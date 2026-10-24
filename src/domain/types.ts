@@ -222,7 +222,14 @@ export type ReviewSummary = {
   readonly opening: Opening | null
   /** Accuracy per phase; null in rows saved before phases existed. */
   readonly phases: ByColor<Readonly<Record<Phase, number | null>>> | null
+  /** The fields below are null in rows saved before they existed. */
+  readonly division: Division | null
+  /** Mistakes, blunders and misses in each phase, counted like `counts`. */
+  readonly phaseErrors: ByColor<Readonly<Record<Phase, PhaseErrors>>> | null
+  /** White's win% at the first position out of opening theory; also null when the game never left it. */
+  readonly bookExit: number | null
 }
+export type PhaseErrors = Readonly<Record<TrainingClass, number>>
 export type LibraryRecord = {
   readonly v: 1
   readonly id: GameId
@@ -237,6 +244,9 @@ export type LibraryRecord = {
 }
 export interface Library {
   put(review: GameReview, now: number): Promise<void>
+  /** Rewrites a stored game's summary from a review rebuilt from the cache, keeping when it was reviewed and leaving its
+   *  training items alone. Does nothing for a game no longer stored. */
+  refresh(review: GameReview): Promise<void>
   /** Newest first. Rows this version can't read are left out; `unreadable` counts them. */
   list(): Promise<readonly LibraryRecord[]>
   unreadable(): Promise<number>
@@ -380,14 +390,8 @@ export type AccuracyPoint = {
   readonly opponent: PlayerTag
   readonly elo: EloEstimate | null
 }
-/** My mean accuracy in one phase over the counted games that reached it with enough of my moves. */
-export type PhaseAverage = { readonly accuracy: number | null; readonly games: number }
 /** `shortGames` counts my games left out for having too few moves outside theory. */
-export type AccuracyHistory = {
-  readonly points: readonly AccuracyPoint[]
-  readonly shortGames: number
-  readonly phases: Readonly<Record<Phase, PhaseAverage>>
-}
+export type AccuracyHistory = { readonly points: readonly AccuracyPoint[]; readonly shortGames: number }
 export type BridgeEngine = { readonly name: string; readonly idName: string }
 export type BridgeProbeError = { readonly kind: 'unreachable' } | { readonly kind: 'refused' } | { readonly kind: 'not-uci'; readonly detail: string }
 
