@@ -417,6 +417,14 @@ export interface Services {
   loadPlay(): PlayState | null
   savePlay(state: PlayState | null): void
   readonly training: Training
+  readonly puzzles: Puzzles
+}
+
+export interface Puzzles {
+  /** The puzzles bundled with the app, loaded on first use. */
+  list(): Promise<readonly Puzzle[]>
+  attempts(): Promise<readonly PuzzleAttempt[]>
+  record(attempt: PuzzleAttempt): Promise<void>
 }
 
 export interface Training {
