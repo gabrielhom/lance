@@ -40,6 +40,7 @@ import type {
   Result,
   ReviewState,
   San,
+  SearchedEval,
   Score,
   Services,
   Settings,
@@ -537,6 +538,14 @@ export function createMockServices(): Services {
         if (e instanceof DOMException && e.name === 'AbortError') return
         throw e
       }
+    },
+    async evaluatePosition(p, signal): Promise<SearchedEval> {
+      await sleep(400, signal)
+      const random = rng(hash(p.key))
+      const cp = Math.round((random() - 0.5) * 300)
+      const best = fabricateLine(p.fen, null, false, random, cp, null).line
+      if (p.legalMoves < 2) return { lines: [best], depth: 18 }
+      return { lines: [best, fabricateLine(p.fen, null, false, random, cp - 40, null).line], depth: 18 }
     },
     accuracyHistory,
     async probeBridge(url, signal): Promise<Result<readonly BridgeEngine[], BridgeProbeError>> {

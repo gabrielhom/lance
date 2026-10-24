@@ -40,7 +40,7 @@ function evalKey(profile: AnalysisProfile, position: PositionKey): EvalKey {
 // The cap stops only those: the median Opera game position at depth 18 needs about 0.6M nodes.
 const ANALYSIS = { options: { MultiPV: '2' }, fresh: true, maxNodes: 3_000_000 } as const
 
-/** Cache first, then a FIFO queue over a pool of sessions. A crashed search gets one retry on a fresh engine. */
+/** Cache first, then a FIFO queue over a pool of sessions, urgent jobs first. A crashed search gets one retry on a fresh engine. */
 export function createEvaluator(
   d: EngineDescriptor,
   limit: SearchLimit,
@@ -135,7 +135,7 @@ export function createEvaluator(
 
   return {
     profile,
-    async evaluate(p, signal, onProgress = () => {}) {
+    async evaluate(p, signal, onProgress = () => {}, urgent = false) {
       if (disposed || signal.aborted) throw abortError()
       const key = evalKey(profile, p.key)
       const hit = await cache.get(key).catch(() => null)
@@ -166,7 +166,8 @@ export function createEvaluator(
           attempt: 0,
         }
         signal.addEventListener('abort', onAbort)
-        queue.push(job)
+        if (urgent) queue.unshift(job)
+        else queue.push(job)
         pump()
       })
     },

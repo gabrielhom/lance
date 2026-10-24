@@ -167,10 +167,10 @@ export type EngineFailureReason =
   | { readonly kind: 'timeout'; readonly during: 'handshake' | 'search' }
 
 /** An AnalysisProfile made live. Safe to call concurrently; it queues internally and answers cache hits without booting.
- *  Rejects with DOMException('AbortError') or EngineFailure. */
+ *  An urgent position goes to the front of the queue. Rejects with DOMException('AbortError') or EngineFailure. */
 export interface Evaluator {
   readonly profile: AnalysisProfile
-  evaluate(p: PlayablePosition, signal: AbortSignal, onProgress?: (e: EvalProgress) => void): Promise<SearchedEval>
+  evaluate(p: PlayablePosition, signal: AbortSignal, onProgress?: (e: EvalProgress) => void, urgent?: boolean): Promise<SearchedEval>
   dispose(): void
 }
 export type EvalKey = Brand<string, 'EvalKey'>
@@ -300,6 +300,8 @@ export interface Services {
   reviewGame(game: Game, signal: AbortSignal): AsyncIterable<ReviewState>
   accuracyHistory(records: readonly LibraryRecord[], identity: Identity): AccuracyHistory
   probeBridge(url: string, signal: AbortSignal): Promise<Result<readonly BridgeEngine[], BridgeProbeError>>
+  /** Uses the engine and cache of the reviews, ahead of any review in progress. Rejects like Evaluator. */
+  evaluatePosition(p: PlayablePosition, signal: AbortSignal): Promise<SearchedEval>
   /** Uses the engine from the current settings. */
   engineMove(input: EngineInput, level: PlayLevel, signal: AbortSignal): Promise<Uci>
   /** The game in progress survives a reload. null clears it. */

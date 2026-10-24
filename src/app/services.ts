@@ -49,6 +49,7 @@ export async function createServices(): Promise<Services> {
       const deps = { evaluator: evaluatorFor(settings), book: await book, identity: settings.identity, library: store.library }
       yield* reviewGame(game, deps, signal)
     },
+    evaluatePosition: (p, signal) => evaluatorFor(loadSettings()).evaluate(p, signal, undefined, true),
     accuracyHistory,
     probeBridge,
     engineMove: (input, level, signal) => pickerFor(loadSettings()).pick(input, level, signal),
