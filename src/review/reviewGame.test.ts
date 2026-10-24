@@ -91,6 +91,7 @@ function memoryLibrary(fails = false) {
       saved.push(review)
     },
     list: async () => [],
+    unreadable: async () => 0,
     get: async () => null,
     remove: async () => undefined,
   }

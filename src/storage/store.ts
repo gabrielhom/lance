@@ -61,6 +61,7 @@ function library(db: Db): Library {
         .map(parseLibraryRecord)
         .filter((r) => r !== null)
         .sort((a, b) => sortTime(b) - sortTime(a)),
+    unreadable: async () => (await db.getAll('games')).filter((row) => parseLibraryRecord(row) === null).length,
     get: async (id) => parseLibraryRecord(await db.get('games', id)),
     remove: async (id) => {
       await db.delete('games', id)

@@ -10,11 +10,13 @@ export function HistoryScreen() {
   const services = useServices()
   const [settings] = useSettings()
   const [records, setRecords] = useState<readonly LibraryRecord[] | null>(null)
+  const [unreadable, setUnreadable] = useState(0)
   // A game played just before keeps being reviewed in the background and lands in the library when it finishes.
   const finished = useSyncExternalStore(subscribeReviews, finishedReviews)
   useEffect(() => {
     let alive = true
     services.library.list().then((l) => alive && setRecords(l))
+    services.library.unreadable().then((n) => alive && setUnreadable(n))
     return () => {
       alive = false
     }
@@ -28,13 +30,21 @@ export function HistoryScreen() {
 
   return (
     <div className="flex flex-col gap-10 md:gap-12">
-      <h1 className="display text-3xl md:text-5xl">Histórico</h1>
-      {noIdentity && (
-        <p className="-mt-4 md:-mt-6 text-ink-2">
-          As partidas jogadas aqui já contam. Para contar as importadas, informe seus nomes de usuário em{' '}
-          <a href="#/config" className="tl text-ink">Configurações</a>.
-        </p>
-      )}
+      <div className="flex flex-col gap-6">
+        <h1 className="display text-3xl md:text-5xl">Histórico</h1>
+        {noIdentity && (
+          <p className="text-ink-2">
+            As partidas jogadas aqui já contam. Para contar as importadas, informe seus nomes de usuário em{' '}
+            <a href="#/config" className="tl text-ink">Configurações</a>.
+          </p>
+        )}
+        {unreadable > 0 && (
+          <p className="font-semibold" role="status">
+            {unreadable === 1 ? '1 partida salva não pôde ser lida' : `${unreadable} partidas salvas não puderam ser lidas`} por esta versão do app.
+            Exportar a biblioteca em <a href="#/config" className="tl">Configurações</a> guarda uma cópia.
+          </p>
+        )}
+      </div>
       <section className="stats" aria-label="Resumo">
         <Stat label="Precisão média" value={avg === null ? '–' : formatAccuracy(avg)} />
         <Stat label="Partidas revisadas" value={records ? String(records.length) : '–'} />

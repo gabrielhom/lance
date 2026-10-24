@@ -234,6 +234,13 @@ describe('library', () => {
     expect((await library.list()).map((r) => r.id)).toEqual(['lichess:new00000', 'lichess:undated0', 'lichess:old00000'])
   })
 
+  it('counts no unreadable rows in a healthy library', async () => {
+    const { library } = await open()
+    expect(await library.unreadable()).toBe(0)
+    await library.put(review('lichess:abcd1234', 1000), 2000)
+    expect(await library.unreadable()).toBe(0)
+  })
+
   it('removes a record', async () => {
     const { library } = await open()
     await library.put(review('lichess:abcd1234', 1000), 2000)
@@ -272,6 +279,7 @@ describe('library', () => {
     await writeRaw('games', { v: 1, id: 'lichess:bad00000', pgn: 1, playedAt: 3000 })
     await writeRaw('games', { v: 2, id: 'lichess:future00' })
     expect((await library.list()).map((r) => r.id)).toEqual(['lichess:good0000'])
+    expect(await library.unreadable()).toBe(2)
     expect(await library.get('lichess:bad00000' as GameId)).toBeNull()
   })
 })

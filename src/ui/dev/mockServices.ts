@@ -442,6 +442,9 @@ export function createMockServices(): Services {
       await seeded
       return [...records.values()].sort((a, b) => (b.playedAt ?? 0) - (a.playedAt ?? 0))
     },
+    async unreadable() {
+      return 0
+    },
     async get(id) {
       await seeded
       return records.get(id) ?? null

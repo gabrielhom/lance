@@ -213,7 +213,9 @@ export type LibraryRecord = {
 }
 export interface Library {
   put(review: GameReview, now: number): Promise<void>
+  /** Newest first. Rows this version can't read are left out; `unreadable` counts them. */
   list(): Promise<readonly LibraryRecord[]>
+  unreadable(): Promise<number>
   get(id: GameId): Promise<LibraryRecord | null>
   remove(id: GameId): Promise<void>
 }
