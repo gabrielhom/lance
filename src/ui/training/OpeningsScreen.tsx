@@ -1,21 +1,29 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useId, useMemo, useState } from 'react'
 import type { Color, LineProgress, OpeningTree } from '../../domain/types'
-import { catalog, searchCatalog, studyFamily, type CatalogEntry } from '../../openings'
+import { catalog, searchCatalog, shelves, studyFamily, type CatalogEntry } from '../../openings'
 import { weaknesses } from '../../review'
-import { colorLabel } from '../format'
 import { useLibrary } from '../history/useLibrary'
+import { MiniBoard, PieceSprite } from '../MiniBoard'
+import { openingName } from '../openingNames'
 import { href } from '../router'
+import { Moves } from '../san'
 import { useServices, useSettings } from '../services'
+import { readStudyColor, saveStudyColor } from './studyColor'
 
 type Loaded = { readonly tree: OpeningTree; readonly progress: readonly LineProgress[]; readonly now: number }
 
-/** Every family of the book, the ones with a line due or that I play first, each with what is learned per color. */
+/** The most played families shown before the whole list. */
+const POPULAR = 12
+
+/** The families to study with one color: the ones due today, mine, the most played, and all of them A to Z. */
 export function OpeningsScreen() {
   const services = useServices()
   const [settings] = useSettings()
   const { records } = useLibrary()
   const [loaded, setLoaded] = useState<Loaded | 'failed' | null>(null)
+  const [color, setColor] = useState<Color>(readStudyColor)
   const [query, setQuery] = useState('')
+  const [everything, setEverything] = useState(false)
   const load = () => {
     Promise.all([services.openings.tree(), services.openings.progress()]).then(
       ([tree, progress]) => setLoaded({ tree, progress, now: Date.now() }),
@@ -28,7 +36,7 @@ export function OpeningsScreen() {
     [records, settings],
   )
   const entries = useMemo(() => (loaded && loaded !== 'failed' ? catalog(loaded.tree, loaded.progress, played, loaded.now) : []), [loaded, played])
-  const shown = useMemo(() => searchCatalog(entries, query), [entries, query])
+  const shelf = useMemo(() => shelves(entries, color), [entries, color])
 
   if (loaded === null) return <p className="caption" aria-busy="true">Abrindo as aberturas…</p>
   if (loaded === 'failed') {
@@ -49,53 +57,122 @@ export function OpeningsScreen() {
       </div>
     )
   }
+  const ordered = [...shelf.due, ...shelf.mine, ...shelf.rest]
+  const due = { w: 0, b: 0 }
+  for (const e of entries) for (const c of ['w', 'b'] as const) due[c] += e.colors[c].due
+  const searching = query.trim() !== ''
   return (
     <div>
+      <PieceSprite />
       <h1 className="display text-3xl md:text-5xl">Aberturas</h1>
-      <p className="dek max-w-lg">
-        As {entries.length} aberturas da base aberta do Lichess, com os sistemas de um nome genérico como King&apos;s Pawn Game reunidos nele. Escolha uma e a cor para estudar cada variação dela.
-      </p>
-      <div className="mt-6 max-w-64">
-        <label htmlFor="abertura-busca" className="label">Buscar</label>
-        <input id="abertura-busca" type="search" className="field" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Sicilian, Caro-Kann…" autoComplete="off" />
+      <p className="dek max-w-xl">Escolha a cor e a abertura. As variações de cada uma vêm das mais jogadas às raras.</p>
+      <div className="catalog-bar">
+        <fieldset className="seg">
+          <legend className="label">Estudar de</legend>
+          <div className="seg-options">
+            {(['w', 'b'] as const).map((c) => (
+              <label key={c}>
+                <input
+                  type="radio"
+                  name="abertura-cor"
+                  className="sr-only"
+                  checked={color === c}
+                  onChange={() => {
+                    setColor(c)
+                    saveStudyColor(c)
+                  }}
+                />
+                {c === 'w' ? 'Brancas' : 'Pretas'}
+                {due[c] > 0 && <span className="seg-note">{due[c]} para hoje</span>}
+              </label>
+            ))}
+          </div>
+        </fieldset>
+        <div className="catalog-search">
+          <label htmlFor="abertura-busca" className="label">Buscar</label>
+          <input id="abertura-busca" type="search" className="field" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Siciliana, Caro-Kann, Najdorf…" autoComplete="off" />
+        </div>
       </div>
-      <div className="ruled mt-6">
-        {shown.length === 0 ? (
-          <p className="text-ink-2 py-2">Nenhuma abertura com esse nome.</p>
-        ) : (
-          <ul className="rows" aria-label="Aberturas">
-            {shown.map((e) => <Entry key={e.family.name} entry={e} />)}
-          </ul>
-        )}
-      </div>
+      {searching ? (
+        <Shelf title="Resultado da busca" entries={searchCatalog(ordered, query, openingName)} color={color} empty="Nenhuma abertura com esse nome, em português ou em inglês." />
+      ) : (
+        <>
+          {shelf.due.length > 0 && <Shelf title="Para revisar hoje" entries={shelf.due} color={color} />}
+          {shelf.mine.length > 0 && <Shelf title="Suas aberturas" entries={shelf.mine} color={color} />}
+          {shelf.rest.length > 0 && <Shelf title="Mais jogadas" entries={shelf.rest.slice(0, POPULAR)} color={color} note="Pelas partidas de jogadores fortes, com média de rating 2200 ou mais." />}
+          {everything ? (
+            <Shelf title="Todas as aberturas" entries={[...ordered].sort((a, b) => openingName(a.family.name).localeCompare(openingName(b.family.name), 'pt-BR'))} color={color} index />
+          ) : (
+            <button type="button" className="tl tl-accent mt-8" onClick={() => setEverything(true)}>Ver todas as {ordered.length}, de A a Z</button>
+          )}
+        </>
+      )}
     </div>
   )
 }
 
-function Entry({ entry: { family, colors, games } }: { entry: CatalogEntry }) {
-  const line = (c: Color) => {
-    const { total, learned, due } = colors[c]
-    return [`${learned} de ${total}`, due > 0 ? `${due} para hoje` : null, games[c] > 0 ? `${games[c]} ${games[c] === 1 ? 'partida' : 'partidas'}` : null].filter((p) => p !== null).join(', ')
-  }
+/** `index` lists the families in two lines each, without a board: the whole book is for finding a name. */
+function Shelf({ title, entries, color, note, empty, index = false }: { title: string; entries: readonly CatalogEntry[]; color: Color; note?: string; empty?: string; index?: boolean }) {
+  const id = useId()
   return (
-    <li className="py-3">
-      <p className="row-title">
-        <span>{family.name}</span>
-        <span className="outcome">{family.eco}</span>
-      </p>
-      <p className="row-meta">
-        {(['w', 'b'] as const).map(
-          (c) =>
-            colors[c].total > 0 && (
-              <span key={c} className="inline-block mr-5">
-                <a href={href({ name: 'opening', family: family.name, color: c })} className="tl tl-accent" aria-label={`${family.name} de ${colorLabel(c)}`}>
-                  {c === 'w' ? 'Brancas' : 'Pretas'}
-                </a>{' '}
-                {line(c)}
-              </span>
-            ),
+    <section aria-labelledby={id} className="mt-8 md:mt-10">
+      <h2 id={id} className="sec">{title}</h2>
+      {note && <p className="caption -mt-1 mb-2">{note}</p>}
+      <div className="ruled">
+        {entries.length === 0 ? (
+          <p className="text-ink-2 py-2">{empty}</p>
+        ) : (
+          <ul className={index ? 'shelf shelf-index' : 'shelf'} aria-label={title}>
+            {entries.map((e) => (index ? <IndexRow key={e.family.name} entry={e} color={color} /> : <Card key={e.family.name} entry={e} color={color} />))}
+          </ul>
         )}
+      </div>
+    </section>
+  )
+}
+
+function Card({ entry: { family, colors, games }, color }: { entry: CatalogEntry; color: Color }) {
+  const { total, learned } = colors[color]
+  const name = openingName(family.name)
+  return (
+    <li className="ocard">
+      <MiniBoard moves={family.trunk.moves} orientation={color} />
+      <div className="min-w-0">
+        <a href={href({ name: 'opening', family: family.name, color })} className="ocard-name">{name}</a>
+        {name !== family.name && <p className="ocard-en">{family.name}</p>}
+        <p className="ocard-moves"><Moves sans={family.trunk.sans} /></p>
+        {learned > 0 && <div className="meter mt-2" aria-hidden><span style={{ width: `${(learned / total) * 100}%` }} /></div>}
+        <p className={`learned ${learned > 0 ? 'mt-1' : 'mt-1.5'}`}><Counts {...colors[color]} games={games[color]} /></p>
+      </div>
+    </li>
+  )
+}
+
+function IndexRow({ entry: { family, colors, games }, color }: { entry: CatalogEntry; color: Color }) {
+  const name = openingName(family.name)
+  return (
+    <li className="ocard">
+      <p className="truncate">
+        <a href={href({ name: 'opening', family: family.name, color })} className="ocard-name">{name}</a>
+        {name !== family.name && <span className="ocard-en ml-2">{family.name}</span>}
+      </p>
+      <p className="learned">
+        <span className="ocard-moves"><Moves sans={family.trunk.sans} /></span>
+        {' · '}
+        <Counts {...colors[color]} games={games[color]} />
       </p>
     </li>
+  )
+}
+
+/** What I learned of a family with one color, or how many variations it has before that. My reviewed games with the
+ *  color say why a family I never studied is among mine. */
+function Counts({ total, learned, due, games }: { total: number; learned: number; due: number; games: number }) {
+  return (
+    <>
+      <span className="whitespace-nowrap">{learned ? `${learned} de ${total} aprendidas` : total === 1 ? '1 variação' : `${total} variações`}</span>
+      {due > 0 && <> <span className="learned-due whitespace-nowrap">· {due} para hoje</span></>}
+      {games > 0 && <> <span className="whitespace-nowrap">· {games === 1 ? '1 partida sua' : `${games} partidas suas`}</span></>}
+    </>
   )
 }

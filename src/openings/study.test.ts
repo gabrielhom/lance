@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Color, LineId, LineProgress, Schedule } from '../domain'
 import { buildTree } from './lines'
-import { catalog, dueCount, familyStudy, lineKey, nextProgress, OPENINGS, requeueStep, searchCatalog, stepFor, studyQueue, type StudyLine, type StudyStep } from './study'
+import { catalog, dueCount, familyStudy, groupsOf, lineKey, nextProgress, OPENINGS, requeueStep, searchCatalog, shelves, stepFor, studyQueue, type CatalogEntry, type StudyLine, type StudyStep } from './study'
 import { FILE, POPULARITY } from './testing'
 
 const at = (y: number, m: number, d: number, h = 0) => new Date(y, m - 1, d, h).getTime()
@@ -50,14 +50,44 @@ describe('familyStudy', () => {
     expect([study.learned, study.due]).toEqual([2, 1])
   })
 
-  it('groups the variations by the first part of their name, in order of their first line, so the most played group comes first', () => {
-    expect(study.groups.map((g) => [g.name, g.lines.length])).toEqual([
-      ['Smith-Morra Gambit', 1],
-      ['Najdorf Variation', 2],
-      ['Hyperaccelerated Dragon', 1],
-      ['Alapin Variation', 1],
+  it('takes as main the lines with 1% of the games of the family, and the ones studied whatever their games', () => {
+    const popular = buildTree(FILE, {
+      'Sicilian Defense: Smith-Morra Gambit': 300,
+      'Sicilian Defense: Najdorf Variation, English Attack': 100,
+      'Sicilian Defense: Alapin Variation, Barmen Defense': 100,
+      'Sicilian Defense: Hyperaccelerated Dragon': 4,
+    }).family('Sicilian Defense')!
+    const main = (p: readonly LineProgress[]) => familyStudy(popular, 'w', p, NOW).main.map((l) => l.variation.line.sans.join(' '))
+    expect(main([])).toEqual(['e4 c5 d4', 'e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 a6 Be3 e5', 'e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 a6 Be3 e6', 'e4 c5 c3 d5'])
+    expect(main([row('w', 'e2e4 c7c5 g1f3 g7g6', learned(at(2026, 10, 30)))])).toContain('e4 c5 Nf3 g6')
+    expect(familyStudy(tree.family('French Defense')!, 'w', [], NOW).main).toEqual([])
+  })
+})
+
+describe('groupsOf', () => {
+  it('groups the variations by the first part of their name, in order of their first line, with the plies they share', () => {
+    expect(groupsOf(familyStudy(sicilian, 'w', [], NOW).lines).map((g) => [g.name, g.lines.length, g.shared])).toEqual([
+      ['Smith-Morra Gambit', 1, 3],
+      ['Najdorf Variation', 2, 11],
+      ['Hyperaccelerated Dragon', 1, 4],
+      ['Alapin Variation', 1, 4],
     ])
-    expect(familyStudy(tree.family("King's Pawn Game")!, 'w', [], NOW).groups).toEqual([{ name: null, lines: [{ variation: tree.variation('e2e4' as LineId, 'w'), state: { kind: 'new' } }] }])
+    expect(groupsOf(familyStudy(tree.family("King's Pawn Game")!, 'w', [], NOW).lines)).toEqual([
+      { name: null, lines: [{ variation: tree.variation('e2e4' as LineId, 'w'), state: { kind: 'new' } }], shared: 1 },
+    ])
+  })
+
+  it('shares the moves two thirds of a group play, so neither a line reached by another move order nor a popular branch moves them', () => {
+    const rauzer = buildTree({
+      ...FILE,
+      lines: [
+        ['B66', 'Sicilian Defense: Richter-Rauzer Variation, Modern', 'e2e4 c7c5 g1f3 d7d6 d2d4 c5d4 f3d4 g8f6 b1c3 b8c6 c1g5 e7e6 d1d2 a7a6', 'e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 Nc6 Bg5 e6 Qd2 a6'],
+        ['B64', 'Sicilian Defense: Richter-Rauzer Variation, Classical', 'e2e4 c7c5 g1f3 d7d6 d2d4 c5d4 f3d4 g8f6 b1c3 b8c6 c1g5 e7e6 d1d2 f8e7', 'e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 Nc6 Bg5 e6 Qd2 Be7'],
+        ['B60', 'Sicilian Defense: Richter-Rauzer Variation, Larsen', 'e2e4 c7c5 g1f3 d7d6 d2d4 c5d4 f3d4 g8f6 b1c3 b8c6 c1g5 c8d7', 'e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 Nc6 Bg5 Bd7'],
+        ['B60', 'Sicilian Defense: Richter-Rauzer Variation, Larsen', 'e2e4 c7c5 g1f3 b8c6 d2d4 c5d4 f3d4 g8f6 b1c3 d7d6 c1g5 c8d7', 'e4 c5 Nf3 Nc6 d4 cxd4 Nxd4 Nf6 Nc3 d6 Bg5 Bd7'],
+      ],
+    }, {}).family('Sicilian Defense')!
+    expect(groupsOf(familyStudy(rauzer, 'b', [], NOW).lines).map((g) => [g.name, g.shared])).toEqual([['Richter-Rauzer Variation', 11]])
   })
 })
 
@@ -118,28 +148,31 @@ describe('catalog', () => {
   ]
   const entries = catalog(tree, progress, played, NOW)
 
-  it('puts the families with a line due first, then the ones I play or study by my games, then the rest by how much strong players play them, then by name', () => {
-    expect(entries.map((e) => [e.family.name, e.family.games])).toEqual([
-      ['Sicilian Defense', 100],
-      ['French Defense', 0],
-      ['Caro-Kann Defense', 60],
-      ["Queen's Pawn Game", 0],
-      ["Queen's Gambit Declined", 25],
-      ["King's Pawn Game", 40],
-      ['Grünfeld Defense', 0],
-    ])
-  })
+  const entry = (name: string) => entries.find((e) => e.family.name === name)!
+  const names = (shelf: readonly CatalogEntry[]) => shelf.map((e) => e.family.name)
 
   it('counts the variations, the ones learned and due per color, and my games across the report groups of a family, ignoring a row whose line is no variation', () => {
-    expect(entries[0]).toMatchObject({ colors: { w: { total: 5, learned: 0, due: 0 }, b: { total: 5, learned: 2, due: 1 } }, games: { w: 0, b: 0 } })
-    expect(entries[2]).toMatchObject({ colors: { w: { total: 1, learned: 0, due: 0 }, b: { total: 1, learned: 0, due: 0 } }, games: { w: 1, b: 2 } })
-    expect(entries[3]).toMatchObject({ colors: { w: { total: 1 }, b: { total: 1 } }, games: { w: 2, b: 0 } })
-    expect(entries[5]).toMatchObject({ colors: { w: { total: 1 }, b: { total: 0 } } })
+    expect(entry('Sicilian Defense')).toMatchObject({ colors: { w: { total: 5, learned: 0, due: 0 }, b: { total: 5, learned: 2, due: 1 } }, games: { w: 0, b: 0 } })
+    expect(entry('Caro-Kann Defense')).toMatchObject({ colors: { w: { total: 1, learned: 0, due: 0 }, b: { total: 1, learned: 0, due: 0 } }, games: { w: 1, b: 2 } })
+    expect(entry("Queen's Pawn Game")).toMatchObject({ colors: { w: { total: 1 }, b: { total: 1 } }, games: { w: 2, b: 0 } })
+    expect(entry("King's Pawn Game")).toMatchObject({ colors: { w: { total: 1 }, b: { total: 0 } } })
   })
 
-  it('searches by every word, ignoring case and accents', () => {
-    expect(searchCatalog(entries, 'grunfeld').map((e) => e.family.name)).toEqual(['Grünfeld Defense'])
-    expect(searchCatalog(entries, "pawn QUEEN's").map((e) => e.family.name)).toEqual(["Queen's Pawn Game"])
+  it('shelves the families of one color: a line due, then mine by my games and what I learned, then the rest by how much strong players play them', () => {
+    const black = shelves(entries, 'b')
+    expect([names(black.due), names(black.mine)]).toEqual([['Sicilian Defense'], ['French Defense', 'Caro-Kann Defense']])
+    expect(names(black.rest)).toEqual(["Queen's Gambit Declined", 'Grünfeld Defense', "Queen's Pawn Game"])
+    const white = shelves(entries, 'w')
+    expect([names(white.due), names(white.mine)]).toEqual([[], ["Queen's Pawn Game", 'Caro-Kann Defense', "Queen's Gambit Declined"]])
+    expect(names(white.rest)).toEqual(['Sicilian Defense', "King's Pawn Game", 'French Defense', 'Grünfeld Defense'])
+  })
+
+  it('searches by every word in the name or its alias, ignoring case and accents', () => {
+    expect(names(searchCatalog(entries, 'grunfeld'))).toEqual(['Grünfeld Defense'])
+    expect(names(searchCatalog(entries, "pawn QUEEN's"))).toEqual(["Queen's Pawn Game"])
+    const alias = (f: string) => (f === 'Sicilian Defense' ? 'Defesa Siciliana' : f)
+    expect(names(searchCatalog(entries, 'SICILIANA', alias))).toEqual(['Sicilian Defense'])
+    expect(names(searchCatalog(entries, 'defesa sicilian', alias))).toEqual(['Sicilian Defense'])
     expect(searchCatalog(entries, '')).toEqual(entries)
   })
 
@@ -151,11 +184,11 @@ describe('catalog', () => {
 
 describe('the bundled catalog', async () => {
   const { loadTree } = await import('./lines')
-  const entries = catalog(await loadTree(), [], [], NOW)
-  const rank = (name: string) => entries.findIndex((e) => e.family.name === name)
+  const { rest } = shelves(catalog(await loadTree(), [], [], NOW), 'b')
+  const rank = (name: string) => rest.findIndex((e) => e.family.name === name)
 
   it('opens on the Sicilian Defense and ranks the Ruy Lopez above the King\'s Pawn Game when nothing is due or mine', () => {
-    expect(entries[0].family.name).toBe('Sicilian Defense')
+    expect(rest[0].family.name).toBe('Sicilian Defense')
     expect(rank('Ruy Lopez')).toBeLessThan(rank("King's Pawn Game"))
   })
 })

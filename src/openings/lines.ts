@@ -30,22 +30,22 @@ export function buildTree(file: LineFile, popularity: Popularity): OpeningTree {
   const root: Node = { children: new Map(), line: null, count: new Map(), games: new Map() }
   const rows = new Map<string, number>()
   for (const [, name] of file.lines) rows.set(name, (rows.get(name) ?? 0) + 1)
+  const share = (line: OpeningLine) => (popularity[line.name] ?? 0) / rows.get(line.name)!
   const byFamily = new Map<string, OpeningLine[]>()
   for (const tuple of file.lines) {
     const line = fromTuple(tuple)
-    const share = (popularity[line.name] ?? 0) / rows.get(line.name)!
     let node = root
-    bump(node, line.family, share)
+    bump(node, line.family, share(line))
     line.moves.forEach((move, i) => {
       let child = node.children.get(move)
       if (!child) node.children.set(move, (child = { san: line.sans[i], children: new Map(), line: null, count: new Map(), games: new Map() }))
-      bump(child, line.family, share)
+      bump(child, line.family, share(line))
       node = child
     })
     node.line = line
     byFamily.set(line.family, [...(byFamily.get(line.family) ?? []), line])
   }
-  const families = [...byFamily].map(([name, lines]) => familyOf(name, lines, root, popularity)).sort((a, b) => a.name.localeCompare(b.name, 'en'))
+  const families = [...byFamily].map(([name, lines]) => familyOf(name, lines, root, popularity, share)).sort((a, b) => a.name.localeCompare(b.name, 'en'))
   const byName = new Map(families.map((f) => [f.name, f]))
   const byLine = { w: new Map<LineId, Variation>(), b: new Map<LineId, Variation>() }
   for (const f of families) for (const c of ['w', 'b'] as const) for (const v of f.variations[c]) byLine[c].set(v.line.id, v)
@@ -65,7 +65,7 @@ function bump(node: Node, family: string, games: number) {
 /** The family's variations in study order: a depth-first walk of its branches, the branch with more of its games first,
  *  ties by its lines. A line is a variation when its node counts only itself for the family, so no other line of the
  *  family extends it. The family's games sum its names, so a name split across rows counts once. */
-function familyOf(name: string, lines: readonly OpeningLine[], root: Node, popularity: Popularity): Family {
+function familyOf(name: string, lines: readonly OpeningLine[], root: Node, popularity: Popularity, share: (line: OpeningLine) => number): Family {
   const count = (n: Node) => n.count.get(name) ?? 0
   const games = (n: Node) => n.games.get(name) ?? 0
   const order: OpeningLine[] = []
@@ -77,11 +77,13 @@ function familyOf(name: string, lines: readonly OpeningLine[], root: Node, popul
   visit(root)
   const sameName = new Map<string, OpeningLine[]>()
   for (const l of order) sameName.set(l.name, [...(sameName.get(l.name) ?? []), l])
-  const variations = order.map((line) => ({ line, path: studyPath(line.name), distinctFrom: distinctFrom(line, sameName.get(line.name)!) }))
+  const variations = order.map((line) => ({ line, path: studyPath(line.name), distinctFrom: distinctFrom(line, sameName.get(line.name)!), games: share(line) }))
   const ecos = [...new Set(lines.map((l) => l.eco))].sort()
+  const own = lines.filter((l) => studyPath(l.name).length === 0)
   return {
     name,
     eco: ecos.length === 1 ? ecos[0] : `${ecos[0]}–${ecos[ecos.length - 1]}`,
+    trunk: (own.length ? own : lines).reduce((t, l) => (l.moves.length < t.moves.length || (l.moves.length === t.moves.length && share(l) > share(t)) ? l : t)),
     games: [...new Set(lines.map((l) => l.name))].reduce((sum, n) => sum + (popularity[n] ?? 0), 0),
     variations: { w: variations, b: variations.filter((v) => v.line.moves.length > 1) },
   }

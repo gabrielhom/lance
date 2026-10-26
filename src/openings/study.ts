@@ -1,9 +1,11 @@
-import type { ByColor, Color, DrillOutcome, Family, LineId, LineKey, LineProgress, OpeningTree, Schedule, Variation } from '../domain'
+import type { ByColor, Color, DrillOutcome, Family, LineId, LineKey, LineProgress, OpeningTree, Schedule, Uci, Variation } from '../domain'
 import { inBox, nextSchedule } from '../training/schedule'
 
 export const OPENINGS = {
   /** New variations a session teaches after the ones due. Five siblings with a shared trunk fit one sitting. */
   newPerSession: 5,
+  /** A variation is a main one when it has at least this share of the games of the family's variations. */
+  mainShare: 0.01,
 } as const
 
 export const lineKey = (color: Color, line: LineId): LineKey => `${color} ${line}` as LineKey
@@ -25,14 +27,18 @@ export type VariationGroup = {
   /** path[0] of its variations; null for the family's own line. */
   readonly name: string | null
   readonly lines: readonly StudyLine[]
+  /** The plies that make the group: the longest start of its first line that two thirds of its lines, and at least
+   *  two, begin with; all of a lone line. A line reached by another move order may not begin with them. */
+  readonly shared: number
 }
 export type FamilyStudy = {
   readonly family: Family
   readonly color: Color
   /** Study order. */
   readonly lines: readonly StudyLine[]
-  /** By path[0], in order of their first line. */
-  readonly groups: readonly VariationGroup[]
+  /** The lines to learn first, in study order: the ones with at least OPENINGS.mainShare of the games of the family's
+   *  variations, and every line already studied, so no review hides behind them. */
+  readonly main: readonly StudyLine[]
   /** Studied at least once with this color. */
   readonly learned: number
   readonly due: number
@@ -41,19 +47,36 @@ export type FamilyStudy = {
 export function familyStudy(family: Family, color: Color, progress: readonly LineProgress[], now: number): FamilyStudy {
   const schedules = new Map(progress.filter((p) => p.color === color).map((p) => [p.line, p.schedule]))
   const lines = family.variations[color].map((variation) => ({ variation, state: stateOf(schedules.get(variation.line.id) ?? null, now) }))
+  const games = lines.reduce((sum, l) => sum + l.variation.games, 0)
+  return {
+    family,
+    color,
+    lines,
+    main: lines.filter(({ variation: v, state }) => state.kind !== 'new' || (v.games > 0 && v.games >= games * OPENINGS.mainShare)),
+    learned: lines.filter((l) => l.state.kind !== 'new').length,
+    due: lines.filter((l) => l.state.kind === 'due').length,
+  }
+}
+
+/** By path[0], in order of their first line. */
+export function groupsOf(lines: readonly StudyLine[]): readonly VariationGroup[] {
   const groups = new Map<string | null, StudyLine[]>()
   for (const line of lines) {
     const name = line.variation.path[0] ?? null
     groups.set(name, [...(groups.get(name) ?? []), line])
   }
-  return {
-    family,
-    color,
-    lines,
-    groups: [...groups].map(([name, lines]) => ({ name, lines })),
-    learned: lines.filter((l) => l.state.kind !== 'new').length,
-    due: lines.filter((l) => l.state.kind === 'due').length,
-  }
+  return [...groups].map(([name, lines]) => {
+    const moves = lines.map((l) => l.variation.line.moves)
+    const need = lines.length === 1 ? 1 : Math.max(2, Math.ceil((lines.length * 2) / 3))
+    let shared = 0
+    while (shared < moves[0].length && moves.filter((m) => startsWith(m, moves[0], shared + 1)).length >= need) shared++
+    return { name, lines, shared }
+  })
+}
+
+/** Whether `moves` begins with the first `plies` of `start`. */
+export function startsWith(moves: readonly Uci[], start: readonly Uci[], plies = start.length): boolean {
+  return plies <= start.length && plies <= moves.length && start.slice(0, plies).every((m, i) => moves[i] === m)
 }
 
 function stateOf(s: Schedule | null, now: number): LineState {
@@ -93,8 +116,7 @@ export type CatalogEntry = {
   readonly games: ByColor<number>
 }
 
-/** Families with lines due first, then the ones I play or study (most of my games first), then the rest by how often
- *  strong players reach them (`Family.games`), then by name. */
+/** Every family with what I learned, have due and played in it per color, by name. */
 export function catalog(tree: OpeningTree, progress: readonly LineProgress[], played: readonly PlayedOpening[], now: number): readonly CatalogEntry[] {
   const studied = new Map<string, ByColor<{ learned: number; due: number }>>()
   for (const { row, variation } of live(tree, progress)) {
@@ -109,7 +131,7 @@ export function catalog(tree: OpeningTree, progress: readonly LineProgress[], pl
     const counts = games.get(p.family) ?? { w: 0, b: 0 }
     games.set(p.family, { ...counts, [p.color]: counts[p.color] + p.games })
   }
-  const entries = tree.families.map((family) => {
+  return tree.families.map((family) => {
     const counts = studied.get(family.name) ?? { w: { learned: 0, due: 0 }, b: { learned: 0, due: 0 } }
     return {
       family,
@@ -117,15 +139,39 @@ export function catalog(tree: OpeningTree, progress: readonly LineProgress[], pl
       games: games.get(family.name) ?? { w: 0, b: 0 },
     }
   })
-  const due = (e: CatalogEntry) => e.colors.w.due + e.colors.b.due > 0
-  const mine = (e: CatalogEntry) => e.games.w + e.games.b > 0 || e.colors.w.learned + e.colors.b.learned > 0
-  return entries.sort((a, b) => Number(due(b)) - Number(due(a)) || Number(mine(b)) - Number(mine(a)) || b.games.w + b.games.b - (a.games.w + a.games.b) || b.family.games - a.family.games)
 }
 
-/** Every word of the query in the name, ignoring case and accents. */
-export function searchCatalog(entries: readonly CatalogEntry[], query: string): readonly CatalogEntry[] {
+/** The catalog studied with one color, each shelf in the order to show it. */
+export type CatalogShelves = {
+  /** With lines due, most due first. A family with no line for the color is on no shelf. */
+  readonly due: readonly CatalogEntry[]
+  /** Played or studied and nothing due, most of my games first, then most learned. */
+  readonly mine: readonly CatalogEntry[]
+  /** The others, the ones strong players reach most (`Family.games`) first. */
+  readonly rest: readonly CatalogEntry[]
+}
+
+export function shelves(entries: readonly CatalogEntry[], color: Color): CatalogShelves {
+  const by = (...keys: ((e: CatalogEntry) => number)[]) => (a: CatalogEntry, b: CatalogEntry) => keys.reduce((d, k) => d || k(b) - k(a), 0)
+  const due = (e: CatalogEntry) => e.colors[color].due
+  const learned = (e: CatalogEntry) => e.colors[color].learned
+  const played = (e: CatalogEntry) => e.games[color]
+  const popular = (e: CatalogEntry) => e.family.games
+  const listed = entries.filter((e) => e.colors[color].total > 0)
+  return {
+    due: listed.filter((e) => due(e) > 0).sort(by(due, popular)),
+    mine: listed.filter((e) => due(e) === 0 && played(e) + learned(e) > 0).sort(by(played, learned, popular)),
+    rest: listed.filter((e) => played(e) + learned(e) === 0).sort(by(popular)),
+  }
+}
+
+/** Every word of the query in the family's name or its `alias`, ignoring case and accents. */
+export function searchCatalog(entries: readonly CatalogEntry[], query: string, alias: (family: string) => string = (f) => f): readonly CatalogEntry[] {
   const words = fold(query).split(/\s+/).filter((w) => w !== '')
-  return entries.filter((e) => words.every((w) => fold(e.family.name).includes(w)))
+  return entries.filter((e) => {
+    const names = fold(`${e.family.name} ${alias(e.family.name)}`)
+    return words.every((w) => names.includes(w))
+  })
 }
 
 const fold = (s: string) => s.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase()

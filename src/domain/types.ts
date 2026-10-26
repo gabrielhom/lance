@@ -376,11 +376,17 @@ export type Variation = {
   readonly path: readonly string[]
   /** Ply where the moves that tell it from the family's other variations of the same name start; null when its name is its own. */
   readonly distinctFrom: number | null
+  /** Games of the broadcast database whose opening is this line: its name's games, split evenly across the rows of that name. */
+  readonly games: number
 }
 export type Family = {
   readonly name: string
   /** 'C41', or the range of its lines, 'B20–B99'. */
   readonly eco: string
+  /** The position the family is known by, 1.e4 c5 for the Sicilian: its shortest line named for the family alone, else
+   *  its shortest line. Ties go to the line with more games, then to dataset order. Not always a variation, since
+   *  longer lines extend it. */
+  readonly trunk: OpeningLine
   /** Games of the broadcast database (src/openings/popularity.json) whose opening is a line of the family. */
   readonly games: number
   /** In study order: at each branch the move with more of the family's games after it first, ties by its lines, then
