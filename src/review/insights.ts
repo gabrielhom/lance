@@ -25,7 +25,7 @@ export type Verdict = 'few' | 'weak' | 'fine'
 
 /** My games in one opening family with one color. */
 export type OpeningStats = {
-  /** The family, from `family`: 'Sicilian Defense', or 'Queen's Pawn Game: London System' for a catch-all. */
+  /** The family, from `family`: 'Sicilian Defense', or 'Queen's Pawn Game: Symmetrical Variation' for a catch-all. */
   readonly name: string
   /** 'C41', or the range the family's games span, 'B30–B90'. */
   readonly eco: string

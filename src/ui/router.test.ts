@@ -17,8 +17,8 @@ describe('training route', () => {
 
 describe('openings routes', () => {
   it('carries a family with its color through the hash, colons and spaces included', () => {
-    const route = { name: 'opening', family: "Queen's Pawn Game: London System", color: 'w' } as const
-    expect(href(route)).toBe("#/treino/aberturas/Queen's%20Pawn%20Game%3A%20London%20System/brancas")
+    const route = { name: 'opening', family: "Queen's Pawn Game: Symmetrical Variation", color: 'w' } as const
+    expect(href(route)).toBe("#/treino/aberturas/Queen's%20Pawn%20Game%3A%20Symmetrical%20Variation/brancas")
     expect(parseRoute(href(route))).toEqual(route)
     expect(parseRoute('#/treino/aberturas/Sicilian%20Defense/pretas')).toEqual({ name: 'opening', family: 'Sicilian Defense', color: 'b' })
   })
