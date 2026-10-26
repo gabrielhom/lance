@@ -108,10 +108,13 @@ describe('catalog', () => {
     row('w', 'e2e4 c7c5', learned(at(2026, 10, 23))),
     row('w', 'd2d4 d7d5 c2c4 e7e6', learned(at(2026, 10, 30))),
   ]
+  // Two report groups of the Queen's Pawn Game, the Veresov and the Stonewall, both studied under it.
   const played = [
     { family: 'French Defense', color: 'b' as const, games: 4 },
     { family: 'Caro-Kann Defense', color: 'b' as const, games: 2 },
     { family: 'Caro-Kann Defense', color: 'w' as const, games: 1 },
+    { family: "Queen's Pawn Game", color: 'w' as const, games: 1 },
+    { family: "Queen's Pawn Game", color: 'w' as const, games: 1 },
   ]
   const entries = catalog(tree, progress, played, NOW)
 
@@ -120,23 +123,23 @@ describe('catalog', () => {
       'Sicilian Defense',
       'French Defense',
       'Caro-Kann Defense',
+      "Queen's Pawn Game",
       "Queen's Gambit Declined",
       'Grünfeld Defense',
       "King's Pawn Game",
-      "Queen's Pawn Game",
-      "Queen's Pawn Game: Zukertort Variation",
     ])
   })
 
-  it('counts the variations, the ones learned and due per color, and my games, ignoring a row whose line is no variation', () => {
+  it('counts the variations, the ones learned and due per color, and my games across the report groups of a family, ignoring a row whose line is no variation', () => {
     expect(entries[0]).toMatchObject({ colors: { w: { total: 5, learned: 0, due: 0 }, b: { total: 5, learned: 2, due: 1 } }, games: { w: 0, b: 0 } })
     expect(entries[2]).toMatchObject({ colors: { w: { total: 1, learned: 0, due: 0 }, b: { total: 1, learned: 0, due: 0 } }, games: { w: 1, b: 2 } })
-    expect(entries[5]).toMatchObject({ colors: { w: { total: 1 }, b: { total: 0 } } })
+    expect(entries[3]).toMatchObject({ colors: { w: { total: 1 }, b: { total: 1 } }, games: { w: 2, b: 0 } })
+    expect(entries[6]).toMatchObject({ colors: { w: { total: 1 }, b: { total: 0 } } })
   })
 
   it('searches by every word, ignoring case and accents', () => {
     expect(searchCatalog(entries, 'grunfeld').map((e) => e.family.name)).toEqual(['Grünfeld Defense'])
-    expect(searchCatalog(entries, "pawn QUEEN's").map((e) => e.family.name)).toEqual(["Queen's Pawn Game", "Queen's Pawn Game: Zukertort Variation"])
+    expect(searchCatalog(entries, "pawn QUEEN's").map((e) => e.family.name)).toEqual(["Queen's Pawn Game"])
     expect(searchCatalog(entries, '')).toEqual(entries)
   })
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { family, variationPath } from '.'
+import { family, studyFamily, studyPath, variationPath } from '.'
 
 describe('family', () => {
   it('groups an opening by its name before the variation, whether a colon or a comma starts it', () => {
@@ -56,5 +56,27 @@ describe('variationPath', () => {
     expect(variationPath("Queen's Pawn Game: London System")).toEqual([])
     expect(variationPath('London System, with Bd3')).toEqual(['with Bd3'])
     expect(variationPath("Queen's Pawn Game")).toEqual([])
+  })
+})
+
+describe('studyFamily and studyPath', () => {
+  it('study a system of a catch-all family under the catch-all, the system first in the path', () => {
+    expect(studyFamily("King's Pawn Game: Bavarian Gambit")).toBe("King's Pawn Game")
+    expect(studyPath("King's Pawn Game: Bavarian Gambit")).toEqual(['Bavarian Gambit'])
+    expect(studyPath("Queen's Pawn Game: Symmetrical Variation, Pseudo-Catalan")).toEqual(['Symmetrical Variation', 'Pseudo-Catalan'])
+    expect(studyFamily("King's Pawn Game")).toBe("King's Pawn Game")
+    expect(studyPath("King's Pawn Game")).toEqual([])
+  })
+
+  it('study every other name as the report groups it', () => {
+    expect(studyFamily("Queen's Pawn Game: London System, with e6")).toBe('London System')
+    expect(studyPath("Queen's Pawn Game: London System, with e6")).toEqual(['with e6'])
+    expect(studyFamily('Sicilian Defense: Najdorf Variation')).toBe('Sicilian Defense')
+    expect(studyPath('Sicilian Defense: Najdorf Variation')).toEqual(['Najdorf Variation'])
+  })
+
+  it("map a report family to the trainer's, with the system as the group to open", () => {
+    expect(["Queen's Pawn Game: Veresov Attack", 'London System', 'Sicilian Defense', "King's Pawn Game"].map(studyFamily)).toEqual(["Queen's Pawn Game", 'London System', 'Sicilian Defense', "King's Pawn Game"])
+    expect(["Queen's Pawn Game: Veresov Attack", 'London System'].map((f) => studyPath(f)[0])).toEqual(['Veresov Attack', undefined])
   })
 })

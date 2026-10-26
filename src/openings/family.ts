@@ -31,23 +31,41 @@ export const STANDALONE_SYSTEMS: ReadonlySet<string> = new Set([
   'Ware Defense',
 ])
 
+/** Two groupings of one name. The report keeps a catch-all family's systems apart, so a Stonewall's numbers never mix
+ *  with a Veresov's; the trainer studies them together under the catch-all, each system a group of its screen. */
+type Grouping = 'report' | 'study'
+
 /** The family of a name and the rest of it, one entry per comma, so the two always cut the name at the same place.
  *  The head is the text before the first ':' or ','. A catch-all head names its system after the ':'. */
-function cut(name: string): readonly [family: string, path: readonly string[]] {
+function cut(name: string, grouping: Grouping): readonly [family: string, path: readonly string[]] {
   const [head, ...rest] = name.split(/[:,]/).map((s) => s.trim())
   if (!GENERIC_FAMILIES.has(head) || name[name.search(/[:,]/)] !== ':') return [head, rest]
   const [system, ...path] = rest
-  return [STANDALONE_SYSTEMS.has(system) ? system : `${head}: ${system}`, path]
+  if (STANDALONE_SYSTEMS.has(system)) return [system, path]
+  return grouping === 'report' ? [`${head}: ${system}`, path] : [head, rest]
 }
 
 /** 'French Defense, Classical, 4. Bg5' → 'French Defense'; "Queen's Pawn Game: Symmetrical Variation" stays whole, a
  *  system under a catch-all family; "Queen's Pawn Game: London System" → 'London System', a system that is a family too. */
 export function family(name: string): string {
-  return cut(name)[0]
+  return cut(name, 'report')[0]
 }
 
 /** 'Queen's Pawn Game: London System, with e6' → ['with e6']; 'French Defense, Classical, 4. Bg5' → ['Classical',
  *  '4. Bg5']; 'Sicilian Defense' → []. */
 export function variationPath(name: string): readonly string[] {
-  return cut(name)[1]
+  return cut(name, 'report')[1]
+}
+
+/** The trainer's family: "King's Pawn Game: Bavarian Gambit" → "King's Pawn Game", the system a group of that screen;
+ *  every other name as `family`. A report family is a name cut at the same places, so this also maps it to the family
+ *  the trainer studies it under: "Queen's Pawn Game: Veresov Attack" → "Queen's Pawn Game". */
+export function studyFamily(name: string): string {
+  return cut(name, 'study')[0]
+}
+
+/** "King's Pawn Game: Bavarian Gambit, Accepted" → ['Bavarian Gambit', 'Accepted'], the system first; every other name
+ *  as `variationPath`. */
+export function studyPath(name: string): readonly string[] {
+  return cut(name, 'study')[1]
 }

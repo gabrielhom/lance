@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { Color, LineProgress, OpeningTree } from '../../domain/types'
-import { catalog, searchCatalog, type CatalogEntry } from '../../openings'
+import { catalog, searchCatalog, studyFamily, type CatalogEntry } from '../../openings'
 import { weaknesses } from '../../review'
 import { colorLabel } from '../format'
 import { useLibrary } from '../history/useLibrary'
@@ -24,7 +24,7 @@ export function OpeningsScreen() {
   }
   useEffect(load, [services])
   const played = useMemo(
-    () => (records ? weaknesses(records, settings.identity).openings.groups.map((g) => ({ family: g.name, color: g.color, games: g.games.length })) : []),
+    () => (records ? weaknesses(records, settings.identity).openings.groups.map((g) => ({ family: studyFamily(g.name), color: g.color, games: g.games.length })) : []),
     [records, settings],
   )
   const entries = useMemo(() => (loaded && loaded !== 'failed' ? catalog(loaded.tree, loaded.progress, played, loaded.now) : []), [loaded, played])
@@ -53,7 +53,7 @@ export function OpeningsScreen() {
     <div>
       <h1 className="display text-3xl md:text-5xl">Aberturas</h1>
       <p className="dek max-w-lg">
-        As {entries.length} aberturas da base aberta do Lichess, agrupadas como no relatório de pontos fracos. Escolha uma e a cor para estudar cada variação dela.
+        As {entries.length} aberturas da base aberta do Lichess, com os sistemas de um nome genérico como King&apos;s Pawn Game reunidos nele. Escolha uma e a cor para estudar cada variação dela.
       </p>
       <div className="mt-6 max-w-64">
         <label htmlFor="abertura-busca" className="label">Buscar</label>

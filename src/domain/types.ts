@@ -361,7 +361,8 @@ export type OpeningLine = {
   readonly id: LineId
   readonly eco: string
   readonly name: string
-  /** family(name), as in the weaknesses report. */
+  /** studyFamily(name): the trainer's grouping, which keeps a catch-all family's systems together where the report's
+   *  family() tells them apart. */
   readonly family: string
   readonly moves: readonly Uci[]
   /** `moves` in SAN, shipped with the data so no screen replays lines to print them. */
@@ -370,7 +371,8 @@ export type OpeningLine = {
 /** A line no other line of its family extends. Studying it covers the family's named lines on its way. */
 export type Variation = {
   readonly line: OpeningLine
-  /** The name after the family, at its commas: ['Najdorf Variation', 'English Attack']. Empty for the family's own line. */
+  /** The name after the family, at its commas: ['Najdorf Variation', 'English Attack'], or ['Bavarian Gambit'] under a
+   *  catch-all family. Empty for the family's own line. */
   readonly path: readonly string[]
   /** Ply where the moves that tell it from the family's other variations of the same name start; null when its name is its own. */
   readonly distinctFrom: number | null

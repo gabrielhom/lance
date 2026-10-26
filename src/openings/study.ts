@@ -84,6 +84,7 @@ export function requeueStep(steps: readonly StudyStep[], at: number, outcome: Dr
   return outcome === 'clean' || steps.some((s) => s.variation === variation && s.pass === 'again') ? steps : [...steps, { variation, pass: 'again' }]
 }
 
+/** My games in one group of the weaknesses report, under the family the trainer studies it in. */
 export type PlayedOpening = { readonly family: string; readonly color: Color; readonly games: number }
 export type CatalogEntry = {
   readonly family: Family
@@ -101,8 +102,12 @@ export function catalog(tree: OpeningTree, progress: readonly LineProgress[], pl
     if (row.schedule.due <= now) counts[row.color].due++
     studied.set(variation.line.family, counts)
   }
+  // Several report groups can fold into one family here, the Veresov and the Stonewall both under the Queen's Pawn Game.
   const games = new Map<string, ByColor<number>>()
-  for (const p of played) games.set(p.family, { ...(games.get(p.family) ?? { w: 0, b: 0 }), [p.color]: p.games })
+  for (const p of played) {
+    const counts = games.get(p.family) ?? { w: 0, b: 0 }
+    games.set(p.family, { ...counts, [p.color]: counts[p.color] + p.games })
+  }
   const entries = tree.families.map((family) => {
     const counts = studied.get(family.name) ?? { w: { learned: 0, due: 0 }, b: { learned: 0, due: 0 } }
     return {

@@ -11,8 +11,9 @@ export type Route =
   /** Modes of the training screen, next to my own mistakes. */
   | { readonly name: 'puzzles' }
   | { readonly name: 'openings' }
-  /** One family studied with one color. `family` is what `family()` gives, as in the weaknesses report. */
-  | { readonly name: 'opening'; readonly family: string; readonly color: Color }
+  /** One family studied with one color. `family` is what `studyFamily()` gives; `group` opens one of its groups, the
+   *  system the weaknesses report links from. */
+  | { readonly name: 'opening'; readonly family: string; readonly color: Color; readonly group?: string }
   | { readonly name: 'history' }
   | { readonly name: 'weaknesses' }
   | { readonly name: 'settings' }
@@ -23,10 +24,11 @@ export function parseRoute(hash: string): Route {
   if (m) return { name: 'review', id: decodeURIComponent(m[1]) as GameId, ...(m[2] ? { ply: Number(m[2]) } : null) }
   // Game ids always carry a source prefix ('lichess:', 'pgn:'...), so no game is called 'puzzles' or 'aberturas'.
   if (path === '/treino/puzzles') return { name: 'puzzles' }
-  const o = /^\/treino\/aberturas(?:\/([^/]+)\/(brancas|pretas))?$/.exec(path)
+  const o = /^\/treino\/aberturas(?:\/([^/]+)\/(brancas|pretas)(?:\/([^/]+))?)?$/.exec(path)
   if (o) {
-    const family = o[1] && decodeFamily(o[1])
-    return family ? { name: 'opening', family, color: o[2] === 'brancas' ? 'w' : 'b' } : { name: 'openings' }
+    const family = o[1] && decode(o[1])
+    const group = o[3] && decode(o[3])
+    return family ? { name: 'opening', family, color: o[2] === 'brancas' ? 'w' : 'b', ...(group ? { group } : null) } : { name: 'openings' }
   }
   const t = /^\/treino(?:\/([^/]+))?$/.exec(path)
   if (t) return { name: 'training', games: t[1] ? t[1].split(',').map((g) => decodeURIComponent(g) as GameId) : [] }
@@ -37,8 +39,8 @@ export function parseRoute(hash: string): Route {
   return { name: 'play' }
 }
 
-/** A hand-edited link with a stray '%' in the family opens the catalog instead of throwing. */
-function decodeFamily(segment: string): string | null {
+/** A hand-edited link with a stray '%' opens the catalog instead of throwing, or the family with no group open. */
+function decode(segment: string): string | null {
   try {
     return decodeURIComponent(segment)
   } catch {
@@ -54,7 +56,8 @@ export function href(route: Route): string {
     case 'training': return route.games.length ? `#/treino/${route.games.map(encodeURIComponent).join(',')}` : '#/treino'
     case 'puzzles': return '#/treino/puzzles'
     case 'openings': return '#/treino/aberturas'
-    case 'opening': return `#/treino/aberturas/${encodeURIComponent(route.family)}/${route.color === 'w' ? 'brancas' : 'pretas'}`
+    case 'opening':
+      return `#/treino/aberturas/${encodeURIComponent(route.family)}/${route.color === 'w' ? 'brancas' : 'pretas'}${route.group === undefined ? '' : `/${encodeURIComponent(route.group)}`}`
     case 'history': return '#/historico'
     case 'weaknesses': return '#/historico/pontos-fracos'
     case 'settings': return '#/config'

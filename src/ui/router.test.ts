@@ -27,4 +27,14 @@ describe('openings routes', () => {
     expect(parseRoute(href({ name: 'openings' }))).toEqual({ name: 'openings' })
     expect(parseRoute('#/treino/aberturas/Sicilian%E/pretas')).toEqual({ name: 'openings' })
   })
+
+  it('carries the group to open after the color, apostrophe and spaces included', () => {
+    const route = { name: 'opening', family: "King's Pawn Game", color: 'w', group: "Mengarini's Opening" } as const
+    expect(href(route)).toBe("#/treino/aberturas/King's%20Pawn%20Game/brancas/Mengarini's%20Opening")
+    expect(parseRoute(href(route))).toEqual(route)
+  })
+
+  it('opens the family with no group when the group cannot be decoded', () => {
+    expect(parseRoute("#/treino/aberturas/King's%20Pawn%20Game/brancas/Bavarian%E")).toEqual({ name: 'opening', family: "King's Pawn Game", color: 'w' })
+  })
 })
