@@ -1,5 +1,6 @@
 import { accuracyPercentile } from '../analysis'
 import { PHASES, type Color, type GameId, type GameResult, type Identity, type LibraryRecord, type Phase, type PhaseErrors } from '../domain'
+import { family } from '../openings'
 import { myGames, type MyGame } from './history'
 
 export const INSIGHTS = {
@@ -120,27 +121,6 @@ function openings(games: readonly MyGame[], average: number): Weaknesses['openin
       .sort((a, b) => rank[a.verdict] - rank[b.verdict] || b.games.length - a.games.length || (a.score ?? 1) - (b.score ?? 1)),
     unnamed,
   }
-}
-
-/** Catch-all families in the opening book: what 1.d4, 1.e4, 1.Nf3, 1.e3, 1.Nc3, 1.d3 or 1.g3 is called before a named
- *  system. Their variations are openings of their own, the London System or the Colle under the Queen's Pawn Game. */
-const GENERIC_FAMILIES: ReadonlySet<string> = new Set([
-  "Queen's Pawn Game",
-  "King's Pawn Game",
-  'Indian Defense',
-  'Zukertort Opening',
-  "Van't Kruijs Opening",
-  'Van Geet Opening',
-  'Mieses Opening',
-  'Hungarian Opening',
-  'Englund Gambit Declined',
-])
-
-/** The name before any ':', and for a catch-all family also the variation, up to its first ','. */
-export function family(name: string): string {
-  const [head, rest] = name.split(/:(.*)/s)
-  const f = head.trim()
-  return GENERIC_FAMILIES.has(f) && rest ? `${f}: ${rest.split(',')[0].trim()}` : f
 }
 
 function openingStats(list: readonly MyGame[], average: number): OpeningStats {

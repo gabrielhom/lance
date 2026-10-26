@@ -6,6 +6,7 @@ import {
   type AnalysisProfile,
   type ByColor,
   type Classification,
+  type Color,
   type Division,
   type EngineDescriptor,
   type EngineId,
@@ -18,6 +19,9 @@ import {
   type GameSource,
   type Identity,
   type LibraryRecord,
+  type LineId,
+  type LineKey,
+  type LineProgress,
   type NonEmpty,
   type Opening,
   type Phase,
@@ -44,6 +48,7 @@ const isStr = (x: unknown): x is string => typeof x === 'string' && x.length > 0
 const isInt = (x: unknown, min: number): x is number => Number.isInteger(x) && (x as number) >= min
 const isNum = (x: unknown): x is number => typeof x === 'number' && Number.isFinite(x)
 const UCI = /^[a-h][1-8][a-h][1-8][nbrq]?$/
+const LINE_KEY = /^([wb]) ([a-h][1-8][a-h][1-8][nbrq]?(?: [a-h][1-8][a-h][1-8][nbrq]?)*)$/
 const RESULTS: readonly GameResult[] = ['1-0', '0-1', '1/2-1/2', '*']
 
 export type StoredEval = { readonly v: 1; readonly lines: SearchedEval['lines']; readonly depth: number }
@@ -127,6 +132,20 @@ export function puzzleRow(attempt: PuzzleAttempt): StoredPuzzleAttempt {
 export function parsePuzzleAttempt(row: unknown): PuzzleAttempt | null {
   if (!isObj(row) || row.v !== 1 || !isStr(row.id) || !isNum(row.at) || typeof row.solved !== 'boolean' || !isNum(row.puzzleRating)) return null
   return { id: row.id as PuzzleId, at: row.at, solved: row.solved, puzzleRating: row.puzzleRating }
+}
+
+export type StoredLineProgress = { readonly v: 1; readonly id: LineKey; readonly schedule: Schedule }
+
+/** The key is the identity: color and line are parsed back out of it, so the row can't disagree with its key. */
+export function lineProgressRow(p: LineProgress): StoredLineProgress {
+  return { v: 1, id: p.id, schedule: p.schedule }
+}
+
+export function parseLineProgress(row: unknown): LineProgress | null {
+  if (!isObj(row) || row.v !== 1 || !isStr(row.id)) return null
+  const key = LINE_KEY.exec(row.id)
+  const schedule = parseSchedule(row.schedule)
+  return key && schedule ? { id: row.id as LineKey, color: key[1] as Color, line: key[2] as LineId, schedule } : null
 }
 
 const isUci = (x: unknown): x is Uci => typeof x === 'string' && UCI.test(x)

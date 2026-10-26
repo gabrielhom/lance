@@ -5,7 +5,7 @@ import { buildBackup, planImport } from './backup'
 const ZERO = Object.fromEntries(CLASSIFICATIONS.map((c) => [c, 0])) as Record<Classification, number>
 const NOBODY: Identity = { accounts: [] }
 const GABRIEL: Identity = { accounts: [{ site: 'lichess', username: 'gabrielhom' }] }
-const here = (games: unknown[], training: unknown[] = [], puzzles: unknown[] = []) => ({ games, training, puzzles })
+const here = (games: unknown[], training: unknown[] = [], puzzles: unknown[] = [], openings: unknown[] = []) => ({ games, training, puzzles, openings })
 
 function record(id: string, reviewedAt: number) {
   return {
@@ -42,6 +42,10 @@ function attempt(id: string, at: number, solved = true) {
   return { v: 1, id, at, solved, puzzleRating: 1760 }
 }
 
+function line(id: string, answeredAt: number | null, box = 1) {
+  return { v: 1, id, schedule: { box, due: 1000, last: answeredAt === null ? null : { at: answeredAt, correct: true } } }
+}
+
 function parsed(id: string, answeredAt: number | null) {
   const { v: _, ...rest } = item(id, answeredAt)
   return rest
@@ -55,11 +59,16 @@ describe('buildBackup', () => {
   it('carries every row as stored, unreadable ones included, and the settings', () => {
     const settings: Settings = { ...DEFAULT_SETTINGS, identity: GABRIEL, tuning: { engines: 4, threadsPerEngine: 1, hashMb: 32 } }
     const rows = [record('pgn:a', 100), { v: 2, id: 'pgn:future' }]
-    expect(buildBackup({ games: rows, training: [], puzzles: [attempt('00sHx', 100)] }, settings, Date.UTC(2026, 9, 24, 12))).toEqual({
+    expect(buildBackup({ games: rows, training: [], puzzles: [attempt('00sHx', 100)], openings: [line('b e2e4 c7c6', 100)] }, settings, Date.UTC(2026, 9, 24, 12))).toEqual({
       format: 'lance-backup',
       v: 1,
       exportedAt: '2026-10-24T12:00:00.000Z',
-      stores: { games: [record('pgn:a', 100), { v: 2, id: 'pgn:future' }], training: [], puzzles: [{ v: 1, id: '00sHx', at: 100, solved: true, puzzleRating: 1760 }] },
+      stores: {
+        games: [record('pgn:a', 100), { v: 2, id: 'pgn:future' }],
+        training: [],
+        puzzles: [{ v: 1, id: '00sHx', at: 100, solved: true, puzzleRating: 1760 }],
+        openings: [{ v: 1, id: 'b e2e4 c7c6', schedule: { box: 1, due: 1000, last: { at: 100, correct: true } } }],
+      },
       settings: {
         v: 1,
         identity: { accounts: [{ site: 'lichess', username: 'gabrielhom' }] },
@@ -93,6 +102,7 @@ describe('planImport', () => {
         training: [],
         drop: [],
         puzzles: [],
+        openings: [],
         report: { imported: 2, alreadyHere: 1, ignored: 2, identity: null },
       },
     })
@@ -101,21 +111,21 @@ describe('planImport', () => {
   it('keeps a newer review already here over an older copy in the file', () => {
     expect(planImport(file([record('pgn:a', 100)]), here([record('pgn:a', 500)]), GABRIEL)).toEqual({
       ok: true,
-      value: { put: [], training: [], drop: [], puzzles: [], report: { imported: 0, alreadyHere: 1, ignored: 0, identity: null } },
+      value: { put: [], training: [], drop: [], puzzles: [], openings: [], report: { imported: 0, alreadyHere: 1, ignored: 0, identity: null } },
     })
   })
 
   it('never overwrites a row here that this version cannot read', () => {
     expect(planImport(file([record('pgn:a', 100)]), here([{ v: 2, id: 'pgn:a' }]), GABRIEL)).toEqual({
       ok: true,
-      value: { put: [], training: [], drop: [], puzzles: [], report: { imported: 0, alreadyHere: 1, ignored: 0, identity: null } },
+      value: { put: [], training: [], drop: [], puzzles: [], openings: [], report: { imported: 0, alreadyHere: 1, ignored: 0, identity: null } },
     })
   })
 
   it('takes the newest of two copies of one game in the file', () => {
     expect(planImport(file([record('pgn:a', 100), record('pgn:a', 200)]), here([]), GABRIEL)).toEqual({
       ok: true,
-      value: { put: [record('pgn:a', 200)], training: [], drop: [], puzzles: [], report: { imported: 1, alreadyHere: 0, ignored: 0, identity: null } },
+      value: { put: [record('pgn:a', 200)], training: [], drop: [], puzzles: [], openings: [], report: { imported: 1, alreadyHere: 0, ignored: 0, identity: null } },
     })
   })
 
@@ -127,7 +137,7 @@ describe('planImport', () => {
   it('reads a backup without games as empty', () => {
     expect(planImport('{"format":"lance-backup","v":1,"stores":{}}', here([]), NOBODY)).toEqual({
       ok: true,
-      value: { put: [], training: [], drop: [], puzzles: [], report: { imported: 0, alreadyHere: 0, ignored: 0, identity: null } },
+      value: { put: [], training: [], drop: [], puzzles: [], openings: [], report: { imported: 0, alreadyHere: 0, ignored: 0, identity: null } },
     })
   })
 
@@ -144,6 +154,25 @@ describe('planImport', () => {
       { id: 'bbbbb', at: 100, solved: false, puzzleRating: 1760 },
       { id: 'ddddd', at: 40, solved: true, puzzleRating: 1760 },
     ])
+  })
+
+  it('takes an opening line drilled later in the file, keeps one drilled later or at the same time here and never one it cannot read', () => {
+    const text = file([], undefined, {
+      openings: [line('b e2e4 c7c6', 500, 2), line('w e2e4 e7e5', 100), line('b d2d4 d7d5', null), line('w g1f3', 900), line('b e2e4 c7c5', 300), { v: 2, id: 'w d2d4' }, { v: 1, id: 'b e4', schedule: { box: 0, due: 1, last: null } }],
+    })
+    const plan = planImport(text, here([], [], [], [line('b e2e4 c7c6', 300), line('w e2e4 e7e5', 200), { v: 2, id: 'w g1f3' }, line('b e2e4 c7c5', 300)]), GABRIEL)
+    expect(plan.ok && plan.value.openings).toEqual([
+      { id: 'b e2e4 c7c6', color: 'b', line: 'e2e4 c7c6', schedule: { box: 2, due: 1000, last: { at: 500, correct: true } } },
+      { id: 'b d2d4 d7d5', color: 'b', line: 'd2d4 d7d5', schedule: { box: 1, due: 1000, last: null } },
+    ])
+  })
+
+  it('leaves the opening lines alone when the file predates them, and imports nothing twice', () => {
+    const local = here([], [], [], [line('b e2e4 c7c6', 300)])
+    const plan = planImport(file([record('pgn:a', 200)]), local, GABRIEL)
+    expect(plan.ok && plan.value.openings).toEqual([])
+    const again = planImport(file([], undefined, { openings: [line('b e2e4 c7c6', 300)] }), local, GABRIEL)
+    expect(again.ok && again.value.openings).toEqual([])
   })
 
   describe('the items of a game whose newer review comes in', () => {

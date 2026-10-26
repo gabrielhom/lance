@@ -5,7 +5,6 @@ import {
   type Classification,
   type GameReview,
   type PlayablePosition,
-  type Schedule,
   type SearchedEval,
   type TrainingClass,
   type TrainingItem,
@@ -13,12 +12,11 @@ import {
   type Uci,
   type Verdict,
 } from '../domain'
+import { startOfDay } from './schedule'
 
 export const TRAINING = {
   /** A move other than the best is right when it loses less win% than this: a move the review would call excellent. */
   acceptLoss: CLASSIFIER.bands.excellent,
-  /** Days until an item comes back, by Leitner box. A wrong answer sends it to box 0. */
-  intervalDays: [1, 3, 7, 14, 30],
 } as const
 
 const isTrained = (c: Classification): c is TrainingClass => c === 'mistake' || c === 'blunder' || c === 'miss'
@@ -52,15 +50,6 @@ export function syncItems(existing: readonly TrainingItem[], review: GameReview,
   const put = trainingItems(review, now).map((i) => ({ ...i, schedule: schedules.get(i.id) ?? i.schedule }))
   const kept = new Set(put.map((i) => i.id))
   return { put, remove: existing.filter((i) => !kept.has(i.id)).map((i) => i.id) }
-}
-
-/** Leitner boxes. Right moves the item up a box and waits that box's interval; wrong sends it back to box 0, for tomorrow.
- *  An answer before the due day is practice and changes nothing: an early right answer would stretch the interval
- *  without testing the forgetting it waits for, and retrying a missed item at once would erase the miss. */
-export function nextSchedule(s: Schedule, correct: boolean, now: number): Schedule {
-  if (s.due > now) return s
-  const box = correct ? Math.min(s.box + 1, TRAINING.intervalDays.length - 1) : 0
-  return { box, due: addDays(startOfDay(now), TRAINING.intervalDays[box]), last: { at: now, correct } }
 }
 
 /** A session's queue after the answer to its item at `at`. A miss comes back once at the end, to be tried again in the same
@@ -111,16 +100,4 @@ export async function checkAnswer(item: TrainingItem, move: Uci, evaluate: (p: P
     : after.kind === 'checkmate' ? winPct({ kind: 'checkmate', loser: after.turn }, mover)
     : winPct({ kind: 'stalemate' }, mover)
   return winPct(item.best.score, mover) - won < TRAINING.acceptLoss ? 'close' : 'wrong'
-}
-
-function startOfDay(t: number): number {
-  const d = new Date(t)
-  d.setHours(0, 0, 0, 0)
-  return d.getTime()
-}
-
-function addDays(t: number, days: number): number {
-  const d = new Date(t)
-  d.setDate(d.getDate() + days)
-  return d.getTime()
 }

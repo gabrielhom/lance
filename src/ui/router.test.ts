@@ -14,3 +14,17 @@ describe('training route', () => {
     expect(parseRoute('#/treino/lichess%3Aabcd1234')).toEqual({ name: 'training', games: ['lichess:abcd1234'] })
   })
 })
+
+describe('openings routes', () => {
+  it('carries a family with its color through the hash, colons and spaces included', () => {
+    const route = { name: 'opening', family: "Queen's Pawn Game: London System", color: 'w' } as const
+    expect(href(route)).toBe("#/treino/aberturas/Queen's%20Pawn%20Game%3A%20London%20System/brancas")
+    expect(parseRoute(href(route))).toEqual(route)
+    expect(parseRoute('#/treino/aberturas/Sicilian%20Defense/pretas')).toEqual({ name: 'opening', family: 'Sicilian Defense', color: 'b' })
+  })
+
+  it('opens the catalog without a family, and for a family it cannot decode', () => {
+    expect(parseRoute(href({ name: 'openings' }))).toEqual({ name: 'openings' })
+    expect(parseRoute('#/treino/aberturas/Sicilian%E/pretas')).toEqual({ name: 'openings' })
+  })
+})

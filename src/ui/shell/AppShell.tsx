@@ -14,13 +14,18 @@ const NAV: readonly { route: Route; label: string }[] = [
 ]
 
 /** Screens without their own nav item light up the item they are reached from. */
-const NAV_PARENT: Partial<Record<Route['name'], Route['name']>> = { review: 'import', puzzles: 'training', weaknesses: 'history' }
+const NAV_PARENT: Partial<Record<Route['name'], Route['name']>> = { review: 'import', puzzles: 'training', openings: 'training', opening: 'training', weaknesses: 'history' }
 
 export function AppShell({ children }: { children: ReactNode }) {
   const route = useRoute()
   const current = NAV_PARENT[route.name] ?? route.name
-  // Hash routing keeps the scroll offset of the previous screen, which lands a new screen mid-page.
-  const where = route.name === 'review' ? `review:${route.id}` : route.name === 'training' ? `training:${route.games.join(',')}` : route.name
+  // Hash routing keeps the scroll offset of the previous screen, which lands a new screen mid-page. Switching the color
+  // of an opening keeps it, so the toggle stays under the pointer.
+  const where =
+    route.name === 'review' ? `review:${route.id}`
+    : route.name === 'training' ? `training:${route.games.join(',')}`
+    : route.name === 'opening' ? `opening:${route.family}`
+    : route.name
   useEffect(() => {
     window.scrollTo(0, 0)
   }, [where])
