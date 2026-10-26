@@ -8,6 +8,7 @@ import {
   drillOutcome,
   drillTurn,
   familyStudy,
+  groupsOf,
   requeueStep,
   stepDrill,
   stepFor,
@@ -117,7 +118,8 @@ function sessionFor(lines: readonly StudyLine[]): readonly StudyStep[] {
   return queue.length ? queue : lines.map(stepFor)
 }
 
-function Overview({ study: { family, color, lines, groups, learned, due }, group, now, onStart }: OverviewProps) {
+function Overview({ study: { family, color, lines, learned, due }, group, now, onStart }: OverviewProps) {
+  const groups = groupsOf(lines)
   const queue = studyQueue(lines)
   // The linked group is below the fold on a family with many systems, and the shell has just scrolled to the top.
   const linked = useRef<HTMLDetailsElement>(null)
