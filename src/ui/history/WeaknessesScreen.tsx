@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { MIN_MOVES_OUTSIDE_THEORY, PHASES, type GameId, type Phase, type TrainingItem } from '../../domain/types'
+import { studyFamily, studyPath } from '../../openings'
 import { INSIGHTS, weaknesses, type OpeningStats, type PhaseStats, type Weaknesses } from '../../review'
 import { colorLabel, formatAccuracy } from '../format'
 import { PHASE_LABEL } from '../labels'
@@ -45,7 +46,7 @@ export function WeaknessesScreen() {
   }
   const openingActions = (o: OpeningStats): Action[] => [
     trainOrReview(o.games, 'dessas partidas', o.games.length === 1 ? 'Revisar a partida' : 'Revisar a última partida'),
-    { label: 'Estudar as variações', href: href({ name: 'opening', family: o.name, color: o.color }) },
+    { label: 'Estudar as variações', href: href({ name: 'opening', family: studyFamily(o.name), color: o.color, group: studyPath(o.name)[0] }) },
   ]
   const phaseAction = (p: Phase, s: PhaseStats): Action | null => {
     if (!s.worst) return null

@@ -124,3 +124,21 @@ test('studies the Caro-Kann as Black: a new variation with arrows, then from mem
   await page.getByLabel('Buscar').fill('caro')
   await expect(row).toContainText(/Pretas 1 de \d+$/)
 })
+
+test("gathers the King's Pawn Game systems in one family, each a group, and a link can open one of them", async ({ page }) => {
+  await page.goto('/#/treino/aberturas')
+  await page.getByLabel('Buscar').fill("king's pawn")
+  const row = page.getByRole('list', { name: 'Aberturas' }).getByRole('listitem').filter({ hasText: "King's Pawn Game" })
+  await expect(row).toHaveCount(1)
+  await row.getByRole('link', { name: "King's Pawn Game de brancas" }).click()
+  await expect(page.getByRole('heading', { name: "King's Pawn Game" })).toBeVisible()
+  const group = (name: string) => page.locator('details').filter({ has: page.locator('summary', { hasText: name }) })
+  const bavarian = group('Bavarian Gambit')
+  await expect(bavarian.locator('summary')).toContainText('Bavarian Gambit · 1 variação')
+  await expect(bavarian).not.toHaveAttribute('open')
+  await expect(group('Wayward Queen Attack').locator('summary')).toContainText('Wayward Queen Attack · 2 variações')
+
+  await page.goto("/#/treino/aberturas/King's%20Pawn%20Game/brancas/Bavarian%20Gambit")
+  await expect(bavarian).toHaveAttribute('open')
+  await expect(page.getByRole('list', { name: 'Bavarian Gambit' }).getByRole('listitem')).toHaveCount(1)
+})

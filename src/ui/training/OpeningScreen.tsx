@@ -37,8 +37,9 @@ type Session = { readonly steps: readonly StudyStep[]; readonly at: number }
 const DAY = 86_400_000
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`
 
-/** One family studied with one color: its variations with their state, and the session that drills them. */
-export function OpeningScreen({ family: name, color }: { family: string; color: Color }) {
+/** One family studied with one color: its variations with their state, and the session that drills them. `group` is a
+ *  group of variations to open first, the system the weaknesses report links from. */
+export function OpeningScreen({ family: name, color, group }: { family: string; color: Color; group?: string }) {
   const services = useServices()
   // Read with the time it was read, so what is due stays put between renders.
   const [loaded, setLoaded] = useState<Loaded | 'failed' | null>(null)
@@ -78,7 +79,7 @@ export function OpeningScreen({ family: name, color }: { family: string; color: 
   }
   const study = familyStudy(family, color, loaded.progress, loaded.now)
   const step = session?.steps[session.at]
-  if (!session || !step) return <Overview study={study} now={loaded.now} onStart={(steps) => setSession({ steps, at: 0 })} />
+  if (!session || !step) return <Overview study={study} group={group} now={loaded.now} onStart={(steps) => setSession({ steps, at: 0 })} />
   return (
     <DrillView
       key={`${step.variation.line.id}@${session.at}`}
@@ -108,7 +109,7 @@ function Trouble({ title, text, children }: { title: string; text: string; child
   )
 }
 
-type OverviewProps = { study: FamilyStudy; now: number; onStart: (steps: readonly StudyStep[]) => void }
+type OverviewProps = { study: FamilyStudy; group?: string; now: number; onStart: (steps: readonly StudyStep[]) => void }
 
 /** The due and new lines when there are any, else every line as practice, which leaves the schedule alone. */
 function sessionFor(lines: readonly StudyLine[]): readonly StudyStep[] {
@@ -116,15 +117,20 @@ function sessionFor(lines: readonly StudyLine[]): readonly StudyStep[] {
   return queue.length ? queue : lines.map(stepFor)
 }
 
-function Overview({ study: { family, color, lines, groups, learned, due }, now, onStart }: OverviewProps) {
+function Overview({ study: { family, color, lines, groups, learned, due }, group, now, onStart }: OverviewProps) {
   const queue = studyQueue(lines)
+  // The linked group is below the fold on a family with many systems, and the shell has just scrolled to the top.
+  const linked = useRef<HTMLDetailsElement>(null)
+  useEffect(() => {
+    linked.current?.scrollIntoView()
+  }, [group])
   return (
     <div>
       <a href={href({ name: 'openings' })} className="tl tl-quiet text-sm">Aberturas</a>
       <h1 className="display text-3xl md:text-5xl mt-2">{family.name}</h1>
       <nav aria-label="Cor" className="modes mt-4">
         {(['w', 'b'] as const).map((c) => (
-          <a key={c} href={href({ name: 'opening', family: family.name, color: c })} className="choice" aria-current={c === color ? 'page' : undefined}>
+          <a key={c} href={href({ name: 'opening', family: family.name, color: c, group })} className="choice" aria-current={c === color ? 'page' : undefined}>
             {c === 'w' ? 'Brancas' : 'Pretas'}
           </a>
         ))}
@@ -144,7 +150,7 @@ function Overview({ study: { family, color, lines, groups, learned, due }, now, 
       {groups.map((g) => {
         const title = g.name ?? family.name
         return (
-          <details key={title} className="advanced mt-8" open={g.lines.some((l) => l.state.kind === 'due')}>
+          <details key={title} ref={g.name === group ? linked : undefined} className="advanced mt-8" open={g.name === group || g.lines.some((l) => l.state.kind === 'due')}>
             <summary className="sec">
               {title} <span className="font-sans text-sm font-normal text-ink-2">· {plural(g.lines.length, 'variação', 'variações')}</span>
             </summary>

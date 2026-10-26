@@ -1,5 +1,5 @@
 import type { BookMove, Color, Drill, Family, LineId, Opening, OpeningLine, OpeningTree, San, Uci, Variation } from '../domain'
-import { family, variationPath } from './family'
+import { studyFamily, studyPath } from './family'
 
 /** [eco, name, uci moves, san moves], moves space-separated, in dataset order. */
 export type LineTuple = readonly [string, string, string, string]
@@ -7,7 +7,7 @@ export type LineFile = { readonly source: string; readonly license: string; read
 
 /** Trusts its input: scripts/build-openings.mjs writes it from moves chess.js played. */
 export function fromTuple([eco, name, uci, san]: LineTuple): OpeningLine {
-  return { id: uci as LineId, eco, name, family: family(name), moves: uci.split(' ') as Uci[], sans: san.split(' ') as San[] }
+  return { id: uci as LineId, eco, name, family: studyFamily(name), moves: uci.split(' ') as Uci[], sans: san.split(' ') as San[] }
 }
 
 type Node = {
@@ -64,7 +64,7 @@ function familyOf(name: string, lines: readonly OpeningLine[], root: Node): Fami
   visit(root)
   const sameName = new Map<string, OpeningLine[]>()
   for (const l of order) sameName.set(l.name, [...(sameName.get(l.name) ?? []), l])
-  const variations = order.map((line) => ({ line, path: variationPath(line.name), distinctFrom: distinctFrom(line, sameName.get(line.name)!) }))
+  const variations = order.map((line) => ({ line, path: studyPath(line.name), distinctFrom: distinctFrom(line, sameName.get(line.name)!) }))
   const ecos = [...new Set(lines.map((l) => l.eco))].sort()
   return {
     name,

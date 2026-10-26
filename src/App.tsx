@@ -37,7 +37,7 @@ export default function App() {
           <OpeningsScreen />
         </>
       )}
-      {route.name === 'opening' && <OpeningScreen key={`${route.family}|${route.color}`} family={route.family} color={route.color} />}
+      {route.name === 'opening' && <OpeningScreen key={`${route.family}|${route.color}`} family={route.family} color={route.color} group={route.group} />}
       {route.name === 'history' && <HistoryScreen />}
       {route.name === 'weaknesses' && <WeaknessesScreen />}
       {route.name === 'settings' && <SettingsScreen />}

@@ -16,11 +16,15 @@ describe('buildTree', () => {
       ['Grünfeld Defense', 'D80'],
       ["King's Pawn Game", 'B00'],
       ["Queen's Gambit Declined", 'D02–D30'],
-      ["Queen's Pawn Game", 'A40'],
-      ["Queen's Pawn Game: Zukertort Variation", 'D02'],
+      ["Queen's Pawn Game", 'A40–D02'],
       ['Sicilian Defense', 'B20–B90'],
     ])
     expect(tree.family('Sicilian')).toBeNull()
+  })
+
+  it('studies the systems of a catch-all family under it, each the first part of its path', () => {
+    expect(tree.family("Queen's Pawn Game: Zukertort Variation")).toBeNull()
+    expect(tree.family("Queen's Pawn Game")!.variations.w.map((v) => [v.line.name, v.path])).toEqual([["Queen's Pawn Game: Zukertort Variation", ['Zukertort Variation']]])
   })
 
   it('makes a variation of each line no other line of its family extends, the branch with more lines first', () => {
@@ -33,9 +37,9 @@ describe('buildTree', () => {
     ])
   })
 
-  it('keeps a line other families extend as a variation of its own family', () => {
+  it('keeps a line other families extend as a variation of its own family, unlike one its own systems extend', () => {
     expect(tree.family("King's Pawn Game")!.variations.w.map((v) => v.line.sans)).toEqual([['e4']])
-    expect(tree.family("Queen's Pawn Game: Zukertort Variation")!.variations.w.map((v) => v.line.sans.join(' '))).toEqual(['d4 d5 Nf3'])
+    expect(tree.family("Queen's Pawn Game")!.variations.w.map((v) => v.line.sans.join(' '))).toEqual(['d4 d5 Nf3'])
   })
 
   it("leaves a line without a Black move out of Black's list", () => {
@@ -49,7 +53,6 @@ describe('buildTree', () => {
     expect([e5.distinctFrom, e6.distinctFrom]).toEqual([11, 11])
     expect([dragon.path, dragon.distinctFrom]).toEqual([['Hyperaccelerated Dragon'], null])
     expect(morra.path).toEqual(['Smith-Morra Gambit'])
-    expect(tree.family("Queen's Pawn Game: Zukertort Variation")!.variations.w[0].path).toEqual([])
   })
 
   it('finds a variation by line and color, and nothing for a line that is not one', () => {
@@ -128,10 +131,17 @@ describe('the bundled lines', async () => {
   const { default: file } = await import('./lines.json')
   const { lines } = file as unknown as LineFile
 
-  it('give 303 families, 259 Sicilian variations for White and a unique id per line', () => {
-    expect(real.families).toHaveLength(303)
+  it('give 141 families, 259 Sicilian variations for White and a unique id per line', () => {
+    expect(real.families).toHaveLength(141)
     expect(real.family('Sicilian Defense')!.variations.w).toHaveLength(259)
     expect(new Set(lines.map((l) => l[2])).size).toBe(lines.length)
+  })
+
+  it("gather every King's Pawn Game system in one family, grouped by system, and no family named after a catch-all's system", () => {
+    const systems = new Set(real.family("King's Pawn Game")!.variations.w.map((v) => v.path[0]))
+    expect(systems.has('Bavarian Gambit')).toBe(true)
+    expect(systems.size).toBeGreaterThan(10)
+    expect(real.families.filter((f) => [...GENERIC_FAMILIES].some((g) => f.name.startsWith(`${g}:`)))).toEqual([])
   })
 
   it('name on their own exactly the systems STANDALONE_SYSTEMS lists, so a rebuilt book updates the set', () => {
