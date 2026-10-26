@@ -131,8 +131,8 @@ function Shelf({ title, entries, color, note, empty, index = false }: { title: s
   )
 }
 
-function Card({ entry: { family, colors }, color }: { entry: CatalogEntry; color: Color }) {
-  const { total, learned, due } = colors[color]
+function Card({ entry: { family, colors, games }, color }: { entry: CatalogEntry; color: Color }) {
+  const { total, learned } = colors[color]
   const name = openingName(family.name)
   return (
     <li className="ocard">
@@ -141,14 +141,14 @@ function Card({ entry: { family, colors }, color }: { entry: CatalogEntry; color
         <a href={href({ name: 'opening', family: family.name, color })} className="ocard-name">{name}</a>
         {name !== family.name && <p className="ocard-en">{family.name}</p>}
         <p className="ocard-moves"><Moves sans={family.trunk.sans} /></p>
-        <Learned total={total} learned={learned} due={due} className="mt-1.5" />
+        {learned > 0 && <div className="meter mt-2" aria-hidden><span style={{ width: `${(learned / total) * 100}%` }} /></div>}
+        <p className={`learned ${learned > 0 ? 'mt-1' : 'mt-1.5'}`}><Counts {...colors[color]} games={games[color]} /></p>
       </div>
     </li>
   )
 }
 
-function IndexRow({ entry: { family, colors }, color }: { entry: CatalogEntry; color: Color }) {
-  const { total, learned, due } = colors[color]
+function IndexRow({ entry: { family, colors, games }, color }: { entry: CatalogEntry; color: Color }) {
   const name = openingName(family.name)
   return (
     <li className="ocard">
@@ -159,23 +159,20 @@ function IndexRow({ entry: { family, colors }, color }: { entry: CatalogEntry; c
       <p className="learned">
         <span className="ocard-moves"><Moves sans={family.trunk.sans} /></span>
         {' · '}
-        {learned ? `${learned} de ${total} aprendidas` : total === 1 ? '1 variação' : `${total} variações`}
-        {due > 0 && <span className="learned-due"> · {due} para hoje</span>}
+        <Counts {...colors[color]} games={games[color]} />
       </p>
     </li>
   )
 }
 
-/** A bar and its words once anything is learned; only how many variations there are before that. */
-function Learned({ total, learned, due, className = '' }: { total: number; learned: number; due: number; className?: string }) {
-  if (learned === 0) return <p className={`learned ${className}`}>{total === 1 ? '1 variação' : `${total} variações`}</p>
+/** What I learned of a family with one color, or how many variations it has before that. My reviewed games with the
+ *  color say why a family I never studied is among mine. */
+function Counts({ total, learned, due, games }: { total: number; learned: number; due: number; games: number }) {
   return (
-    <div className={className}>
-      <div className="meter" aria-hidden><span style={{ width: `${(learned / total) * 100}%` }} /></div>
-      <p className="learned mt-1">
-        {learned} de {total} aprendidas
-        {due > 0 && <span className="learned-due"> · {due} para hoje</span>}
-      </p>
-    </div>
+    <>
+      <span className="whitespace-nowrap">{learned ? `${learned} de ${total} aprendidas` : total === 1 ? '1 variação' : `${total} variações`}</span>
+      {due > 0 && <> <span className="learned-due whitespace-nowrap">· {due} para hoje</span></>}
+      {games > 0 && <> <span className="whitespace-nowrap">· {games === 1 ? '1 partida sua' : `${games} partidas suas`}</span></>}
+    </>
   )
 }
