@@ -43,7 +43,10 @@ export function WeaknessesScreen() {
       ? { label: `Treinar ${n === 1 ? 'a posição' : `as ${n} posições`} ${what}`, href: href({ name: 'training', games }) }
       : { label: review, href: href({ name: 'review', id: games[0] }) }
   }
-  const openingAction = (o: OpeningStats) => trainOrReview(o.games, 'dessas partidas', o.games.length === 1 ? 'Revisar a partida' : 'Revisar a última partida')
+  const openingActions = (o: OpeningStats): Action[] => [
+    trainOrReview(o.games, 'dessas partidas', o.games.length === 1 ? 'Revisar a partida' : 'Revisar a última partida'),
+    { label: 'Estudar as variações', href: href({ name: 'opening', family: o.name, color: o.color }) },
+  ]
   const phaseAction = (p: Phase, s: PhaseStats): Action | null => {
     if (!s.worst) return null
     return {
@@ -73,8 +76,8 @@ export function WeaknessesScreen() {
         </div>
       ) : (
         <>
-          <Leads report={report} openingAction={openingAction} phaseAction={phaseAction} lossesAction={report.errors.lossesWithBlunder.length ? trainOrReview(report.errors.lossesWithBlunder, 'dessas derrotas', 'Revisar a última dessas derrotas') : null} />
-          <Openings report={report} action={openingAction} />
+          <Leads report={report} openingActions={openingActions} phaseAction={phaseAction} lossesAction={report.errors.lossesWithBlunder.length ? trainOrReview(report.errors.lossesWithBlunder, 'dessas derrotas', 'Revisar a última dessas derrotas') : null} />
+          <Openings report={report} actions={openingActions} />
           <Phases report={report} action={phaseAction} />
           <Errors report={report} />
         </>
@@ -85,17 +88,17 @@ export function WeaknessesScreen() {
 
 type LeadsProps = {
   report: Weaknesses
-  openingAction: (o: OpeningStats) => Action
+  openingActions: (o: OpeningStats) => Action[]
   phaseAction: (p: Phase, s: PhaseStats) => Action | null
   lossesAction: Action | null
 }
 
-/** The findings worth acting on first, each with one thing to do. */
-function Leads({ report, openingAction, phaseAction, lossesAction }: LeadsProps) {
+/** The findings worth acting on first, each with something to do. */
+function Leads({ report, openingActions, phaseAction, lossesAction }: LeadsProps) {
   const { openings, phases, errors } = report
-  const leads: { key: string; text: ReactNode; action: Action | null }[] = []
+  const leads: { key: string; text: ReactNode; actions: Action[] }[] = []
   for (const o of openings.groups.filter((g) => g.verdict === 'weak').slice(0, 2)) {
-    leads.push({ key: `${o.name}|${o.color}`, text: <>{openingTitle(o)}: {openingLine(o)}.</>, action: openingAction(o) })
+    leads.push({ key: `${o.name}|${o.color}`, text: <>{openingTitle(o)}: {openingLine(o)}.</>, actions: openingActions(o) })
   }
   if (phases.weakest) {
     const weakest = phases.weakest
@@ -108,7 +111,7 @@ function Leads({ report, openingAction, phaseAction, lossesAction }: LeadsProps)
           {Math.round(phases.byPhase[best].percentile!)}% {PHASE_IN[best]}.
         </>
       ),
-      action: phaseAction(weakest, phases.byPhase[weakest]),
+      actions: [phaseAction(weakest, phases.byPhase[weakest])].filter((a) => a !== null),
     })
   }
   if (errors.lossesWithBlunder.length > 0) {
@@ -119,7 +122,7 @@ function Leads({ report, openingAction, phaseAction, lossesAction }: LeadsProps)
           <strong>{plural(errors.lossesWithBlunder.length, 'derrota', 'derrotas')}</strong> de {errors.losses} {errors.lossesWithBlunder.length === 1 ? 'teve' : 'tiveram'} ao menos um blunder seu.
         </>
       ),
-      action: lossesAction,
+      actions: [lossesAction].filter((a) => a !== null),
     })
   }
   return (
@@ -135,13 +138,21 @@ function Leads({ report, openingAction, phaseAction, lossesAction }: LeadsProps)
             {leads.map((l) => (
               <li key={l.key} className="py-3">
                 <p>{l.text}</p>
-                {l.action && <a href={l.action.href} className="tl tl-accent inline-block mt-1">{l.action.label}</a>}
+                <Actions actions={l.actions} />
               </li>
             ))}
           </ol>
         )}
       </div>
     </section>
+  )
+}
+
+function Actions({ actions, className = '' }: { actions: readonly Action[]; className?: string }) {
+  return (
+    <p className={`flex flex-wrap gap-x-5 gap-y-1 mt-1 ${className}`}>
+      {actions.map((a) => <a key={a.href} href={a.href} className="tl tl-accent">{a.label}</a>)}
+    </p>
   )
 }
 
@@ -155,7 +166,7 @@ function openingLine(o: OpeningStats): string {
   return parts.filter((p) => p !== null).join(', ')
 }
 
-function Openings({ report, action }: { report: Weaknesses; action: (o: OpeningStats) => Action }) {
+function Openings({ report, actions }: { report: Weaknesses; actions: (o: OpeningStats) => Action[] }) {
   const { groups, unnamed } = report.openings
   return (
     <section aria-labelledby="aberturas-titulo">
@@ -163,7 +174,6 @@ function Openings({ report, action }: { report: Weaknesses; action: (o: OpeningS
       <div className="ruled">
         <ul className="rows" aria-label="Aberturas">
           {groups.map((o) => {
-            const a = action(o)
             return (
               <li key={`${o.name}|${o.color}`} className="py-3">
                 <p className="row-title">
@@ -179,7 +189,7 @@ function Openings({ report, action }: { report: Weaknesses; action: (o: OpeningS
                     o.bookExit.known > 0 ? `pior ao sair da teoria em ${o.bookExit.worse} de ${o.bookExit.known}` : null,
                   ].filter((p) => p !== null).join(' · ')}
                 </p>
-                <a href={a.href} className="tl tl-accent inline-block mt-1 text-sm">{a.label}</a>
+                <Actions actions={actions(o)} className="text-sm" />
               </li>
             )
           })}
