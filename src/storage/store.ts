@@ -1,7 +1,8 @@
 import { openDB, type DBSchema, type IDBPDatabase, type IDBPObjectStore, type IDBPTransaction, type StoreNames } from 'idb'
 import { phaseAt } from '../analysis'
 import { PHASES, type Backup, type ByColor, type EvalCache, type GameReview, type Library, type LibraryRecord, type Phase, type PhaseErrors, type PlayerSummary, type PuzzleStore, type Store, type TrainingStore } from '../domain/types'
-import { nextSchedule, syncItems } from '../training/training'
+import { nextSchedule } from '../training/schedule'
+import { syncItems } from '../training/training'
 import { buildBackup, planImport } from './backup'
 import { evalRow, parseEvalRow, parseLibraryRecord, parsePuzzleAttempt, puzzleRow, parseTrainingItem, trainingRow } from './parse'
 

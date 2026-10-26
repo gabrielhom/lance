@@ -11,7 +11,7 @@ import {
   type Phase,
   type PhaseErrors,
 } from '../domain'
-import { family, weaknesses } from '.'
+import { weaknesses } from '.'
 
 const ME = { accounts: [{ site: 'lichess', username: 'gabrielhom' }] } as const
 const NO_COUNTS = Object.fromEntries(CLASSIFICATIONS.map((c) => [c, 0])) as Record<Classification, number>
@@ -222,35 +222,5 @@ describe('weaknesses: errors', () => {
       ME,
     )
     expect([errors.losses, errors.withBlunder, errors.lossesWithBlunder]).toEqual([3, 3, ['lichess:lost-blunder-black', 'lichess:lost-blunder']])
-  })
-})
-
-describe('family', () => {
-  it('groups an opening by its name before the variation', () => {
-    expect(['Sicilian Defense: Najdorf Variation, English Attack', 'Sicilian Defense', 'Caro-Kann Defense: Advance Variation'].map(family)).toEqual([
-      'Sicilian Defense',
-      'Sicilian Defense',
-      'Caro-Kann Defense',
-    ])
-  })
-
-  it('keeps the system in a catch-all family, across its sub-variations', () => {
-    expect(
-      [
-        "Queen's Pawn Game: London System",
-        "Queen's Pawn Game: London System, Poisoned Pawn Variation",
-        "Queen's Pawn Game: Colle System, Anti-Colle",
-        "Queen's Pawn Game",
-        'Indian Defense: London System',
-        'Zukertort Opening: Kingside Fianchetto',
-      ].map(family),
-    ).toEqual([
-      "Queen's Pawn Game: London System",
-      "Queen's Pawn Game: London System",
-      "Queen's Pawn Game: Colle System",
-      "Queen's Pawn Game",
-      'Indian Defense: London System',
-      'Zukertort Opening: Kingside Fianchetto',
-    ])
   })
 })
