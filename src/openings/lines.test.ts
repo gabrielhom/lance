@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest'
 import type { LineId } from '../domain'
 import { GENERIC_FAMILIES, STANDALONE_SYSTEMS } from './family'
 import { buildTree, loadTree, type LineFile } from './lines'
-import { FILE } from './testing'
+import { FILE, POPULARITY } from './testing'
 
-const tree = buildTree(FILE)
+const tree = buildTree(FILE, POPULARITY)
 const sicilian = tree.family('Sicilian Defense')!
 const names = (color: 'w' | 'b') => sicilian.variations[color].map((v) => v.line.sans.join(' '))
 
@@ -27,14 +27,50 @@ describe('buildTree', () => {
     expect(tree.family("Queen's Pawn Game")!.variations.w.map((v) => [v.line.name, v.path])).toEqual([["Queen's Pawn Game: Zukertort Variation", ['Zukertort Variation']]])
   })
 
-  it('makes a variation of each line no other line of its family extends, the branch with more lines first', () => {
+  it('makes a variation of each line no other line of its family extends, the branch with more games first, ties by its lines', () => {
     expect(names('w')).toEqual([
+      'e4 c5 d4',
+      'e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 a6 Be3 e5',
+      'e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 a6 Be3 e6',
+      'e4 c5 Nf3 g6',
+      'e4 c5 c3 d5',
+    ])
+    expect(tree.families.map((f) => [f.name, f.games])).toEqual([
+      ['Caro-Kann Defense', 60],
+      ['French Defense', 0],
+      ['Grünfeld Defense', 0],
+      ["King's Pawn Game", 40],
+      ["Queen's Gambit Declined", 25],
+      ["Queen's Pawn Game", 0],
+      ['Sicilian Defense', 100],
+    ])
+  })
+
+  it('orders the branches by their lines when no game reached the family', () => {
+    expect(buildTree(FILE, {}).family('Sicilian Defense')!.variations.w.map((v) => v.line.sans.join(' '))).toEqual([
       'e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 a6 Be3 e5',
       'e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 a6 Be3 e6',
       'e4 c5 Nf3 g6',
       'e4 c5 d4',
       'e4 c5 c3 d5',
     ])
+  })
+
+  it("splits a name's games evenly across its rows, so a transposition weighs its branch by half and the family counts each game once", () => {
+    const vienna = buildTree(
+      {
+        ...FILE,
+        lines: [
+          ['C25', 'Vienna Game', 'e2e4 e7e5 b1c3', 'e4 e5 Nc3'],
+          ['C25', 'Vienna Game: Max Lange Defense', 'e2e4 e7e5 b1c3 b8c6', 'e4 e5 Nc3 Nc6'],
+          ['C25', 'Vienna Game: Max Lange Defense', 'e2e4 b8c6 b1c3 e7e5', 'e4 Nc6 Nc3 e5'],
+          ['C26', 'Vienna Game: Falkbeer Variation', 'e2e4 e7e5 b1c3 g8f6', 'e4 e5 Nc3 Nf6'],
+        ],
+      },
+      { 'Vienna Game: Max Lange Defense': 6, 'Vienna Game: Falkbeer Variation': 4 },
+    ).family('Vienna Game')!
+    expect(vienna.variations.w.map((v) => v.line.sans.join(' '))).toEqual(['e4 e5 Nc3 Nf6', 'e4 e5 Nc3 Nc6', 'e4 Nc6 Nc3 e5'])
+    expect(vienna.games).toBe(10)
   })
 
   it('keeps a line other families extend as a variation of its own family, unlike one its own systems extend', () => {
@@ -48,7 +84,7 @@ describe('buildTree', () => {
   })
 
   it('splits the name after the family and marks where same-named variations part ways', () => {
-    const [e5, e6, dragon, morra] = sicilian.variations.w
+    const [morra, e5, e6, dragon] = sicilian.variations.w
     expect(e5.path).toEqual(['Najdorf Variation', 'English Attack'])
     expect([e5.distinctFrom, e6.distinctFrom]).toEqual([11, 11])
     expect([dragon.path, dragon.distinctFrom]).toEqual([['Hyperaccelerated Dragon'], null])
@@ -109,7 +145,7 @@ describe('a system the book names on its own and under catch-all families', () =
       ['A48', 'London System, with Bd3', 'd2d4 g8f6 g1f3 g7g6 c1f4 f8g7 e2e3 d7d6 f1d3', 'd4 Nf6 Nf3 g6 Bf4 Bg7 e3 d6 Bd3'],
       ['A48', 'London System, with Be2', 'd2d4 g8f6 g1f3 g7g6 c1f4 f8g7 e2e3 d7d6 f1e2', 'd4 Nf6 Nf3 g6 Bf4 Bg7 e3 d6 Be2'],
     ],
-  })
+  }, {})
 
   it('is one family, with the variations of every spelling of its name', () => {
     expect(london.families.map((f) => [f.name, f.eco])).toEqual([
@@ -135,6 +171,13 @@ describe('the bundled lines', async () => {
     expect(real.families).toHaveLength(141)
     expect(real.family('Sicilian Defense')!.variations.w).toHaveLength(259)
     expect(new Set(lines.map((l) => l[2])).size).toBe(lines.length)
+  })
+
+  it('count 11546 broadcast games in the Sicilian and teach Black its Najdorf first', () => {
+    const sicilian = real.family('Sicilian Defense')!
+    expect(sicilian.games).toBe(11546)
+    expect(sicilian.variations.b[0].line.name).toBe('Sicilian Defense: Najdorf Variation, Main Line')
+    expect(sicilian.variations.b.slice(0, 5).every((v) => v.path[0] === 'Najdorf Variation')).toBe(true)
   })
 
   it("gather every King's Pawn Game system in one family, grouped by system, and no family named after a catch-all's system", () => {

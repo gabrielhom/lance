@@ -2,11 +2,11 @@ import { describe, expect, it } from 'vitest'
 import type { Color, LineId, LineProgress, Schedule } from '../domain'
 import { buildTree } from './lines'
 import { catalog, dueCount, familyStudy, lineKey, nextProgress, OPENINGS, requeueStep, searchCatalog, stepFor, studyQueue, type StudyLine, type StudyStep } from './study'
-import { FILE } from './testing'
+import { FILE, POPULARITY } from './testing'
 
 const at = (y: number, m: number, d: number, h = 0) => new Date(y, m - 1, d, h).getTime()
 const NOW = at(2026, 10, 24, 20)
-const tree = buildTree(FILE)
+const tree = buildTree(FILE, POPULARITY)
 const sicilian = tree.family('Sicilian Defense')!
 const row = (color: Color, line: string, schedule: Schedule): LineProgress => ({ id: lineKey(color, line as LineId), color, line: line as LineId, schedule })
 const learned = (due: number, box = 1): Schedule => ({ box, due, last: { at: NOW - 1, correct: true } })
@@ -41,20 +41,20 @@ describe('familyStudy', () => {
 
   it('gives each variation its state for that color only, in study order', () => {
     expect(study.lines.map((l) => [l.variation.line.sans.join(' '), l.state])).toEqual([
+      ['e4 c5 d4', { kind: 'learned', box: 2, due: at(2026, 10, 30) }],
       ['e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 a6 Be3 e5', { kind: 'new' }],
       ['e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 a6 Be3 e6', { kind: 'new' }],
       ['e4 c5 Nf3 g6', { kind: 'due', box: 1, due: at(2026, 10, 23) }],
-      ['e4 c5 d4', { kind: 'learned', box: 2, due: at(2026, 10, 30) }],
       ['e4 c5 c3 d5', { kind: 'new' }],
     ])
     expect([study.learned, study.due]).toEqual([2, 1])
   })
 
-  it('groups the variations by the first part of their name, in order of their first line', () => {
+  it('groups the variations by the first part of their name, in order of their first line, so the most played group comes first', () => {
     expect(study.groups.map((g) => [g.name, g.lines.length])).toEqual([
+      ['Smith-Morra Gambit', 1],
       ['Najdorf Variation', 2],
       ['Hyperaccelerated Dragon', 1],
-      ['Smith-Morra Gambit', 1],
       ['Alapin Variation', 1],
     ])
     expect(familyStudy(tree.family("King's Pawn Game")!, 'w', [], NOW).groups).toEqual([{ name: null, lines: [{ variation: tree.variation('e2e4' as LineId, 'w'), state: { kind: 'new' } }] }])
@@ -118,15 +118,15 @@ describe('catalog', () => {
   ]
   const entries = catalog(tree, progress, played, NOW)
 
-  it('puts the families with a line due first, then the ones I play or study by games, then the rest by name', () => {
-    expect(entries.map((e) => e.family.name)).toEqual([
-      'Sicilian Defense',
-      'French Defense',
-      'Caro-Kann Defense',
-      "Queen's Pawn Game",
-      "Queen's Gambit Declined",
-      'Grünfeld Defense',
-      "King's Pawn Game",
+  it('puts the families with a line due first, then the ones I play or study by my games, then the rest by how much strong players play them, then by name', () => {
+    expect(entries.map((e) => [e.family.name, e.family.games])).toEqual([
+      ['Sicilian Defense', 100],
+      ['French Defense', 0],
+      ['Caro-Kann Defense', 60],
+      ["Queen's Pawn Game", 0],
+      ["Queen's Gambit Declined", 25],
+      ["King's Pawn Game", 40],
+      ['Grünfeld Defense', 0],
     ])
   })
 
@@ -134,7 +134,7 @@ describe('catalog', () => {
     expect(entries[0]).toMatchObject({ colors: { w: { total: 5, learned: 0, due: 0 }, b: { total: 5, learned: 2, due: 1 } }, games: { w: 0, b: 0 } })
     expect(entries[2]).toMatchObject({ colors: { w: { total: 1, learned: 0, due: 0 }, b: { total: 1, learned: 0, due: 0 } }, games: { w: 1, b: 2 } })
     expect(entries[3]).toMatchObject({ colors: { w: { total: 1 }, b: { total: 1 } }, games: { w: 2, b: 0 } })
-    expect(entries[6]).toMatchObject({ colors: { w: { total: 1 }, b: { total: 0 } } })
+    expect(entries[5]).toMatchObject({ colors: { w: { total: 1 }, b: { total: 0 } } })
   })
 
   it('searches by every word, ignoring case and accents', () => {
@@ -146,5 +146,16 @@ describe('catalog', () => {
   it('counts the lines due today across families, leaving out a row whose line is no variation', () => {
     expect(dueCount(tree, progress, NOW)).toBe(1)
     expect(dueCount(tree, progress, at(2026, 10, 31))).toBe(3)
+  })
+})
+
+describe('the bundled catalog', async () => {
+  const { loadTree } = await import('./lines')
+  const entries = catalog(await loadTree(), [], [], NOW)
+  const rank = (name: string) => entries.findIndex((e) => e.family.name === name)
+
+  it('opens on the Sicilian Defense and ranks the Ruy Lopez above the King\'s Pawn Game when nothing is due or mine', () => {
+    expect(entries[0].family.name).toBe('Sicilian Defense')
+    expect(rank('Ruy Lopez')).toBeLessThan(rank("King's Pawn Game"))
   })
 })
