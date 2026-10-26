@@ -16,6 +16,7 @@ const MODERN: Variation = {
   },
   path: ['Modern Variations'],
   distinctFrom: null,
+  games: 0,
 }
 const NAMES = [{ eco: 'B00', name: "King's Pawn Game" }, { eco: 'B20', name: 'Sicilian Defense' }, null, { eco: 'B50', name: 'Sicilian Defense: Modern Variations' }]
 /** Playing the Modern as Black: at 1...c5 the French is theory elsewhere; at 3...d6 the Dragon is another Sicilian. */

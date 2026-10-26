@@ -91,6 +91,43 @@ describe('buildTree', () => {
     expect(morra.path).toEqual(['Smith-Morra Gambit'])
   })
 
+  it("gives each variation its name's games, split across the rows that share the name", () => {
+    expect(sicilian.variations.w.map((v) => [v.line.sans.join(' '), v.games])).toEqual([
+      ['e4 c5 d4', 30],
+      ['e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 a6 Be3 e5', 5],
+      ['e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 a6 Be3 e6', 5],
+      ['e4 c5 Nf3 g6', 0],
+      ['e4 c5 c3 d5', 10],
+    ])
+  })
+
+  it('takes as the trunk the shortest line named for the family alone, and the shortest of any name when the family has none', () => {
+    expect(sicilian.trunk.sans).toEqual(['e4', 'c5'])
+    expect(tree.family("Queen's Gambit Declined")!.trunk.sans).toEqual(['d4', 'd5', 'c4', 'e6'])
+    expect(tree.family('Caro-Kann Defense')!.trunk.name).toBe('Caro-Kann Defense: Advance Variation')
+    const benoni = buildTree({
+      ...FILE,
+      lines: [
+        ['A43', 'Benoni Defense: Old Benoni', 'd2d4 c7c5', 'd4 c5'],
+        ['A56', 'Benoni Defense', 'd2d4 g8f6 c2c4 c7c5', 'd4 Nf6 c4 c5'],
+      ],
+    }, {})
+    expect(benoni.family('Benoni Defense')!.trunk.sans).toEqual(['d4', 'Nf6', 'c4', 'c5'])
+  })
+
+  it('breaks a tie between trunks of the same length by games, then by dataset order', () => {
+    const dutch = (popularity: Record<string, number>) =>
+      buildTree({
+        ...FILE,
+        lines: [
+          ['A80', 'Dutch Defense', 'd2d4 f7f5', 'd4 f5'],
+          ['A00', 'Hungarian Opening: Dutch Defense', 'g2g3 f7f5', 'g3 f5'],
+        ],
+      }, popularity).family('Dutch Defense')!.trunk.sans
+    expect(dutch({})).toEqual(['d4', 'f5'])
+    expect(dutch({ 'Hungarian Opening: Dutch Defense': 5, 'Dutch Defense': 4 })).toEqual(['g3', 'f5'])
+  })
+
   it('finds a variation by line and color, and nothing for a line that is not one', () => {
     expect(tree.variation('e2e4 c7c5 g1f3 g7g6' as LineId, 'b')?.line.name).toBe('Sicilian Defense: Hyperaccelerated Dragon')
     expect(tree.variation('e2e4' as LineId, 'w')?.line.name).toBe("King's Pawn Game")
@@ -178,6 +215,14 @@ describe('the bundled lines', async () => {
     expect(sicilian.games).toBe(11546)
     expect(sicilian.variations.b[0].line.name).toBe('Sicilian Defense: Najdorf Variation, Main Line')
     expect(sicilian.variations.b.slice(0, 5).every((v) => v.path[0] === 'Najdorf Variation')).toBe(true)
+  })
+
+  it("show each family by the position it is known by, the King's Indian by 3.Nc3 rather than an early fianchetto", () => {
+    const trunk = (name: string) => real.family(name)!.trunk.sans.join(' ')
+    expect(trunk('Sicilian Defense')).toBe('e4 c5')
+    expect(trunk('Ruy Lopez')).toBe('e4 e5 Nf3 Nc6 Bb5')
+    expect(trunk("King's Indian Defense")).toBe('d4 Nf6 c4 g6 Nc3')
+    expect(trunk("King's Pawn Game")).toBe('e4')
   })
 
   it("gather every King's Pawn Game system in one family, grouped by system, and no family named after a catch-all's system", () => {
