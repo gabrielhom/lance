@@ -1,16 +1,18 @@
 import { openDB, type DBSchema, type IDBPDatabase, type IDBPObjectStore, type IDBPTransaction, type StoreNames } from 'idb'
 import { phaseAt } from '../analysis'
-import { PHASES, type Backup, type ByColor, type EvalCache, type GameReview, type Library, type LibraryRecord, type Phase, type PhaseErrors, type PlayerSummary, type PuzzleStore, type Store, type TrainingStore } from '../domain/types'
+import { PHASES, type Backup, type ByColor, type EvalCache, type GameReview, type Library, type LibraryRecord, type OpeningStore, type Phase, type PhaseErrors, type PlayerSummary, type PuzzleStore, type Store, type TrainingStore } from '../domain/types'
+import { lineKey, nextProgress } from '../openings/study'
 import { nextSchedule } from '../training/schedule'
 import { syncItems } from '../training/training'
 import { buildBackup, planImport } from './backup'
-import { evalRow, parseEvalRow, parseLibraryRecord, parsePuzzleAttempt, puzzleRow, parseTrainingItem, trainingRow } from './parse'
+import { evalRow, lineProgressRow, parseEvalRow, parseLibraryRecord, parseLineProgress, parsePuzzleAttempt, puzzleRow, parseTrainingItem, trainingRow } from './parse'
 
 interface Schema extends DBSchema {
   evals: { key: string; value: unknown }
   games: { key: string; value: unknown; indexes: { playedAt: number } }
   training: { key: string; value: unknown; indexes: { gameId: string } }
   puzzles: { key: string; value: unknown }
+  openings: { key: string; value: unknown }
 }
 type Db = IDBPDatabase<Schema>
 type Step = (db: Db, tx: IDBPTransaction<Schema, StoreNames<Schema>[], 'versionchange'>) => void
@@ -27,6 +29,9 @@ export const STEPS: readonly Step[] = [
   },
   (db) => {
     db.createObjectStore('puzzles', { keyPath: 'id' })
+  },
+  (db) => {
+    db.createObjectStore('openings', { keyPath: 'id' })
   },
 ]
 
@@ -56,7 +61,7 @@ export async function openStore(on: StoreEvents, steps: readonly Step[] = STEPS)
     if (e instanceof DOMException && e.name === 'VersionError') on.outdated()
     throw e
   })
-  return { evals: evalCache(db), library: library(db), backup: backup(db), training: training(db), puzzles: puzzles(db) }
+  return { evals: evalCache(db), library: library(db), backup: backup(db), training: training(db), puzzles: puzzles(db), openings: openings(db) }
 }
 
 function evalCache(db: Db): EvalCache {
@@ -131,27 +136,49 @@ function puzzles(db: Db): PuzzleStore {
   }
 }
 
+function openings(db: Db): OpeningStore {
+  return {
+    list: async () => (await db.getAll('openings')).map(parseLineProgress).filter((p) => p !== null),
+    async record(color, line, outcome, now) {
+      const tx = db.transaction('openings', 'readwrite')
+      const id = lineKey(color, line)
+      const row: unknown = await tx.store.get(id)
+      const here = parseLineProgress(row)
+      // A row this version can't read may come from a newer app, so it stays as it is.
+      const next = row === undefined || here ? nextProgress(here?.schedule ?? null, outcome, now) : null
+      const writes = next && next !== here?.schedule ? [tx.store.put(lineProgressRow({ id, color, line, schedule: next }))] : []
+      await Promise.all([...writes, tx.done])
+    },
+  }
+}
+
 function backup(db: Db): Backup {
   return {
     export: async (settings, now) =>
       JSON.stringify(
-        buildBackup({ games: await db.getAll('games'), training: await db.getAll('training'), puzzles: await db.getAll('puzzles') }, settings, now),
+        buildBackup(
+          { games: await db.getAll('games'), training: await db.getAll('training'), puzzles: await db.getAll('puzzles'), openings: await db.getAll('openings') },
+          settings,
+          now,
+        ),
         null,
         2,
       ),
     async import(text, identity) {
       // One transaction, so a review saved meanwhile in another tab can't be overwritten by an older copy.
-      const tx = db.transaction(['games', 'training', 'puzzles'], 'readwrite')
+      const tx = db.transaction(['games', 'training', 'puzzles', 'openings'], 'readwrite')
       const games = tx.objectStore('games')
       const training = tx.objectStore('training')
       const puzzles = tx.objectStore('puzzles')
-      const plan = planImport(text, { games: await games.getAll(), training: await training.getAll(), puzzles: await puzzles.getAll() }, identity)
+      const openings = tx.objectStore('openings')
+      const plan = planImport(text, { games: await games.getAll(), training: await training.getAll(), puzzles: await puzzles.getAll(), openings: await openings.getAll() }, identity)
       const writes = plan.ok
         ? [
             ...plan.value.put.map((r) => games.put(r)),
             ...plan.value.training.map((i) => training.put(trainingRow(i))),
             ...plan.value.drop.map((id) => training.delete(id)),
             ...plan.value.puzzles.map((a) => puzzles.put(puzzleRow(a))),
+            ...plan.value.openings.map((p) => openings.put(lineProgressRow(p))),
           ]
         : []
       await Promise.all([...writes, tx.done])

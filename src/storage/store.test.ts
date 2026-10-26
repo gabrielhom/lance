@@ -14,6 +14,7 @@ import {
   type GameId,
   type GameReview,
   type GameSource,
+  type LineId,
   type OpeningBook,
   type PositionKey,
   type PuzzleId,
@@ -92,7 +93,7 @@ function review(
 }
 
 /** Only after `open`: it opens the database at the current version without upgrading it. */
-async function writeRaw(store: 'evals' | 'games' | 'training' | 'puzzles', value: unknown, key?: string) {
+async function writeRaw(store: 'evals' | 'games' | 'training' | 'puzzles' | 'openings', value: unknown, key?: string) {
   const db = await openDB('lance', STEPS.length)
   await db.put(store, value, key)
   db.close()
@@ -172,11 +173,20 @@ describe('schema', () => {
   it('upgrades a database with training to one with puzzles and keeps every row', async () => {
     const old = await openStore(QUIET, STEPS.slice(0, 2))
     await old.library.put(operaReview({ kind: 'me', color: 'b' }), 1000)
-    const { library, training, puzzles } = await open()
+    const { library, training, puzzles } = await openStore(QUIET, STEPS.slice(0, 3))
     expect((await library.list()).map((r) => r.id)).toEqual(['pgn:2dbw2vp1o9w'])
     expect((await training.list()).map((i) => i.id)).toEqual(['pgn:2dbw2vp1o9w#17'])
     expect(await puzzles.list()).toEqual([])
     expect(await storeNames(3)).toEqual(['evals', 'games', 'puzzles', 'training'])
+  })
+
+  it('upgrades a database with puzzles to one with openings and keeps every row', async () => {
+    const old = await openStore(QUIET, STEPS.slice(0, 3))
+    await old.puzzles.record({ id: '05AVd' as PuzzleId, at: 2000, solved: false, puzzleRating: 1262 })
+    const { puzzles, openings } = await open()
+    expect((await puzzles.list()).map((a) => a.id)).toEqual(['05AVd'])
+    expect(await openings.list()).toEqual([])
+    expect(await storeNames(4)).toEqual(['evals', 'games', 'openings', 'puzzles', 'training'])
   })
 
   it('upgrades to a new version by running only the new step and keeps every row', async () => {
@@ -185,12 +195,12 @@ describe('schema', () => {
     const { library } = await openStore(QUIET, [...STEPS, step])
     expect(step).toHaveBeenCalledTimes(1)
     expect(await library.list()).toEqual([])
-    expect(await storeNames(NEXT)).toEqual(['evals', 'games', 'later', 'puzzles', 'training'])
+    expect(await storeNames(NEXT)).toEqual(['evals', 'games', 'later', 'openings', 'puzzles', 'training'])
   })
 
   it('creates every store on a fresh browser', async () => {
     await open()
-    expect(await storeNames(STEPS.length)).toEqual(['evals', 'games', 'puzzles', 'training'])
+    expect(await storeNames(STEPS.length)).toEqual(['evals', 'games', 'openings', 'puzzles', 'training'])
   })
 
   it('tells an old tab that the database is newer than its code', async () => {
@@ -494,5 +504,52 @@ describe('puzzles', () => {
     await fresh.puzzles.record({ id: '00sHx' as PuzzleId, at: 4000, solved: true, puzzleRating: 1760 })
     await fresh.backup.import(text, { accounts: [] })
     expect((await fresh.puzzles.list()).map((a) => a.id)).toEqual(['00sHx', '05AVd'])
+  })
+})
+
+describe('openings', () => {
+  const CARO = 'e2e4 c7c6' as LineId
+  const evening = new Date(2026, 9, 24, 20).getTime()
+  const nextDay = new Date(2026, 9, 25, 9).getTime()
+  const learned = { id: 'b e2e4 c7c6', color: 'b', line: CARO, schedule: { box: 0, due: new Date(2026, 9, 25).getTime(), last: { at: evening, correct: true } } }
+
+  it('learns a line on its first drill, moves it on its due day and changes nothing when the same drill is recorded twice', async () => {
+    const { openings } = await open()
+    await openings.record('b', CARO, 'learned', evening)
+    await openings.record('b', CARO, 'learned', evening + 1)
+    expect(await openings.list()).toEqual([learned])
+    await openings.record('b', CARO, 'clean', nextDay)
+    await openings.record('b', CARO, 'clean', nextDay + 1)
+    expect(await openings.list()).toEqual([{ ...learned, schedule: { box: 1, due: new Date(2026, 9, 28).getTime(), last: { at: nextDay, correct: true } } }])
+  })
+
+  it('keeps the progress of each color apart', async () => {
+    const { openings } = await open()
+    await openings.record('b', CARO, 'learned', evening)
+    await openings.record('w', CARO, 'learned', evening)
+    expect((await openings.list()).map((p) => [p.id, p.color, p.line])).toEqual([['b e2e4 c7c6', 'b', CARO], ['w e2e4 c7c6', 'w', CARO]])
+  })
+
+  it('leaves a row it cannot read out of the list and untouched by a drill', async () => {
+    const { openings } = await open()
+    await writeRaw('openings', { v: 2, id: 'w e2e4 c7c6', schedule: 'later' })
+    await openings.record('w', CARO, 'learned', evening)
+    await openings.record('b', CARO, 'learned', evening)
+    expect(await openings.list()).toEqual([learned])
+    const db = await openDB('lance', STEPS.length)
+    expect(await db.get('openings', 'w e2e4 c7c6')).toEqual({ v: 2, id: 'w e2e4 c7c6', schedule: 'later' })
+    db.close()
+  })
+
+  it('comes back from a backup with its schedule', async () => {
+    const { openings, backup } = await open()
+    await openings.record('b', CARO, 'learned', evening)
+    const text = await backup.export(DEFAULT_SETTINGS, evening)
+    expect(JSON.parse(text).stores.openings).toEqual([{ v: 1, id: 'b e2e4 c7c6', schedule: learned.schedule }])
+
+    vi.stubGlobal('indexedDB', new IDBFactory())
+    const fresh = await open()
+    await fresh.backup.import(text, { accounts: [] })
+    expect(await fresh.openings.list()).toEqual([learned])
   })
 })

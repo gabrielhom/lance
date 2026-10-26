@@ -1,7 +1,7 @@
 import { gameFromPgn, type Evaluator, type MovePicker, type Services, type Settings } from '../domain'
 import { createEvaluator, createMovePicker, probeBridge, runtimeEnv } from '../engine'
 import { fetchRecentGames, parsePgnText } from '../import'
-import { loadBook } from '../openings'
+import { loadBook, loadTree } from '../openings'
 import { loadPlay, savePlay } from '../play'
 import { loadPuzzles } from '../puzzles'
 import { accuracyHistory, reviewGame } from '../review'
@@ -46,16 +46,11 @@ export async function createServices(): Promise<Services> {
       .then((b) => backfill({ ...store, book: b, identity: loadSettings().identity }, Date.now()))
       .catch((e: unknown) => console.warn('backfill failed', e)))
 
-  // Loaded once, on first use; a failed load (offline before the chunk was ever stored) is tried again next time.
-  let puzzleSet: ReturnType<typeof loadPuzzles> | null = null
-  const puzzles: Services['puzzles'] = {
-    list: () =>
-      (puzzleSet ??= loadPuzzles().catch((e: unknown) => {
-        puzzleSet = null
-        throw e
-      })),
-    attempts: () => store.puzzles.list(),
-    record: (attempt) => store.puzzles.record(attempt),
+  const puzzles: Services['puzzles'] = { list: once(loadPuzzles), attempts: () => store.puzzles.list(), record: (attempt) => store.puzzles.record(attempt) }
+  const openings: Services['openings'] = {
+    tree: once(loadTree),
+    progress: () => store.openings.list(),
+    record: (color, line, outcome, now) => store.openings.record(color, line, outcome, now),
   }
 
   // A position off any review is searched ahead of the review queue, since someone is waiting on it.
@@ -87,7 +82,18 @@ export async function createServices(): Promise<Services> {
       check: (item, move, signal) => checkAnswer(item, move, (p) => evaluatePosition(p, signal)),
     },
     puzzles,
+    openings,
   }
+}
+
+/** Loaded once, on first use; a failed load (offline before the chunk was ever stored) is tried again next time. */
+function once<T>(load: () => Promise<T>): () => Promise<T> {
+  let p: Promise<T> | null = null
+  return () =>
+    (p ??= load().catch((e: unknown) => {
+      p = null
+      throw e
+    }))
 }
 
 /** Shown before React mounts; the first render replaces it. */

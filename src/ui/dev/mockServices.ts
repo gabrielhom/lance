@@ -5,9 +5,10 @@ import { Chess } from 'chess.js'
 import type { Move } from 'chess.js'
 import { divide, estimateElo, keyMoments, phaseAt } from '../../analysis'
 import { perspective } from '../../domain/identity'
+import { lineKey, loadTree, nextProgress } from '../../openings'
 import { loadPlay, savePlay } from '../../play'
 import { buildBackup, libraryRecord, planImport } from '../../storage'
-import { checkAnswer, nextSchedule, syncItems } from '../../training'
+import { checkAnswer, inBox, nextSchedule, syncItems } from '../../training'
 import { fromTuple, type PuzzleTuple } from '../../puzzles'
 import { accuracyHistory } from '../../review'
 import type {
@@ -30,9 +31,12 @@ import type {
   Identity,
   ImportResult,
   LibraryRecord,
+  LineKey,
+  LineProgress,
   MoveReview,
   NonEmpty,
   Opening,
+  OpeningTree,
   PartialSeries,
   Perspective,
   Phase,
@@ -440,6 +444,13 @@ const REPORT: readonly [keyof typeof LINES, Color, GameResult][] = [
 ]
 const RIVALS = ['torre_forte', 'bispo_mau', 'gambito77', 'roque_longo', 'zugzwang_br', 'cavaleiro', 'en_passant', 'dama_preta']
 
+/** Opening lines studied in the families of the report's games: [family, color, learned, of which due today]. */
+const STUDIED: readonly [string, Color, number, number][] = [
+  ['Sicilian Defense', 'b', 12, 3],
+  ['Italian Game', 'w', 5, 1],
+  ['Caro-Kann Defense', 'b', 4, 0],
+]
+
 function reportSeeds(): Seed[] {
   return REPORT.map(([line, color, result], i) => {
     const rival = RIVALS[i % RIVALS.length]
@@ -550,19 +561,47 @@ export function createMockServices(): Services {
     },
   }
 
+  let treePromise: Promise<OpeningTree> | null = null
+  const tree = () => (treePromise ??= loadTree())
+  const lines = new Map<LineKey, LineProgress>()
+  // The first few variations of each studied family in study order, the due ones answered longer ago.
+  let linesSeeded: Promise<void> | null = null
+  const seedLines = () =>
+    (linesSeeded ??= tree().then((t) => {
+      for (const [name, color, learned, due] of STUDIED) {
+        t.family(name)!.variations[color].slice(0, learned).forEach(({ line }, i) => {
+          const id = lineKey(color, line.id)
+          lines.set(id, { id, color, line: line.id, schedule: i < due ? inBox(1, now - 4 * DAY, true) : inBox(2, now - 2 * DAY, true) })
+        })
+      }
+    }))
+  const openings: Services['openings'] = {
+    tree,
+    async progress() {
+      await seedLines()
+      return [...lines.values()]
+    },
+    async record(color, line, outcome, at) {
+      const id = lineKey(color, line)
+      lines.set(id, { id, color, line, schedule: nextProgress(lines.get(id)?.schedule ?? null, outcome, at) })
+    },
+  }
+
+  const stores = () => ({ games: [...records.values()], training: [...items.values()], puzzles: [...attempts.values()], openings: [...lines.values()] })
   const backup: Services['backup'] = {
     async export(settings, at) {
       await seeded
-      return JSON.stringify(buildBackup({ games: [...records.values()], training: [...items.values()], puzzles: [...attempts.values()] }, settings, at), null, 2)
+      return JSON.stringify(buildBackup(stores(), settings, at), null, 2)
     },
     async import(text, current) {
       await seeded
-      const plan = planImport(text, { games: [...records.values()], training: [...items.values()], puzzles: [...attempts.values()] }, current)
+      const plan = planImport(text, stores(), current)
       if (!plan.ok) return plan
       for (const r of plan.value.put) records.set(r.id, r)
       for (const i of plan.value.training) items.set(i.id, i)
       for (const id of plan.value.drop) items.delete(id)
       for (const a of plan.value.puzzles) attempts.set(a.id, a)
+      for (const p of plan.value.openings) lines.set(p.id, p)
       return { ok: true, value: plan.value.report }
     },
   }
@@ -586,6 +625,7 @@ export function createMockServices(): Services {
   return {
     training,
     puzzles,
+    openings,
     async engineMove(input, _level, signal) {
       await sleep(250 + Math.random() * 350, signal)
       return mockMove(input)

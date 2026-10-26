@@ -275,6 +275,7 @@ export type Store = {
   readonly backup: Backup
   readonly training: TrainingStore
   readonly puzzles: PuzzleStore
+  readonly openings: OpeningStore
 }
 
 /** The classes that turn one of my moves into a training item. */
@@ -415,6 +416,12 @@ export type DrillOutcome = 'learned' | 'clean' | 'missed'
 /** `${color} ${line}`: 'b e2e4 c7c5'. */
 export type LineKey = Brand<string, 'LineKey'>
 export type LineProgress = { readonly id: LineKey; readonly color: Color; readonly line: LineId; readonly schedule: Schedule }
+export interface OpeningStore {
+  /** Rows this version can't read are left out; rows for lines the dataset dropped are kept. */
+  list(): Promise<readonly LineProgress[]>
+  /** Moves the line's schedule by `nextProgress`. Recording the same drill twice changes nothing the second time. */
+  record(color: Color, line: LineId, outcome: DrillOutcome, now: number): Promise<void>
+}
 
 export type Settings = {
   readonly v: 1
@@ -485,6 +492,7 @@ export interface Services {
   savePlay(state: PlayState | null): void
   readonly training: Training
   readonly puzzles: Puzzles
+  readonly openings: Openings
 }
 
 export interface Puzzles {
@@ -492,6 +500,13 @@ export interface Puzzles {
   list(): Promise<readonly Puzzle[]>
   attempts(): Promise<readonly PuzzleAttempt[]>
   record(attempt: PuzzleAttempt): Promise<void>
+}
+
+export interface Openings {
+  /** The bundled lines, loaded and indexed on first use; a failed load (offline before the chunk was stored) is tried again next time. */
+  tree(): Promise<OpeningTree>
+  progress(): Promise<readonly LineProgress[]>
+  record(color: Color, line: LineId, outcome: DrillOutcome, now: number): Promise<void>
 }
 
 
