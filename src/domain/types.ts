@@ -353,6 +353,69 @@ export interface PuzzleStore {
   record(attempt: PuzzleAttempt): Promise<void>
 }
 
+/** The UCI moves from the start, space-separated: 'e2e4 c7c5 g1f3'. Stable across dataset rebuilds, unlike names. */
+export type LineId = Brand<string, 'LineId'>
+/** One row of lichess-org/chess-openings: a named position and the moves the dataset reaches it by. */
+export type OpeningLine = {
+  readonly id: LineId
+  readonly eco: string
+  readonly name: string
+  /** family(name), as in the weaknesses report. */
+  readonly family: string
+  readonly moves: readonly Uci[]
+  /** `moves` in SAN, shipped with the data so no screen replays lines to print them. */
+  readonly sans: readonly San[]
+}
+/** A line no other line of its family extends. Studying it covers the family's named lines on its way. */
+export type Variation = {
+  readonly line: OpeningLine
+  /** The name after the family, at its commas: ['Najdorf Variation', 'English Attack']. Empty for the family's own line. */
+  readonly path: readonly string[]
+  /** Ply where the moves that tell it from the family's other variations of the same name start; null when its name is its own. */
+  readonly distinctFrom: number | null
+}
+export type Family = {
+  readonly name: string
+  /** 'C41', or the range of its lines, 'B20–B99'. */
+  readonly eco: string
+  /** In study order: at each branch the move with more of the family's lines after it first, ties in dataset order.
+   *  Black's list leaves out the lines that end on White's first move, since Black has nothing to play in them. */
+  readonly variations: ByColor<readonly Variation[]>
+}
+/** A move the book knows at one of my turns, other than the line's. */
+export type BookMove = {
+  readonly san: San
+  /** The named line it leads to: itself when named, else the shortest named line after it (within the family when `sameFamily`). */
+  readonly opening: Opening
+  /** Another variation of the family being studied, so trying it costs nothing. */
+  readonly sameFamily: boolean
+}
+/** What one drill of a variation needs from the rest of the book, so stepping it never reads the tree. */
+export type Drill = {
+  readonly variation: Variation
+  readonly color: Color
+  /** Never studied with this color: the line's move shows as an arrow on each of my turns. */
+  readonly learn: boolean
+  /** Ply → the other book moves there. Only plies where I move have an entry. */
+  readonly book: ReadonlyMap<number, ReadonlyMap<Uci, BookMove>>
+  /** names[i] names the position after moves[i], from any family; null where the book names none. */
+  readonly names: readonly (Opening | null)[]
+}
+/** The opening lines, indexed once. */
+export interface OpeningTree {
+  /** By name. */
+  readonly families: readonly Family[]
+  family(name: string): Family | null
+  /** The variation a stored line is for that color; null once a rebuilt dataset no longer has it as one. */
+  variation(line: LineId, color: Color): Variation | null
+  drill(variation: Variation, color: Color, learn: boolean): Drill
+}
+/** How a drill ended. 'learned' is a first drill, with the arrows; the others are drills from memory, with or without a miss. */
+export type DrillOutcome = 'learned' | 'clean' | 'missed'
+/** `${color} ${line}`: 'b e2e4 c7c5'. */
+export type LineKey = Brand<string, 'LineKey'>
+export type LineProgress = { readonly id: LineKey; readonly color: Color; readonly line: LineId; readonly schedule: Schedule }
+
 export type Settings = {
   readonly v: 1
   readonly identity: Identity
@@ -430,6 +493,7 @@ export interface Puzzles {
   attempts(): Promise<readonly PuzzleAttempt[]>
   record(attempt: PuzzleAttempt): Promise<void>
 }
+
 
 export interface Training {
   /** Every item, the ones from games reviewed before training existed included. */
