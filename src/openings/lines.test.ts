@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { LineId } from '../domain'
+import { GENERIC_FAMILIES, STANDALONE_SYSTEMS } from './family'
 import { buildTree, loadTree, type LineFile } from './lines'
 import { FILE } from './testing'
 
@@ -93,14 +94,53 @@ describe('drill', () => {
   })
 })
 
+describe('a system the book names on its own and under catch-all families', () => {
+  const london = buildTree({
+    ...FILE,
+    lines: [
+      ['A40', "Queen's Pawn Game", 'd2d4', 'd4'],
+      ['D02', "Queen's Pawn Game: London System", 'd2d4 d7d5 g1f3 g8f6 c1f4', 'd4 d5 Nf3 Nf6 Bf4'],
+      ['D02', "Queen's Pawn Game: London System, with e6", 'd2d4 d7d5 g1f3 e7e6 c1f4', 'd4 d5 Nf3 e6 Bf4'],
+      ['A46', 'Indian Defense: London System', 'd2d4 g8f6 g1f3 e7e6 c1f4', 'd4 Nf6 Nf3 e6 Bf4'],
+      ['A48', 'London System', 'd2d4 g8f6 g1f3 g7g6 c1f4', 'd4 Nf6 Nf3 g6 Bf4'],
+      ['A48', 'London System, with Bd3', 'd2d4 g8f6 g1f3 g7g6 c1f4 f8g7 e2e3 d7d6 f1d3', 'd4 Nf6 Nf3 g6 Bf4 Bg7 e3 d6 Bd3'],
+      ['A48', 'London System, with Be2', 'd2d4 g8f6 g1f3 g7g6 c1f4 f8g7 e2e3 d7d6 f1e2', 'd4 Nf6 Nf3 g6 Bf4 Bg7 e3 d6 Be2'],
+    ],
+  })
+
+  it('is one family, with the variations of every spelling of its name', () => {
+    expect(london.families.map((f) => [f.name, f.eco])).toEqual([
+      ['London System', 'A46–D02'],
+      ["Queen's Pawn Game", 'A40'],
+    ])
+    expect(london.family('London System')!.variations.w.map((v) => [v.line.name, v.path])).toEqual([
+      ['London System, with Bd3', ['with Bd3']],
+      ['London System, with Be2', ['with Be2']],
+      ['Indian Defense: London System', []],
+      ["Queen's Pawn Game: London System", []],
+      ["Queen's Pawn Game: London System, with e6", ['with e6']],
+    ])
+  })
+})
+
 describe('the bundled lines', async () => {
   const real = await loadTree()
   const { default: file } = await import('./lines.json')
   const { lines } = file as unknown as LineFile
 
-  it('give 327 families, 259 Sicilian variations for White and a unique id per line', () => {
-    expect(real.families).toHaveLength(327)
+  it('give 303 families, 259 Sicilian variations for White and a unique id per line', () => {
+    expect(real.families).toHaveLength(303)
     expect(real.family('Sicilian Defense')!.variations.w).toHaveLength(259)
     expect(new Set(lines.map((l) => l[2])).size).toBe(lines.length)
+  })
+
+  it('name on their own exactly the systems STANDALONE_SYSTEMS lists, so a rebuilt book updates the set', () => {
+    const head = (name: string) => name.split(/[:,]/)[0].trim()
+    const own = new Set(lines.map(([, name]) => head(name)).filter((h) => !GENERIC_FAMILIES.has(h)))
+    const systems = lines
+      .map(([, name]) => name)
+      .filter((name) => GENERIC_FAMILIES.has(head(name)) && name.includes(':'))
+      .map((name) => name.split(':')[1].split(',')[0].trim())
+    expect(new Set(systems.filter((s) => own.has(s)))).toEqual(STANDALONE_SYSTEMS)
   })
 })

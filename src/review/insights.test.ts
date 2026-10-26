@@ -90,6 +90,17 @@ describe('weaknesses: openings', () => {
     ])
   })
 
+  it('puts a system the book names under a catch-all family and on its own in one group', () => {
+    const { openings } = weaknesses(
+      [
+        game('q', { color: 'w', result: '1-0', day: 1, opening: ['D02', "Queen's Pawn Game: London System"] }),
+        game('l', { color: 'w', result: '0-1', day: 2, opening: ['A48', 'London System'] }),
+      ],
+      ME,
+    )
+    expect(openings.groups).toMatchObject([{ name: 'London System', eco: 'A48–D02', color: 'w', games: ['lichess:l', 'lichess:q'], score: 0.5 }])
+  })
+
   it('flags an opening I score 40% or less in, or play 5 points under my average in, once it has 3 games', () => {
     const french = (id: string, result: GameResult, acc = 80) => game(id, { color: 'b', result, acc, opening: ['C11', 'French Defense: Classical Variation'] })
     const italian = (id: string, acc: number) => game(id, { color: 'w', result: '1-0', acc, opening: ['C50', 'Italian Game'] })
