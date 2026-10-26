@@ -93,7 +93,8 @@ export type CatalogEntry = {
   readonly games: ByColor<number>
 }
 
-/** Families with lines due first, then the ones I play or study (most games first), then the rest, by name. */
+/** Families with lines due first, then the ones I play or study (most of my games first), then the rest by how often
+ *  strong players reach them (`Family.games`), then by name. */
 export function catalog(tree: OpeningTree, progress: readonly LineProgress[], played: readonly PlayedOpening[], now: number): readonly CatalogEntry[] {
   const studied = new Map<string, ByColor<{ learned: number; due: number }>>()
   for (const { row, variation } of live(tree, progress)) {
@@ -118,7 +119,7 @@ export function catalog(tree: OpeningTree, progress: readonly LineProgress[], pl
   })
   const due = (e: CatalogEntry) => e.colors.w.due + e.colors.b.due > 0
   const mine = (e: CatalogEntry) => e.games.w + e.games.b > 0 || e.colors.w.learned + e.colors.b.learned > 0
-  return entries.sort((a, b) => Number(due(b)) - Number(due(a)) || Number(mine(b)) - Number(mine(a)) || b.games.w + b.games.b - (a.games.w + a.games.b))
+  return entries.sort((a, b) => Number(due(b)) - Number(due(a)) || Number(mine(b)) - Number(mine(a)) || b.games.w + b.games.b - (a.games.w + a.games.b) || b.family.games - a.family.games)
 }
 
 /** Every word of the query in the name, ignoring case and accents. */

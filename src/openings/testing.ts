@@ -1,4 +1,4 @@
-import type { LineFile, LineTuple } from './lines'
+import type { LineFile, LineTuple, Popularity } from './lines'
 
 /** A corner of the book: four e4 families and three d4 ones, in dataset order. */
 export const LINES: readonly LineTuple[] = [
@@ -20,3 +20,16 @@ export const LINES: readonly LineTuple[] = [
   ['D80', 'Grünfeld Defense', 'd2d4 g8f6 c2c4 g7g6 b1c3 d7d5', 'd4 Nf6 c4 g6 Nc3 d5'],
 ]
 export const FILE: LineFile = { source: 'test', license: 'CC0', lines: LINES }
+
+/** Games per name, so the Smith-Morra, one line, outranks the Najdorf branch, four lines, and the Alapin ties the
+ *  Najdorf branch on games. The English Attack's games split across its two rows. */
+export const POPULARITY: Popularity = {
+  'Sicilian Defense': 50,
+  'Sicilian Defense: Smith-Morra Gambit': 30,
+  'Sicilian Defense: Najdorf Variation, English Attack': 10,
+  'Sicilian Defense: Alapin Variation, Barmen Defense': 10,
+  'Caro-Kann Defense: Advance Variation': 60,
+  "King's Pawn Game": 40,
+  "Queen's Gambit Declined": 20,
+  "Queen's Gambit Declined: Baltic Defense, Pseudo-Slav": 5,
+}

@@ -381,8 +381,11 @@ export type Family = {
   readonly name: string
   /** 'C41', or the range of its lines, 'B20–B99'. */
   readonly eco: string
-  /** In study order: at each branch the move with more of the family's lines after it first, ties in dataset order.
-   *  Black's list leaves out the lines that end on White's first move, since Black has nothing to play in them. */
+  /** Games of the broadcast database (src/openings/popularity.json) whose opening is a line of the family. */
+  readonly games: number
+  /** In study order: at each branch the move with more of the family's games after it first, ties by its lines, then
+   *  dataset order. Black's list leaves out the lines that end on White's first move, since Black has nothing to play
+   *  in them. */
   readonly variations: ByColor<readonly Variation[]>
 }
 /** A move the book knows at one of my turns, other than the line's. */
