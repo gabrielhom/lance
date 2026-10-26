@@ -1,4 +1,4 @@
-import type { BackupRejection, BackupReport, Identity, LibraryRecord, LineProgress, PuzzleAttempt, Result, Settings, TrainingItem, TrainingItemId } from '../domain/types'
+import type { BackupRejection, BackupReport, Identity, LibraryRecord, LineProgress, PuzzleAttempt, Result, Schedule, Settings, TrainingItem, TrainingItemId } from '../domain/types'
 import { parseIdentity, parseLibraryRecord, parseLineProgress, parsePuzzleAttempt, parseTrainingItem } from './parse'
 
 /** Raw rows of each object store that a backup carries. The eval cache stays out: it rebuilds itself.
@@ -45,7 +45,7 @@ export function planImport(text: string, existing: BackupStores, identity: Ident
   if (!parsed.ok) return parsed
   const { records, training: fileTraining, puzzles: filePuzzles, openings: fileOpenings, ignored, accounts } = parsed.value
   const put = newer(records, existing.games, parseLibraryRecord, (r) => r.reviewedAt)
-  const answered = (s: { readonly schedule: TrainingItem['schedule'] }) => s.schedule.last?.at ?? -Infinity
+  const answered = (s: { readonly schedule: Schedule }) => s.schedule.last?.at ?? -Infinity
   const training = newer(fileTraining?.items ?? [], existing.training, parseTrainingItem, answered)
   const puzzles = newer(filePuzzles, existing.puzzles, parsePuzzleAttempt, (a) => -a.at)
   const openings = newer(fileOpenings, existing.openings, parseLineProgress, answered)

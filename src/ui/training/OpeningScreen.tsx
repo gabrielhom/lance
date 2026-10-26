@@ -259,7 +259,7 @@ function DrillView({ tree, step, color, position, onDone, onNext }: DrillProps) 
         <section className="annot mt-6" aria-labelledby="abertura-onde" data-line={line.id} data-turn={turn} data-hint={hint ?? ''}>
           <p id="abertura-onde" className="where">{PASS_LABEL[step.pass]}<span className="sep mx-1.5">·</span>{position}</p>
           <p className="caption mt-1" aria-label="Posições com nome">{names.length ? names.join(' › ') : 'Posição inicial'}</p>
-          {turn === 'done' && outcome ? (
+          {outcome ? (
             <Finished outcome={outcome} pass={step.pass} />
           ) : (
             <>
@@ -272,7 +272,7 @@ function DrillView({ tree, step, color, position, onDone, onNext }: DrillProps) 
           )}
           {error && <p className="mt-2 text-sm" role="alert">{error}</p>}
         </section>
-        {turn === 'done' && (
+        {outcome && (
           <div className="mt-6">
             <button ref={next} type="button" className="btn" onClick={onNext}>Próxima</button>
           </div>

@@ -509,7 +509,6 @@ export interface Openings {
   record(color: Color, line: LineId, outcome: DrillOutcome, now: number): Promise<void>
 }
 
-
 export interface Training {
   /** Every item, the ones from games reviewed before training existed included. */
   list(): Promise<readonly TrainingItem[]>

@@ -33,9 +33,7 @@ export function buildTree(file: LineFile): OpeningTree {
       node = child
     })
     node.line = line
-    const lines = byFamily.get(line.family)
-    if (lines) lines.push(line)
-    else byFamily.set(line.family, [line])
+    byFamily.set(line.family, [...(byFamily.get(line.family) ?? []), line])
   }
   const families = [...byFamily].map(([name, lines]) => familyOf(name, lines, root)).sort((a, b) => a.name.localeCompare(b.name, 'en'))
   const byName = new Map(families.map((f) => [f.name, f]))

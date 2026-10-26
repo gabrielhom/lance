@@ -122,7 +122,7 @@ export function searchCatalog(entries: readonly CatalogEntry[], query: string): 
   return entries.filter((e) => words.every((w) => fold(e.family.name).includes(w)))
 }
 
-const fold = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+const fold = (s: string) => s.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase()
 
 /** Lines due now across all families, counting only rows whose line is still a variation. */
 export function dueCount(tree: OpeningTree, progress: readonly LineProgress[], now: number): number {
