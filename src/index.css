@@ -691,8 +691,43 @@
   .shelf-index .ocard { display: block; padding: 10px 0 9px; }
   .shelf-index .ocard-moves { font-size: var(--text-sm); }
 
+  .ohead { --mini: 112px; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: 18px; margin-top: 10px; }
+  .ohead-sub { margin-top: 6px; font-size: var(--text-sm); color: var(--ink-2); }
+  .ohead-moves { margin-top: 6px; font-family: var(--font-serif); font-size: var(--text-lg); }
+  .ohead-side { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 14px 32px; }
+  .ohead-progress { flex: 1 1 14rem; max-width: 24rem; }
+  @media (width >= 48rem) {
+    .ohead { --mini: 168px; column-gap: 32px; }
+    .ohead > .mini { grid-row: 1 / span 2; }
+    .ohead-side { grid-column: 2; align-self: end; }
+  }
+
+  .next { max-width: 40rem; margin-top: 28px; padding: 18px 20px 20px; border-top: 2px solid var(--accent); background: var(--paper-2); }
+  .next-title { font-family: var(--font-serif); font-size: var(--text-xl); font-weight: 600; line-height: 1.25; }
+  .next-detail { margin-top: 6px; color: var(--ink-2); }
+
+  .vhead { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 24px; margin-top: 44px; padding-bottom: 10px; border-bottom: 1px solid var(--rule-strong); }
+  .vhead .sec { margin: 0; }
+  .seg-small > * { min-height: 40px; padding: 7px 14px; font-size: var(--text-sm); }
+  .vgroup { margin-top: 30px; }
+  .vgroup-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 12px; }
+  .vgroup-name { font-family: var(--font-serif); font-size: var(--text-lg); font-weight: 600; }
+  .vgroup-count { font-size: var(--text-sm); color: var(--ink-2); }
+  .vgroup-moves { margin-top: 2px; font-family: var(--font-serif); color: var(--ink-2); }
+  .vrows { margin-top: 8px; border-top: 1px solid var(--rule); }
+  /* On a phone the state goes under the moves, which keep the width. */
+  .vrow { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "line act" "state act"; align-items: baseline; column-gap: 14px; padding: 8px 0 7px; border-bottom: 1px solid var(--rule); }
+  .vrow > p { grid-area: line; }
+  .vrow > .verdict { grid-area: state; justify-self: start; margin-top: 5px; }
+  .vrow > button { grid-area: act; }
+  @media (width >= 48rem) {
+    .vrow { grid-template-columns: minmax(0, 1fr) auto auto; grid-template-areas: "line state act"; }
+    .vrow > .verdict { margin-top: 0; }
+  }
+  .vrow-moves { margin-right: 12px; font-family: var(--font-serif); font-size: var(--text-md); }
+  .vrow-name { display: inline-block; font-size: var(--text-sm); color: var(--ink-2); }
   /* The figurine's side bearings read as a space in a running line of moves: '♞ f3'. */
-  .ocard-moves .fig { margin-inline: -0.05em -0.08em; }
+  :is(.ocard-moves, .ohead-moves, .vgroup-moves, .vrow-moves) .fig { margin-inline: -0.05em -0.08em; }
 
   .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 20px 0; padding: 18px 0; border-block: 1px solid var(--rule-strong); }
   .stats > div { padding-inline: 0 16px; }
