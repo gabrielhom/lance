@@ -206,6 +206,7 @@
   }
   .field::placeholder { color: var(--ink-3); font-style: italic; }
   .field:focus-visible { outline-offset: 0; border-color: var(--accent); }
+  .field::-webkit-search-cancel-button { filter: grayscale(1); }
 
   .mast {
     display: flex;
@@ -652,6 +653,46 @@
   .verdict { align-self: center; padding: 1px 7px; border: 1px solid var(--rule-strong); border-radius: 2px; font-size: var(--text-xs); font-weight: 600; color: var(--ink-2); }
   .verdict-strong { border-color: var(--oxblood); color: var(--oxblood); }
   .row-acc { display: block; font-family: var(--font-serif); font-size: var(--text-2xl); line-height: 1.1; white-space: nowrap; }
+
+  /* A choice of two or three set in reverse, for a setting that changes the whole screen under it. */
+  .seg { min-width: 0; margin: 0; padding: 0; border: 0; }
+  .seg-options { display: inline-flex; border: 1px solid var(--rule-strong); }
+  .seg-options > * { position: relative; display: inline-flex; align-items: baseline; gap: 8px; min-height: 42px; padding: 9px 16px; font-weight: 600; color: var(--ink-2); text-decoration: none; cursor: pointer; }
+  .seg-options > * + * { border-left: 1px solid var(--rule-strong); }
+  .seg-options > *:hover { color: var(--ink); }
+  .seg-options > :is(:has(:checked), [aria-current="page"]) { background: var(--ink); color: var(--paper); }
+  .seg-options > :has(:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .seg-note { font-family: var(--font-serif); font-size: var(--text-sm); font-style: italic; font-weight: 400; }
+
+  .catalog-bar { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 18px 40px; margin-top: 22px; }
+  .catalog-search { flex: 1 1 14rem; max-width: 22rem; }
+
+  /* A position as a picture; --mini is its side. */
+  .mini { display: block; width: var(--mini); height: var(--mini); outline: 1px solid var(--frame); }
+  .mini-light { fill: var(--sq-light); }
+  .mini-dark { fill: var(--sq-dark); }
+  .mini-last { fill: var(--hl); }
+  /* The set's outline is a third of a pixel this small, and a white piece would melt into a light square. */
+  .mini-sprite :is(#mini-wK, #mini-wQ, #mini-wR, #mini-wB, #mini-wN, #mini-wP) * { stroke-width: 2.4px !important; }
+
+  .shelf { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 21rem), 1fr)); column-gap: 40px; margin-top: -12px; }
+  .ocard { --mini: 84px; position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: 16px; padding: 14px 0; border-bottom: 1px solid var(--rule); }
+  .ocard-name { font-size: var(--text-md); font-weight: 600; line-height: 1.25; text-decoration: underline; text-decoration-color: transparent; text-underline-offset: 3px; }
+  .ocard-name::after { content: ""; position: absolute; inset: 0; }
+  .ocard:hover .ocard-name { text-decoration-color: currentColor; }
+  .ocard-name:focus-visible { outline: none; }
+  .ocard:has(.ocard-name:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .ocard-en { font-size: var(--text-xs); color: var(--ink-3); }
+  .ocard-moves { margin-top: 3px; font-family: var(--font-serif); font-size: var(--text-md); }
+  .learned { font-size: var(--text-sm); color: var(--ink-2); }
+  .learned-due { font-weight: 600; color: var(--oxblood); }
+  @media (width >= 48rem) { .ocard { --mini: 96px; } }
+  .shelf-index { grid-template-columns: repeat(auto-fill, minmax(min(100%, 18rem), 1fr)); }
+  .shelf-index .ocard { display: block; padding: 10px 0 9px; }
+  .shelf-index .ocard-moves { font-size: var(--text-sm); }
+
+  /* The figurine's side bearings read as a space in a running line of moves: '♞ f3'. */
+  .ocard-moves .fig { margin-inline: -0.05em -0.08em; }
 
   .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 20px 0; padding: 18px 0; border-block: 1px solid var(--rule-strong); }
   .stats > div { padding-inline: 0 16px; }

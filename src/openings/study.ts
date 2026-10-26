@@ -116,8 +116,7 @@ export type CatalogEntry = {
   readonly games: ByColor<number>
 }
 
-/** Families with lines due first, then the ones I play or study (most of my games first), then the rest by how often
- *  strong players reach them (`Family.games`), then by name. */
+/** Every family with what I learned, have due and played in it per color, by name. */
 export function catalog(tree: OpeningTree, progress: readonly LineProgress[], played: readonly PlayedOpening[], now: number): readonly CatalogEntry[] {
   const studied = new Map<string, ByColor<{ learned: number; due: number }>>()
   for (const { row, variation } of live(tree, progress)) {
@@ -132,7 +131,7 @@ export function catalog(tree: OpeningTree, progress: readonly LineProgress[], pl
     const counts = games.get(p.family) ?? { w: 0, b: 0 }
     games.set(p.family, { ...counts, [p.color]: counts[p.color] + p.games })
   }
-  const entries = tree.families.map((family) => {
+  return tree.families.map((family) => {
     const counts = studied.get(family.name) ?? { w: { learned: 0, due: 0 }, b: { learned: 0, due: 0 } }
     return {
       family,
@@ -140,15 +139,39 @@ export function catalog(tree: OpeningTree, progress: readonly LineProgress[], pl
       games: games.get(family.name) ?? { w: 0, b: 0 },
     }
   })
-  const due = (e: CatalogEntry) => e.colors.w.due + e.colors.b.due > 0
-  const mine = (e: CatalogEntry) => e.games.w + e.games.b > 0 || e.colors.w.learned + e.colors.b.learned > 0
-  return entries.sort((a, b) => Number(due(b)) - Number(due(a)) || Number(mine(b)) - Number(mine(a)) || b.games.w + b.games.b - (a.games.w + a.games.b) || b.family.games - a.family.games)
 }
 
-/** Every word of the query in the name, ignoring case and accents. */
-export function searchCatalog(entries: readonly CatalogEntry[], query: string): readonly CatalogEntry[] {
+/** The catalog studied with one color, each shelf in the order to show it. */
+export type CatalogShelves = {
+  /** With lines due, most due first. A family with no line for the color is on no shelf. */
+  readonly due: readonly CatalogEntry[]
+  /** Played or studied and nothing due, most of my games first, then most learned. */
+  readonly mine: readonly CatalogEntry[]
+  /** The others, the ones strong players reach most (`Family.games`) first. */
+  readonly rest: readonly CatalogEntry[]
+}
+
+export function shelves(entries: readonly CatalogEntry[], color: Color): CatalogShelves {
+  const by = (...keys: ((e: CatalogEntry) => number)[]) => (a: CatalogEntry, b: CatalogEntry) => keys.reduce((d, k) => d || k(b) - k(a), 0)
+  const due = (e: CatalogEntry) => e.colors[color].due
+  const learned = (e: CatalogEntry) => e.colors[color].learned
+  const played = (e: CatalogEntry) => e.games[color]
+  const popular = (e: CatalogEntry) => e.family.games
+  const listed = entries.filter((e) => e.colors[color].total > 0)
+  return {
+    due: listed.filter((e) => due(e) > 0).sort(by(due, popular)),
+    mine: listed.filter((e) => due(e) === 0 && played(e) + learned(e) > 0).sort(by(played, learned, popular)),
+    rest: listed.filter((e) => played(e) + learned(e) === 0).sort(by(popular)),
+  }
+}
+
+/** Every word of the query in the family's name or its `alias`, ignoring case and accents. */
+export function searchCatalog(entries: readonly CatalogEntry[], query: string, alias: (family: string) => string = (f) => f): readonly CatalogEntry[] {
   const words = fold(query).split(/\s+/).filter((w) => w !== '')
-  return entries.filter((e) => words.every((w) => fold(e.family.name).includes(w)))
+  return entries.filter((e) => {
+    const names = fold(`${e.family.name} ${alias(e.family.name)}`)
+    return words.every((w) => names.includes(w))
+  })
 }
 
 const fold = (s: string) => s.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase()

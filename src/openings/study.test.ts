@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Color, LineId, LineProgress, Schedule } from '../domain'
 import { buildTree } from './lines'
-import { catalog, dueCount, familyStudy, groupsOf, lineKey, nextProgress, OPENINGS, requeueStep, searchCatalog, stepFor, studyQueue, type StudyLine, type StudyStep } from './study'
+import { catalog, dueCount, familyStudy, groupsOf, lineKey, nextProgress, OPENINGS, requeueStep, searchCatalog, shelves, stepFor, studyQueue, type CatalogEntry, type StudyLine, type StudyStep } from './study'
 import { FILE, POPULARITY } from './testing'
 
 const at = (y: number, m: number, d: number, h = 0) => new Date(y, m - 1, d, h).getTime()
@@ -148,28 +148,31 @@ describe('catalog', () => {
   ]
   const entries = catalog(tree, progress, played, NOW)
 
-  it('puts the families with a line due first, then the ones I play or study by my games, then the rest by how much strong players play them, then by name', () => {
-    expect(entries.map((e) => [e.family.name, e.family.games])).toEqual([
-      ['Sicilian Defense', 100],
-      ['French Defense', 0],
-      ['Caro-Kann Defense', 60],
-      ["Queen's Pawn Game", 0],
-      ["Queen's Gambit Declined", 25],
-      ["King's Pawn Game", 40],
-      ['Grünfeld Defense', 0],
-    ])
-  })
+  const entry = (name: string) => entries.find((e) => e.family.name === name)!
+  const names = (shelf: readonly CatalogEntry[]) => shelf.map((e) => e.family.name)
 
   it('counts the variations, the ones learned and due per color, and my games across the report groups of a family, ignoring a row whose line is no variation', () => {
-    expect(entries[0]).toMatchObject({ colors: { w: { total: 5, learned: 0, due: 0 }, b: { total: 5, learned: 2, due: 1 } }, games: { w: 0, b: 0 } })
-    expect(entries[2]).toMatchObject({ colors: { w: { total: 1, learned: 0, due: 0 }, b: { total: 1, learned: 0, due: 0 } }, games: { w: 1, b: 2 } })
-    expect(entries[3]).toMatchObject({ colors: { w: { total: 1 }, b: { total: 1 } }, games: { w: 2, b: 0 } })
-    expect(entries[5]).toMatchObject({ colors: { w: { total: 1 }, b: { total: 0 } } })
+    expect(entry('Sicilian Defense')).toMatchObject({ colors: { w: { total: 5, learned: 0, due: 0 }, b: { total: 5, learned: 2, due: 1 } }, games: { w: 0, b: 0 } })
+    expect(entry('Caro-Kann Defense')).toMatchObject({ colors: { w: { total: 1, learned: 0, due: 0 }, b: { total: 1, learned: 0, due: 0 } }, games: { w: 1, b: 2 } })
+    expect(entry("Queen's Pawn Game")).toMatchObject({ colors: { w: { total: 1 }, b: { total: 1 } }, games: { w: 2, b: 0 } })
+    expect(entry("King's Pawn Game")).toMatchObject({ colors: { w: { total: 1 }, b: { total: 0 } } })
   })
 
-  it('searches by every word, ignoring case and accents', () => {
-    expect(searchCatalog(entries, 'grunfeld').map((e) => e.family.name)).toEqual(['Grünfeld Defense'])
-    expect(searchCatalog(entries, "pawn QUEEN's").map((e) => e.family.name)).toEqual(["Queen's Pawn Game"])
+  it('shelves the families of one color: a line due, then mine by my games and what I learned, then the rest by how much strong players play them', () => {
+    const black = shelves(entries, 'b')
+    expect([names(black.due), names(black.mine)]).toEqual([['Sicilian Defense'], ['French Defense', 'Caro-Kann Defense']])
+    expect(names(black.rest)).toEqual(["Queen's Gambit Declined", 'Grünfeld Defense', "Queen's Pawn Game"])
+    const white = shelves(entries, 'w')
+    expect([names(white.due), names(white.mine)]).toEqual([[], ["Queen's Pawn Game", 'Caro-Kann Defense', "Queen's Gambit Declined"]])
+    expect(names(white.rest)).toEqual(['Sicilian Defense', "King's Pawn Game", 'French Defense', 'Grünfeld Defense'])
+  })
+
+  it('searches by every word in the name or its alias, ignoring case and accents', () => {
+    expect(names(searchCatalog(entries, 'grunfeld'))).toEqual(['Grünfeld Defense'])
+    expect(names(searchCatalog(entries, "pawn QUEEN's"))).toEqual(["Queen's Pawn Game"])
+    const alias = (f: string) => (f === 'Sicilian Defense' ? 'Defesa Siciliana' : f)
+    expect(names(searchCatalog(entries, 'SICILIANA', alias))).toEqual(['Sicilian Defense'])
+    expect(names(searchCatalog(entries, 'defesa sicilian', alias))).toEqual(['Sicilian Defense'])
     expect(searchCatalog(entries, '')).toEqual(entries)
   })
 
@@ -181,11 +184,11 @@ describe('catalog', () => {
 
 describe('the bundled catalog', async () => {
   const { loadTree } = await import('./lines')
-  const entries = catalog(await loadTree(), [], [], NOW)
-  const rank = (name: string) => entries.findIndex((e) => e.family.name === name)
+  const { rest } = shelves(catalog(await loadTree(), [], [], NOW), 'b')
+  const rank = (name: string) => rest.findIndex((e) => e.family.name === name)
 
   it('opens on the Sicilian Defense and ranks the Ruy Lopez above the King\'s Pawn Game when nothing is due or mine', () => {
-    expect(entries[0].family.name).toBe('Sicilian Defense')
+    expect(rest[0].family.name).toBe('Sicilian Defense')
     expect(rank('Ruy Lopez')).toBeLessThan(rank("King's Pawn Game"))
   })
 })
