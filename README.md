@@ -45,6 +45,15 @@ npm run dev
 
 O `npm install` copia o Stockfish 19 (WASM) para `public/engine/<versão do pacote>`. Abra http://localhost:5173 e jogue. Para revisar partidas do Lichess, do Chess.com ou de um PGN, informe seus usuários em Configurações para o app saber de que lado você jogou nelas.
 
+O build de produção, em que o service worker entra, sobe com:
+
+```sh
+npm run build
+npm run preview
+```
+
+Abra http://localhost:4173. O `npm run dev` não registra esse service worker.
+
 ## Instalar
 
 No Chrome ou no Edge, clique em "Instalar o Lance" em Configurações, ou no ícone de instalar na barra de endereço. O Lance passa a abrir numa janela própria, com ícone como um programa do computador.
