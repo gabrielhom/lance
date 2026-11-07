@@ -157,7 +157,7 @@ function Review({ game, startPly }: { game: Game; startPly: number }) {
         <div className="rv-left">
           <div className="boardwrap">
             <EvalBar whiteWin={whiteWin ?? null} label={barLabel} orientation={orientation} />
-            <PlayBoard position={board} orientation={orientation} interactive onMove={onMove} badge={badge} arrow={arrow} />
+            <PlayBoard position={board} orientation={orientation} interactive onMove={onMove} badge={badge} arrows={arrow ? [arrow] : []} />
           </div>
           <div className="rvnav" role="toolbar" aria-label="Navegação da partida">
             <button type="button" className="sqbtn max-md:hidden" onClick={() => go(0)} disabled={!line && ply === 0} aria-label="Primeiro lance (Home)" title="Home">

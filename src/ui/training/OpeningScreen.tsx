@@ -365,7 +365,7 @@ function DrillView({ tree, step, color, position, onDone, onNext }: DrillProps) 
   return (
     <div className="play">
       <div className="min-w-0">
-        <PlayBoard position={board} orientation={color} interactive={turn === 'mine'} onMove={(uci) => advance({ kind: 'move', uci: uci as Uci })} arrow={hint ? squares(hint) : null} />
+        <PlayBoard position={board} orientation={color} interactive={turn === 'mine'} onMove={(uci) => advance({ kind: 'move', uci: uci as Uci })} arrows={hint ? [squares(hint)] : []} />
       </div>
       <div className="min-w-0 play-side">
         <h1 className="display text-2xl md:text-4xl">{openingName(line.family)}</h1>

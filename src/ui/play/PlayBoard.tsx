@@ -24,11 +24,15 @@ type Props = {
   onMove: (uci: string) => void
   /** The class of the move that reached this position, printed on its square. */
   badge?: { square: Square; kind: Classification } | null
-  arrow?: { from: Square; to: Square } | null
+  /** Drawn in `var(--arrow)` unless the arrow names its color. */
+  arrows?: readonly BoardArrow[]
 }
+export type BoardArrow = { readonly from: Square; readonly to: Square; readonly color?: string }
+
+const NO_ARROWS: readonly BoardArrow[] = []
 
 /** Click-to-move and drag. The board is pointer-only; the move input next to it is the keyboard and screen reader path. */
-export function PlayBoard({ position, orientation, interactive, onMove, badge = null, arrow = null }: Props) {
+export function PlayBoard({ position, orientation, interactive, onMove, badge = null, arrows = NO_ARROWS }: Props) {
   const [selected, setSelected] = useState<{ fen: string; square: Square } | null>(null)
   const [promotion, setPromotion] = useState<{ fen: string; from: Square; to: Square } | null>(null)
   const boardRef = useRef<HTMLDivElement>(null)
@@ -115,7 +119,7 @@ export function PlayBoard({ position, orientation, interactive, onMove, badge = 
             boardOrientation: orientation === 'w' ? 'white' : 'black',
             allowDragging: interactive,
             allowDrawingArrows: false,
-            arrows: arrow ? [{ startSquare: arrow.from, endSquare: arrow.to, color: 'var(--arrow)' }] : [],
+            arrows: arrows.map((a) => ({ startSquare: a.from, endSquare: a.to, color: a.color ?? 'var(--arrow)' })),
             showAnimations: !REDUCED_MOTION,
             animationDurationInMs: 160,
             dragActivationDistance: 4,

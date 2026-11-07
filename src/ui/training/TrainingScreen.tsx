@@ -186,7 +186,7 @@ function Question({ item, position, progress, practice, turn, setTurn, onAnswere
   return (
     <div className="play">
       <div className="min-w-0">
-        <PlayBoard position={board} orientation={mover} interactive={turn.kind === 'asking'} onMove={submit} arrow={turn.kind === 'answered' ? squares(best) : null} />
+        <PlayBoard position={board} orientation={mover} interactive={turn.kind === 'asking'} onMove={submit} arrows={turn.kind === 'answered' ? [squares(best)] : []} />
       </div>
       <div className="min-w-0 play-side">
         <h1 className="display text-2xl md:text-4xl">Treino</h1>
