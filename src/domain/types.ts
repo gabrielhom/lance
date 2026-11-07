@@ -413,6 +413,41 @@ export type Drill = {
   /** names[i] names the position after moves[i], from any family; null where the book names none. */
   readonly names: readonly (Opening | null)[]
 }
+/** One position of a family's book, whichever of its lines reach it: two move orders that transpose share one
+ *  BookPosition, so theory is a property of the position, not of the order the dataset lists. */
+export type BookPosition = {
+  /** The first order the book reached it by sets the move counters. */
+  readonly fen: Fen
+  /** The dataset row named here, of any family, the family's own row first; null between named positions. */
+  readonly line: OpeningLine | null
+  /** `line` when it is the family's, else the nearest named line of the family after it: where the position is heading. */
+  readonly toward: OpeningLine
+  /** The family's moves here, most of its games first, ties by its lines, then dataset order. Empty where the family's
+   *  theory ends. */
+  readonly moves: readonly BookContinuation[]
+  /** Book moves here that leave the family, each with the named line it leads to. */
+  readonly elsewhere: ReadonlyMap<Uci, Opening>
+}
+export type BookContinuation = {
+  readonly uci: Uci
+  readonly san: San
+  /** Part of the family's games here that went this way; the moves of a position sum to 1. Where none of them has
+   *  games, the part of the family's lines instead, so a weighted pick never divides by zero. */
+  readonly share: number
+  /** The family's broadcast games after this move; 0 in rare lines. */
+  readonly games: number
+  readonly to: BookPosition
+}
+/** A family's lines as a graph of positions. */
+export interface FamilyBook {
+  readonly family: Family
+  readonly start: BookPosition
+  /** Where the legal move `uci` at `from` lands in the family: its listed continuation, or any other move to a position
+   *  the family reaches by another order. null when it leaves the family. */
+  follow(from: BookPosition, uci: Uci): BookPosition | null
+}
+/** Everything a coached round needs: the book and my side. */
+export type Coach = { readonly book: FamilyBook; readonly color: Color }
 /** The opening lines, indexed once. */
 export interface OpeningTree {
   /** By name. */
@@ -421,6 +456,8 @@ export interface OpeningTree {
   /** The variation a stored line is for that color; null once a rebuilt dataset no longer has it as one. */
   variation(line: LineId, color: Color): Variation | null
   drill(variation: Variation, color: Color, learn: boolean): Drill
+  /** Built the first time it is asked for and kept, so asking again returns the same object. */
+  book(family: Family): FamilyBook
 }
 /** How a drill ended. 'learned' is a first drill, with the arrows; the others are drills from memory, with or without a miss. */
 export type DrillOutcome = 'learned' | 'clean' | 'missed'

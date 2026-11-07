@@ -1,4 +1,5 @@
-import type { BookMove, Color, Drill, Family, LineId, Opening, OpeningLine, OpeningTree, San, Uci, Variation } from '../domain'
+import { Chess } from 'chess.js'
+import type { BookContinuation, BookMove, BookPosition, Color, Drill, Family, FamilyBook, Fen, LineId, Opening, OpeningLine, OpeningTree, San, Uci, Variation } from '../domain'
 import { studyFamily, studyPath } from './family'
 
 /** [eco, name, uci moves, san moves], moves space-separated, in dataset order. */
@@ -49,11 +50,17 @@ export function buildTree(file: LineFile, popularity: Popularity): OpeningTree {
   const byName = new Map(families.map((f) => [f.name, f]))
   const byLine = { w: new Map<LineId, Variation>(), b: new Map<LineId, Variation>() }
   for (const f of families) for (const c of ['w', 'b'] as const) for (const v of f.variations[c]) byLine[c].set(v.line.id, v)
+  const books = new Map<string, FamilyBook>()
   return {
     families,
     family: (name) => byName.get(name) ?? null,
     variation: (line, color) => byLine[color].get(line) ?? null,
     drill: (variation, color, learn) => drillFor(root, variation, color, learn),
+    book: (family) => {
+      const book = books.get(family.name) ?? familyBook(root, family)
+      books.set(family.name, book)
+      return book
+    },
   }
 }
 
@@ -117,6 +124,78 @@ function drillFor(root: Node, variation: Variation, color: Color, learn: boolean
     names.push(node.line && { eco: node.line.eco, name: node.line.name })
   })
   return { variation, color, learn, book, names }
+}
+
+/** What makes two move orders the same position: placement, side to move, castling and en passant. chess.js writes
+ *  the en passant square only when a capture there is legal, so both orders write it alike. */
+function positionKey(fen: string): string {
+  return fen.split(' ').slice(0, 4).join(' ')
+}
+
+type Draft = {
+  readonly fen: Fen
+  line: OpeningLine | null
+  readonly toward: OpeningLine
+  readonly moves: Map<Uci, { readonly san: San; games: number; lines: number; readonly to: string }>
+  readonly elsewhere: Map<Uci, Opening>
+}
+
+/** One walk over the family's trie nodes on a single board. Nodes that reach the same position merge into one
+ *  BookPosition: their family moves add up their games and lines (different rows, so nothing counts twice), and a move
+ *  that stays in the family at any of them is a family move. Shares are taken after merging. */
+function familyBook(root: Node, family: Family): FamilyBook {
+  const drafts = new Map<string, Draft>()
+  const board = new Chess()
+  const walk = (node: Node): string => {
+    const key = positionKey(board.fen())
+    let draft = drafts.get(key)
+    if (!draft) drafts.set(key, (draft = { fen: board.fen() as Fen, line: null, toward: shallowestLine(node, family.name), moves: new Map(), elsewhere: new Map() }))
+    if (node.line && (!draft.line || (node.line.family === family.name && draft.line.family !== family.name))) draft.line = node.line
+    for (const [uci, child] of node.children) {
+      if (!child.count.has(family.name)) {
+        const named = shallowestLine(child, null)
+        draft.elsewhere.set(uci, { eco: named.eco, name: named.name })
+        continue
+      }
+      board.move(uci)
+      const to = walk(child)
+      board.undo()
+      const known = draft.moves.get(uci)
+      if (known) {
+        known.games += child.games.get(family.name) ?? 0
+        known.lines += child.count.get(family.name)!
+      } else draft.moves.set(uci, { san: child.san, games: child.games.get(family.name) ?? 0, lines: child.count.get(family.name)!, to })
+    }
+    return key
+  }
+  const start = walk(root)
+  const positions = new Map<string, { -readonly [K in keyof BookPosition]: BookPosition[K] }>()
+  for (const [key, d] of drafts) {
+    for (const uci of d.moves.keys()) d.elsewhere.delete(uci)
+    positions.set(key, { fen: d.fen, line: d.line, toward: d.line?.family === family.name ? d.line : d.toward, moves: [], elsewhere: d.elsewhere })
+  }
+  for (const [key, d] of drafts) {
+    const moves = [...d.moves].sort(([, a], [, b]) => b.games - a.games || b.lines - a.lines)
+    const games = moves.reduce((sum, [, m]) => sum + m.games, 0)
+    const lines = moves.reduce((sum, [, m]) => sum + m.lines, 0)
+    positions.get(key)!.moves = moves.map(([uci, m]): BookContinuation => ({
+      uci,
+      san: m.san,
+      share: games > 0 ? m.games / games : m.lines / lines,
+      games: m.games,
+      to: positions.get(m.to)!,
+    }))
+  }
+  return {
+    family,
+    start: positions.get(start)!,
+    follow: (from, uci) => {
+      const listed = from.moves.find((m) => m.uci === uci)
+      if (listed) return listed.to
+      const after = new Chess(from.fen).move(uci).after
+      return positions.get(positionKey(after)) ?? null
+    },
+  }
 }
 
 /** Breadth-first, so the named line fewest moves away wins; within `family` only when one is given. */
