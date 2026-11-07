@@ -6,6 +6,7 @@ import { ReviewScreen } from './ui/review/ReviewScreen'
 import { useRoute } from './ui/router'
 import { SettingsScreen } from './ui/settings/SettingsScreen'
 import { AppShell } from './ui/shell/AppShell'
+import { CoachScreen } from './ui/training/CoachScreen'
 import { OpeningScreen } from './ui/training/OpeningScreen'
 import { OpeningsScreen } from './ui/training/OpeningsScreen'
 import { PuzzleScreen } from './ui/training/PuzzleScreen'
@@ -38,6 +39,7 @@ export default function App() {
         </>
       )}
       {route.name === 'opening' && <OpeningScreen key={`${route.family}|${route.color}`} family={route.family} color={route.color} group={route.group} />}
+      {route.name === 'coach' && <CoachScreen key={`${route.family}|${route.color}`} family={route.family} color={route.color} />}
       {route.name === 'history' && <HistoryScreen />}
       {route.name === 'weaknesses' && <WeaknessesScreen />}
       {route.name === 'settings' && <SettingsScreen />}

@@ -38,3 +38,16 @@ describe('openings routes', () => {
     expect(parseRoute("#/treino/aberturas/King's%20Pawn%20Game/brancas/Bavarian%E")).toEqual({ name: 'opening', family: "King's Pawn Game", color: 'w' })
   })
 })
+
+describe('coach route', () => {
+  it('carries a family with its color through the hash, apart from the groups of the opening routes', () => {
+    const route = { name: 'coach', family: "King's Pawn Game", color: 'b' } as const
+    expect(href(route)).toBe("#/treino/treinador/King's%20Pawn%20Game/pretas")
+    expect(parseRoute(href(route))).toEqual(route)
+    expect(parseRoute('#/treino/aberturas/Italian%20Game/brancas/treinador')).toEqual({ name: 'opening', family: 'Italian Game', color: 'w', group: 'treinador' })
+  })
+
+  it('opens the catalog for a family it cannot decode', () => {
+    expect(parseRoute('#/treino/treinador/Italian%E/brancas')).toEqual({ name: 'openings' })
+  })
+})
