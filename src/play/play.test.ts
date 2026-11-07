@@ -2,7 +2,7 @@ import { Chess } from 'chess.js'
 import { describe, expect, it } from 'vitest'
 import type { PlayEvent, PlaySetup, PlayState, Uci } from '../domain/types'
 import { LEVELS } from './levels'
-import { clocksAt, newPlay, playPosition, reducePlay } from './play'
+import { clocksAt, newPlay, playFrom, playPosition, reducePlay } from './play'
 
 const T0 = 1_000_000
 const vsEngine = (you: 'w' | 'b' = 'w', time: PlaySetup['time'] = { kind: 'none' }): PlaySetup => ({ opponent: { kind: 'engine', levelId: 1 }, you, time })
@@ -55,6 +55,22 @@ d2c3 h2g3 c3d3 g3h2 d3e3 f5g3 e4d3 h2g1 h1h2 g3h5 f4g6 h5f4
 d3c4 h6g4 e3d2 g4e3 c4b5 e3d1 b5a5 d1c3 g6e7 g8f8 h2h1 c3d5
 e7c6 d5b4 d2d1 f4d3 f2e1 b4a6 b2a4 e8e7 e1c3 e7d6 a4c5
 `.trim().split(/\s+/) as Uci[]
+
+describe('playFrom', () => {
+  const time = blitz(5, 3)
+  const opening = uci('e4 e5 Nf3 Nc6 Bc4 Bc5')
+
+  it('starts a game with the moves already on the board and the clocks running', () => {
+    const s = playFrom(vsEngine('w', time), opening, T0)
+    expect(s).toMatchObject({ phase: 'playing', moves: opening, clocks: { w: 300_000, b: 300_000 }, turnStartedAt: T0 })
+    expect(clocksAt(s, T0 + 4000)).toEqual({ w: 296_000, b: 300_000 })
+  })
+
+  it('goes on from there like any game', () => {
+    const s = reducePlay(playFrom(vsEngine('w'), opening, T0), { kind: 'move', uci: 'c2c3' as Uci, at: T0 + 1000 })
+    expect(playPosition(s.moves).sans.slice(-2)).toEqual(['Bc5', 'c3'])
+  })
+})
 
 describe('moves and endings', () => {
   it('appends a legal move and passes the turn', () => {

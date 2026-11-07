@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { BookPosition, Coach, Color, OpeningTree, Square, Uci } from '../../domain'
 import { COACH_START, coachAt, coachSummary, coachTurn, explain, stepCoach, type CoachEvent, type CoachState, type Explanation } from '../../openings'
-import { playPosition } from '../../play'
+import { DEFAULT_LEVEL_ID, levelById, loadChoice, playFrom, playPosition } from '../../play'
 import { colorLabel, moveNumberLabel } from '../format'
 import { useMoveEntry } from '../play/MoveInput'
 import { PlayBoard, type BoardArrow } from '../play/PlayBoard'
 import { openingName } from '../openingNames'
-import { href } from '../router'
+import { ConfirmDialog } from '../play/ConfirmDialog'
+import { levelLabel } from '../play/names'
+import { href, navigate } from '../router'
 import { San } from '../san'
 import { useServices } from '../services'
 import { useMediaQuery } from '../useMediaQuery'
@@ -58,6 +60,7 @@ export function CoachScreen({ family: name, color }: { family: string; color: Co
 
 function Round({ tree, coach }: { tree: OpeningTree; coach: Coach }) {
   const { book, color } = coach
+  const services = useServices()
   const family = book.family
   const engine = usePositionEvals()
   const [state, setState] = useState<CoachState>(COACH_START)
@@ -123,6 +126,21 @@ function Round({ tree, coach }: { tree: OpeningTree; coach: Coach }) {
     setState(COACH_START)
   }
 
+  const [replacing, setReplacing] = useState(false)
+  const choice = loadChoice()
+  const level = levelById(choice.opponent.kind === 'engine' ? choice.opponent.levelId : DEFAULT_LEVEL_ID)
+  const carryOn = () => {
+    if (!level) return
+    const setup = { opponent: { kind: 'engine' as const, levelId: level.id }, you: color, time: choice.time }
+    services.savePlay(playFrom(setup, state.plies.map((p) => p.uci), Date.now()))
+    navigate({ name: 'play' })
+  }
+  const askCarryOn = () => {
+    const running = services.loadPlay()
+    if (running?.phase === 'playing' && running.moves.length > 0) setReplacing(true)
+    else carryOn()
+  }
+
   return (
     <div className="play">
       <div className="min-w-0">
@@ -173,10 +191,12 @@ function Round({ tree, coach }: { tree: OpeningTree; coach: Coach }) {
             {summary && (
               <>
                 <button ref={again} type="button" className="btn" onClick={other}>Outra rodada</button>
+                <button type="button" className="btn" onClick={askCarryOn}>Continuar contra a engine</button>
                 {drill && <a href={href({ name: 'opening', family: family.name, color, ...(drill.path[0] ? { group: drill.path[0] } : null) })} className="tl tl-quiet">Estudar esta variação</a>}
               </>
             )}
           </div>
+          {summary && level && <p className="caption mt-3">Contra o Stockfish no nível {levelLabel(level)}, o último que você escolheu em Jogar.</p>}
           {turn === 'mine' && showTheory && (
             <p className="caption mt-3">
               A teoria joga aqui {at.moves.map((m) => continuationText(m, plies)).join(', ')}.
@@ -202,6 +222,14 @@ function Round({ tree, coach }: { tree: OpeningTree; coach: Coach }) {
           </div>
         )}
       </div>
+      <ConfirmDialog
+        open={replacing}
+        title="Começar esta partida?"
+        body="Há uma partida em andamento. Começar esta no lugar dela?"
+        confirm="Descartar e começar"
+        onConfirm={carryOn}
+        onClose={() => setReplacing(false)}
+      />
     </div>
   )
 }
