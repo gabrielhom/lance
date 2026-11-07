@@ -297,7 +297,8 @@ describe('the bundled lines', async () => {
     expect(bc4.moves.slice(0, 2).map((m) => [m.san, m.share.toFixed(3)])).toEqual([['Bc5', '0.497'], ['Nf6', '0.451']])
   })
 
-  it("have a first move for every family and shares that add up to 1 at every position with moves", () => {
+  // Building all 141 books takes about 2 s alone and passes the 5 s default when the machine is busy.
+  it('have a first move for every family and shares that add up to 1 at every position with moves', { timeout: 20_000 }, () => {
     const wrong: string[] = []
     for (const family of real.families) {
       const seen = new Set<BookPosition>()

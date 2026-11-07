@@ -18,12 +18,13 @@ import {
   type PlayerSummary,
   type Perspective,
   type PositionEval,
+  type Score,
   type San,
   type Uci,
   type WinPct,
   type OpeningBook,
 } from '../domain'
-import { bookPrefix } from '../openings'
+import { bookPrefix } from '../openings/book'
 import { gameAccuracy, moveAccuracy, phaseAccuracy, winPct, type PhaseAccuracy } from './accuracy'
 import { CLASSIFIER_VERSION, classify, moveFacts } from './classify'
 import { estimateElo } from './elo'
@@ -96,16 +97,18 @@ function graphPoints(game: Game, evals: CompleteEvals): NonEmpty<GraphPoint> {
 }
 
 /** From White's side: '+1.3', '-0.4', '0.0', 'M3', '-M3', '#' after checkmate, '½' after stalemate. */
-export function evalLabel(e: PositionEval): string {
+export function evalLabel(e: Score | PositionEval): string {
   switch (e.kind) {
     case 'checkmate':
       return '#'
     case 'stalemate':
       return '½'
-    case 'searched': {
-      const score = e.lines[0].score
-      if (score.kind === 'mate') return `${score.winner === 'w' ? '' : '-'}M${score.moves}`
-      const pawns = Math.round(score.white / 10) / 10
+    case 'searched':
+      return evalLabel(e.lines[0].score)
+    case 'mate':
+      return `${e.winner === 'w' ? '' : '-'}M${e.moves}`
+    case 'cp': {
+      const pawns = Math.round(e.white / 10) / 10
       return pawns > 0 ? `+${pawns.toFixed(1)}` : pawns < 0 ? pawns.toFixed(1) : '0.0'
     }
   }
