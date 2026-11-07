@@ -1,5 +1,6 @@
 import { Chess } from 'chess.js'
 import type { BookContinuation, BookPosition, Coach, Opening, OpeningLine, San, Uci } from '../domain'
+import { OPENINGS } from './study'
 
 /** One move on the board, mine or the coach's, and where it landed in the family's book. */
 export type CoachPly = { readonly uci: Uci; readonly san: San; readonly to: BookPosition }
@@ -17,9 +18,9 @@ export type CoachState = {
 }
 
 export type CoachEvent =
-  /** The coach's turn. `roll` in [0, 1) picks among the family's moves by share, so the reducer stays pure. `seen` holds
-   *  where earlier rounds ended, and a move that only leads there weighs less. */
-  | { readonly kind: 'reply'; readonly roll: number; readonly seen: ReadonlySet<BookPosition> }
+  /** The coach's turn. `roll` in [0, 1) picks among the moves it has played least from here, by share, so the reducer
+   *  stays pure. `played` counts the moves it played in earlier rounds, by `playedKey`. */
+  | { readonly kind: 'reply'; readonly roll: number; readonly played: PlayedCounts }
   | { readonly kind: 'move'; readonly uci: Uci }
   /** Takes the departure back. */
   | { readonly kind: 'retry' }
@@ -28,8 +29,19 @@ export type CoachTurn = 'mine' | 'theirs' | 'departed' | 'done'
 
 export const COACH_START: CoachState = { plies: [], departure: null, slips: [] }
 
-/** How much less often the coach plays a move whose every line ended an earlier round. */
-export const SEEN_WEIGHT = 0.25
+/** How many times the coach played each move from each position, by `playedKey`. */
+export type PlayedCounts = ReadonlyMap<string, number>
+
+/** The position without its move counters, so transpositions share it, plus the move. */
+export function playedKey(at: BookPosition, uci: Uci): string {
+  return `${at.fen.split(' ').slice(0, 4).join(' ')} ${uci}`
+}
+
+/** `played` with one more play of `uci` from `at`. */
+export function withPlayed(played: PlayedCounts, at: BookPosition, uci: Uci): PlayedCounts {
+  const key = playedKey(at, uci)
+  return new Map(played).set(key, (played.get(key) ?? 0) + 1)
+}
 
 /** The book position on the board, departure aside. */
 export function coachAt({ book }: Coach, { plies }: CoachState): BookPosition {
@@ -51,7 +63,7 @@ export function stepCoach(coach: Coach, state: CoachState, event: CoachEvent): C
   switch (event.kind) {
     case 'reply': {
       if (turn !== 'theirs') return state
-      const { uci, san, to } = pickReply(at, event.roll, event.seen)
+      const { uci, san, to } = pickReply(at, event.roll, event.played, coach.book.family.games * OPENINGS.mainShare)
       return { ...state, plies: [...state.plies, { uci, san, to }] }
     }
     case 'move': {
@@ -69,28 +81,22 @@ export function stepCoach(coach: Coach, state: CoachState, event: CoachEvent): C
   }
 }
 
-/** The continuation whose cumulative weight first passes `roll`: its share, times SEEN_WEIGHT when every line after it
- *  ended an earlier round. The last move absorbs rounding. Never called where the family has no move. */
-export function pickReply(at: BookPosition, roll: number, seen: ReadonlySet<BookPosition>): BookContinuation {
-  const weights = at.moves.map((m) => m.share * (seen.size > 0 && endsIn(m.to, seen) ? SEEN_WEIGHT : 1))
-  const total = weights.reduce((sum, w) => sum + w, 0)
+/** Among the moves with at least `minGames` games (all of them when none has), the ones the coach played least from
+ *  here, then the one whose cumulative share first passes `roll`. The last absorbs rounding. Never called where the
+ *  family has no move. */
+export function pickReply(at: BookPosition, roll: number, played: PlayedCounts, minGames: number): BookContinuation {
+  const main = at.moves.filter((m) => m.games >= minGames)
+  const pool = main.length > 0 ? main : at.moves
+  const times = (m: BookContinuation) => played.get(playedKey(at, m.uci)) ?? 0
+  const least = Math.min(...pool.map(times))
+  const candidates = pool.filter((m) => times(m) === least)
+  const total = candidates.reduce((sum, m) => sum + m.share, 0)
   let passed = 0
-  for (const [i, m] of at.moves.entries()) {
-    passed += weights[i] / total
+  for (const m of candidates) {
+    passed += m.share / total
     if (roll < passed) return m
   }
-  return at.moves[at.moves.length - 1]
-}
-
-/** Every end of theory reachable from `from` is in `seen`. */
-function endsIn(from: BookPosition, seen: ReadonlySet<BookPosition>): boolean {
-  const visited = new Set<BookPosition>()
-  const all = (p: BookPosition): boolean => {
-    if (visited.has(p)) return true
-    visited.add(p)
-    return p.moves.length === 0 ? seen.has(p) : p.moves.every((m) => all(m.to))
-  }
-  return all(from)
+  return candidates[candidates.length - 1]
 }
 
 export type CoachSummary = {
