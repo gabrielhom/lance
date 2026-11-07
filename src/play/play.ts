@@ -31,6 +31,11 @@ export function newPlay(setup: PlaySetup, now: number): PlayState {
   }
 }
 
+/** A game that starts from moves already played, as if both sides had played them just now. */
+export function playFrom(setup: PlaySetup, moves: readonly Uci[], now: number): PlayState {
+  return { ...newPlay(setup, now), moves }
+}
+
 /** Pure. Any event that does not apply to the state (illegal move, game over, takeback with nothing to take) returns it unchanged. */
 export function reducePlay(state: PlayState, event: PlayEvent): PlayState {
   if (state.phase !== 'playing') return state

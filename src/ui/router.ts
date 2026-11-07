@@ -14,6 +14,8 @@ export type Route =
   /** One family studied with one color. `family` is what `studyFamily()` gives; `group` opens one of its groups, the
    *  system the weaknesses report links from. */
   | { readonly name: 'opening'; readonly family: string; readonly color: Color; readonly group?: string }
+  /** A family played against the coach with one color. */
+  | { readonly name: 'coach'; readonly family: string; readonly color: Color }
   | { readonly name: 'history' }
   | { readonly name: 'weaknesses' }
   | { readonly name: 'settings' }
@@ -24,6 +26,11 @@ export function parseRoute(hash: string): Route {
   if (m) return { name: 'review', id: decodeURIComponent(m[1]) as GameId, ...(m[2] ? { ply: Number(m[2]) } : null) }
   // Game ids always carry a source prefix ('lichess:', 'pgn:'...), so no game is called 'puzzles' or 'aberturas'.
   if (path === '/treino/puzzles') return { name: 'puzzles' }
+  const c = /^\/treino\/treinador\/([^/]+)\/(brancas|pretas)$/.exec(path)
+  if (c) {
+    const family = decode(c[1])
+    return family ? { name: 'coach', family, color: c[2] === 'brancas' ? 'w' : 'b' } : { name: 'openings' }
+  }
   const o = /^\/treino\/aberturas(?:\/([^/]+)\/(brancas|pretas)(?:\/([^/]+))?)?$/.exec(path)
   if (o) {
     const family = o[1] && decode(o[1])
@@ -58,6 +65,7 @@ export function href(route: Route): string {
     case 'openings': return '#/treino/aberturas'
     case 'opening':
       return `#/treino/aberturas/${encodeURIComponent(route.family)}/${route.color === 'w' ? 'brancas' : 'pretas'}${route.group === undefined ? '' : `/${encodeURIComponent(route.group)}`}`
+    case 'coach': return `#/treino/treinador/${encodeURIComponent(route.family)}/${route.color === 'w' ? 'brancas' : 'pretas'}`
     case 'history': return '#/historico'
     case 'weaknesses': return '#/historico/pontos-fracos'
     case 'settings': return '#/config'

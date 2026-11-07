@@ -601,6 +601,8 @@
   .annot .evals { display: flex; align-items: baseline; gap: 12px; margin-top: 14px; font-size: var(--text-sm); color: var(--ink-2); }
   .annot .evals .num { font-size: var(--text-2xl); color: var(--ink); }
   .annot .evals .arrow { font-family: var(--font-serif); font-size: var(--text-lg); color: var(--ink-3); }
+  .annot .coach-note { margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--rule); }
+  .annot .coach-note .san { font-size: var(--text-3xl); }
 
   .line { margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--rule); }
   .line .moves { display: flex; flex-wrap: wrap; gap: 2px 4px; margin-top: 6px; font-family: var(--font-serif); font-size: var(--text-lg); line-height: 1.9; }

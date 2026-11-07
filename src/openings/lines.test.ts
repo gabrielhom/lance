@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { LineId } from '../domain'
+import type { BookPosition, FamilyBook, LineId, Uci } from '../domain'
 import { GENERIC_FAMILIES, STANDALONE_SYSTEMS } from './family'
 import { buildTree, loadTree, type LineFile } from './lines'
 import { FILE, POPULARITY } from './testing'
@@ -7,6 +7,8 @@ import { FILE, POPULARITY } from './testing'
 const tree = buildTree(FILE, POPULARITY)
 const sicilian = tree.family('Sicilian Defense')!
 const names = (color: 'w' | 'b') => sicilian.variations[color].map((v) => v.line.sans.join(' '))
+const reach = (book: FamilyBook, moves: string) => moves.split(' ').reduce<BookPosition | null>((at, uci) => at && book.follow(at, uci as Uci), book.start)
+const listed = (at: BookPosition | null) => at?.moves.map((m) => [m.san, m.share, m.games])
 
 describe('buildTree', () => {
   it('lists the families by name with the range of their ECO codes', () => {
@@ -170,6 +172,51 @@ describe('drill', () => {
   })
 })
 
+describe('book', () => {
+  const qgd = tree.book(tree.family("Queen's Gambit Declined")!)
+
+  it("lists the family's moves at each position with their share of its games, and the book moves that leave it", () => {
+    expect(listed(qgd.start)).toEqual([['d4', 1, 25]])
+    expect([...qgd.start.elsewhere]).toEqual([['e2e4', { eco: 'B00', name: "King's Pawn Game" }]])
+    expect(listed(reach(qgd, 'd2d4 d7d5'))).toEqual([['c4', 0.8, 20], ['Nf3', 0.2, 5]])
+    expect([...reach(qgd, 'd2d4')!.elsewhere]).toEqual([['g8f6', { eco: 'D80', name: 'Grünfeld Defense' }]])
+  })
+
+  it('names a position by its row, preferring the family, and an unnamed one by the nearest line of the family after it', () => {
+    const d4 = reach(qgd, 'd2d4')!
+    expect([d4.line?.name, d4.toward.name]).toEqual(["Queen's Pawn Game", "Queen's Gambit Declined"])
+    const baltic = reach(qgd, 'd2d4 d7d5 g1f3 c8f5 c2c4')!
+    expect([baltic.line?.name, baltic.toward.name]).toEqual(["Queen's Gambit Declined: Baltic Defense", "Queen's Gambit Declined: Baltic Defense"])
+    expect(reach(qgd, 'd2d4 d7d5 c2c4 e7e6')!.moves).toEqual([])
+  })
+
+  it('makes two orders of the same position one position, its moves the sum of both', () => {
+    expect(reach(qgd, 'd2d4 d7d5 c2c4 c8f5 g1f3')).toBe(reach(qgd, 'd2d4 d7d5 g1f3 c8f5 c2c4'))
+    expect(listed(reach(qgd, 'd2d4 d7d5 c2c4 c8f5 g1f3'))).toEqual([['e6', 1, 5]])
+  })
+
+  it('follows a move the position does not list into a position the family reaches by another order, and nothing else', () => {
+    const lines = buildTree({
+      ...FILE,
+      lines: [
+        ['D32', "Queen's Gambit Declined: Tarrasch Defense", 'd2d4 d7d5 c2c4 e7e6 b1c3 c7c5', 'd4 d5 c4 e6 Nc3 c5'],
+        ['D37', "Queen's Gambit Declined: Three Knights", 'd2d4 d7d5 c2c4 g8f6 b1c3 e7e6', 'd4 d5 c4 Nf6 Nc3 e6'],
+      ],
+    }, {})
+    const tarrasch = lines.book(lines.family("Queen's Gambit Declined")!)
+    const nc3 = reach(tarrasch, 'd2d4 d7d5 c2c4 e7e6 b1c3')!
+    expect(tarrasch.follow(nc3, 'g8f6' as Uci)?.line?.name).toBe("Queen's Gambit Declined: Three Knights")
+    expect(tarrasch.follow(nc3, 'a7a6' as Uci)).toBeNull()
+  })
+
+  it("shares by the family's lines where none of its moves has games, and builds a family's book once", () => {
+    const bare = buildTree(FILE, {})
+    const book = bare.book(bare.family("Queen's Gambit Declined")!)
+    expect(listed(reach(book, 'd2d4 d7d5'))).toEqual([['c4', 2 / 3, 0], ['Nf3', 1 / 3, 0]])
+    expect(bare.book(bare.family("Queen's Gambit Declined")!)).toBe(book)
+  })
+})
+
 describe('a system the book names on its own and under catch-all families', () => {
   const london = buildTree({
     ...FILE,
@@ -240,5 +287,31 @@ describe('the bundled lines', async () => {
       .filter((name) => GENERIC_FAMILIES.has(head(name)) && name.includes(':'))
       .map((name) => name.split(':')[1].split(',')[0].trim())
     expect(new Set(systems.filter((s) => own.has(s)))).toEqual(STANDALONE_SYSTEMS)
+  })
+
+  it('make one position of the Italian 3...Bc5 4.O-O Nf6 and 3...Nf6 4.O-O Bc5, and play on from 3.Bc4 as strong players do', () => {
+    const italian = real.book(real.family('Italian Game')!)
+    expect(reach(italian, 'e2e4 e7e5 g1f3 b8c6 f1c4 f8c5 e1g1 g8f6')).toBe(reach(italian, 'e2e4 e7e5 g1f3 b8c6 f1c4 g8f6 e1g1 f8c5'))
+    const bc4 = reach(italian, 'e2e4 e7e5 g1f3 b8c6 f1c4')!
+    expect(bc4.line?.name).toBe('Italian Game')
+    expect(bc4.moves.slice(0, 2).map((m) => [m.san, m.share.toFixed(3)])).toEqual([['Bc5', '0.497'], ['Nf6', '0.451']])
+  })
+
+  // Building all 141 books takes about 2 s alone and passes the 5 s default when the machine is busy.
+  it('have a first move for every family and shares that add up to 1 at every position with moves', { timeout: 20_000 }, () => {
+    const wrong: string[] = []
+    for (const family of real.families) {
+      const seen = new Set<BookPosition>()
+      const visit = (at: BookPosition) => {
+        if (seen.has(at)) return
+        seen.add(at)
+        if (at.moves.length > 0 && Math.abs(at.moves.reduce((sum, m) => sum + m.share, 0) - 1) > 1e-9) wrong.push(`${family.name} ${at.fen}`)
+        for (const m of at.moves) visit(m.to)
+      }
+      const book = real.book(family)
+      if (book.start.moves.length === 0) wrong.push(family.name)
+      visit(book.start)
+    }
+    expect(wrong).toEqual([])
   })
 })

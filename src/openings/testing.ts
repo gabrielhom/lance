@@ -1,6 +1,7 @@
 import type { LineFile, LineTuple, Popularity } from './lines'
 
-/** A corner of the book: four e4 families and three d4 ones, in dataset order. */
+/** A corner of the book: four e4 families and three d4 ones, in dataset order. The Baltic Defense row reaches the
+ *  Pseudo-Slav's position after 3.c4 by another order. */
 export const LINES: readonly LineTuple[] = [
   ['B00', "King's Pawn Game", 'e2e4', 'e4'],
   ['C00', 'French Defense', 'e2e4 e7e6', 'e4 e6'],
@@ -16,6 +17,7 @@ export const LINES: readonly LineTuple[] = [
   ['A40', "Queen's Pawn Game", 'd2d4', 'd4'],
   ['D02', "Queen's Pawn Game: Zukertort Variation", 'd2d4 d7d5 g1f3', 'd4 d5 Nf3'],
   ['D02', "Queen's Gambit Declined: Baltic Defense, Pseudo-Slav", 'd2d4 d7d5 g1f3 c8f5 c2c4 e7e6 b1c3 c7c6', 'd4 d5 Nf3 Bf5 c4 e6 Nc3 c6'],
+  ['D06', "Queen's Gambit Declined: Baltic Defense", 'd2d4 d7d5 c2c4 c8f5 g1f3', 'd4 d5 c4 Bf5 Nf3'],
   ['D30', "Queen's Gambit Declined", 'd2d4 d7d5 c2c4 e7e6', 'd4 d5 c4 e6'],
   ['D80', 'Grünfeld Defense', 'd2d4 g8f6 c2c4 g7g6 b1c3 d7d5', 'd4 Nf6 c4 g6 Nc3 d5'],
 ]

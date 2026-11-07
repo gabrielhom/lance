@@ -106,7 +106,7 @@ export function OpeningScreen({ family: name, color, group }: { family: string; 
   )
 }
 
-function Trouble({ title, text, children }: { title: string; text: string; children: ReactNode }) {
+export function Trouble({ title, text, children }: { title: string; text: string; children: ReactNode }) {
   return (
     <div className="max-w-lg">
       <a href={href({ name: 'openings' })} className="tl tl-quiet text-sm">Aberturas</a>
@@ -183,7 +183,7 @@ function Overview({ study: { family, color, lines, main, learned, due }, group, 
         <p className="text-ink-2 mt-8">Esta abertura não tem lance das {colorLabel(color)} para estudar.</p>
       ) : (
         <>
-          <NextStep family={name} shown={shown} lines={lines} main={filter === 'main'} onStart={onStart} onAll={() => onView({ ...view, filter: 'all' })} />
+          <NextStep family={name} shown={shown} lines={lines} main={filter === 'main'} coach={href({ name: 'coach', family: family.name, color })} onStart={onStart} onAll={() => onView({ ...view, filter: 'all' })} />
           <div className="vhead">
             <h2 className="sec">Variações</h2>
             {filtered && (
@@ -220,8 +220,9 @@ function Overview({ study: { family, color, lines, main, learned, due }, group, 
   )
 }
 
-/** The one thing to do now: review what is due and learn the next new lines, or practice when nothing is left. */
-function NextStep({ family, shown, lines, main, onStart, onAll }: { family: string; shown: readonly StudyLine[]; lines: readonly StudyLine[]; main: boolean; onStart: (steps: readonly StudyStep[]) => void; onAll: () => void }) {
+/** The one thing to do now: review what is due and learn the next new lines, or practice when nothing is left. Next
+ *  to it, `coach` links to the family played against the coach. */
+function NextStep({ family, shown, lines, main, coach, onStart, onAll }: { family: string; shown: readonly StudyLine[]; lines: readonly StudyLine[]; main: boolean; coach: string; onStart: (steps: readonly StudyStep[]) => void; onAll: () => void }) {
   const queue = studyQueue(shown)
   const reviews = queue.filter((s) => s.pass === 'review').length
   const fresh = queue.filter((s) => s.pass === 'learn')
@@ -248,6 +249,7 @@ function NextStep({ family, shown, lines, main, onStart, onAll }: { family: stri
       </p>
       <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2">
         <button type="button" className="btn" onClick={() => onStart(sessionFor(shown))}>{button}</button>
+        <a href={coach} className="tl tl-accent">Jogar com o treinador</a>
         {queue.length === 0 && elsewhere > 0 && (
           <button type="button" className="tl tl-accent" onClick={onAll}>Ver as outras {nouns(elsewhere)} novas</button>
         )}
@@ -365,7 +367,7 @@ function DrillView({ tree, step, color, position, onDone, onNext }: DrillProps) 
   return (
     <div className="play">
       <div className="min-w-0">
-        <PlayBoard position={board} orientation={color} interactive={turn === 'mine'} onMove={(uci) => advance({ kind: 'move', uci: uci as Uci })} arrow={hint ? squares(hint) : null} />
+        <PlayBoard position={board} orientation={color} interactive={turn === 'mine'} onMove={(uci) => advance({ kind: 'move', uci: uci as Uci })} arrows={hint ? [squares(hint)] : []} />
       </div>
       <div className="min-w-0 play-side">
         <h1 className="display text-2xl md:text-4xl">{openingName(line.family)}</h1>

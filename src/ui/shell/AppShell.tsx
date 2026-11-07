@@ -14,7 +14,7 @@ const NAV: readonly { route: Route; label: string }[] = [
 ]
 
 /** Screens without their own nav item light up the item they are reached from. */
-const NAV_PARENT: Partial<Record<Route['name'], Route['name']>> = { review: 'import', puzzles: 'training', openings: 'training', opening: 'training', weaknesses: 'history' }
+const NAV_PARENT: Partial<Record<Route['name'], Route['name']>> = { review: 'import', puzzles: 'training', openings: 'training', opening: 'training', coach: 'training', weaknesses: 'history' }
 
 export function AppShell({ children }: { children: ReactNode }) {
   const route = useRoute()
@@ -25,6 +25,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     route.name === 'review' ? `review:${route.id}`
     : route.name === 'training' ? `training:${route.games.join(',')}`
     : route.name === 'opening' ? `opening:${route.family}`
+    : route.name === 'coach' ? `coach:${route.family}|${route.color}`
     : route.name
   useEffect(() => {
     window.scrollTo(0, 0)
