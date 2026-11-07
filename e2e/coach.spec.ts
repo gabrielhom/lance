@@ -75,3 +75,15 @@ test('plays the Italian Game as White with the coach: book moves explained, a mo
   await expect(nc6).toContainText('Desenvolve o cavalo para c6, defende o peão de e5')
   await axe()
 })
+
+test('carries a round that reached the end of theory on to a game against the engine, with its moves on the board', async ({ page }) => {
+  test.setTimeout(180_000)
+  await page.goto('/#/treino/treinador/Australian%20Defense/pretas')
+  await expect(coach(page)).toHaveAttribute('data-coach-move', 'd2d4')
+  await play(page, 'b8a6')
+  await expect(coach(page)).toHaveAttribute('data-turn', 'done')
+  await page.getByRole('button', { name: 'Continuar contra a engine' }).click()
+  await expect(page).toHaveURL(/#\/$/)
+  await expect(page.getByRole('table', { name: 'Lances da partida' }).getByRole('row', { name: /^1\. d4 N ?a6$/ })).toBeVisible()
+  await expect(page.getByText('sua vez')).toBeVisible({ timeout: 120_000 })
+})

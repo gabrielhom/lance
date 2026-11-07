@@ -196,7 +196,7 @@ function Round({ tree, coach }: { tree: OpeningTree; coach: Coach }) {
               </>
             )}
           </div>
-          {summary && level && <p className="caption mt-3">Contra o Stockfish no nível {levelLabel(level)}, o último que você escolheu em Jogar.</p>}
+          {summary && level && <p className="caption mt-3">Contra o Stockfish no nível {levelLabel(level)}{choice.opponent.kind === 'engine' ? ', o último que você escolheu em Jogar' : ''}.</p>}
           {turn === 'mine' && showTheory && (
             <p className="caption mt-3">
               A teoria joga aqui {at.moves.map((m) => continuationText(m, plies)).join(', ')}.
