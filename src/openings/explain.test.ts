@@ -1,6 +1,6 @@
 import { Chess } from 'chess.js'
 import { describe, expect, it } from 'vitest'
-import type { BookPosition, Coach, NonEmpty, SearchedEval, Uci } from '../domain'
+import type { Coach, NonEmpty, SearchedEval, Uci } from '../domain'
 import { COACH_START, stepCoach, type CoachEvent, type CoachState } from './coach'
 import { explain, type EvalsOf } from './explain'
 import { buildTree } from './lines'
@@ -8,8 +8,8 @@ import { FILE, POPULARITY } from './testing'
 
 const tree = buildTree(FILE, POPULARITY)
 const black: Coach = { book: tree.book(tree.family('Sicilian Defense')!), color: 'b' }
-const NONE: ReadonlySet<BookPosition> = new Set()
-const reply: CoachEvent = { kind: 'reply', roll: 0, seen: NONE }
+const NONE = new Map<string, number>()
+const reply: CoachEvent = { kind: 'reply', roll: 0, played: NONE }
 const move = (uci: string): CoachEvent => ({ kind: 'move', uci: uci as Uci })
 const run = (coach: Coach, ...events: CoachEvent[]) => events.reduce<CoachState>((s, e) => stepCoach(coach, s, e), COACH_START)
 const kinds = (facts: readonly { kind: string }[]) => facts.map((f) => f.kind)
