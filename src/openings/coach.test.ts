@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { BookPosition, Coach, Uci } from '../domain'
 import { COACH_START, coachAt, coachSummary, coachTurn, pickReply, stepCoach, type CoachEvent, type CoachState } from './coach'
-import { buildTree } from './lines'
+import { buildTree, loadTree } from './lines'
 import { FILE, POPULARITY } from './testing'
 
 const tree = buildTree(FILE, POPULARITY)
@@ -60,5 +60,23 @@ describe('coachSummary', () => {
   it('names the deepest position of the family reached and counts my moves, first tries and departures', () => {
     const s = run(black, reply(0), move('e7e6'), { kind: 'retry' }, move('g7g5'), { kind: 'retry' }, move('c7c5'), reply(0))
     expect(coachSummary(black, s)).toMatchObject({ reached: { name: 'Sicilian Defense: Smith-Morra Gambit' }, myMoves: 1, firstTry: 0, offBook: 0, otherOpening: 1 })
+  })
+})
+
+describe('rounds against the real Sicilian Defense', () => {
+  it('does not open the same variation every round when I always answer with the first book move', async () => {
+    const real = await loadTree()
+    const coach: Coach = { book: real.book(real.family('Sicilian Defense')!), color: 'b' }
+    let seen: ReadonlySet<BookPosition> = NONE
+    const whiteSecond: string[] = []
+    for (let round = 0; round < 4; round++) {
+      let s = COACH_START
+      while (coachTurn(coach, s) !== 'done') {
+        s = stepCoach(coach, s, coachTurn(coach, s) === 'theirs' ? reply(0, seen) : move(coachAt(coach, s).moves[0].uci))
+      }
+      whiteSecond.push(s.plies[2].san)
+      seen = new Set(seen).add(coachAt(coach, s))
+    }
+    expect(whiteSecond).toEqual(['Nf3', 'Nc3', 'c3', 'd4'])
   })
 })
