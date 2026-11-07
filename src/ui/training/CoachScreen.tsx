@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { BookPosition, Coach, Color, OpeningTree, Square, Uci } from '../../domain'
-import { COACH_START, coachAt, coachSummary, coachTurn, explain, stepCoach, type CoachEvent, type CoachState, type Explanation } from '../../openings'
+import type { Coach, Color, OpeningTree, Square, Uci } from '../../domain'
+import { COACH_START, coachAt, coachSummary, coachTurn, explain, stepCoach, withPlayed, type CoachEvent, type CoachState, type Explanation, type PlayedCounts } from '../../openings'
 import { DEFAULT_LEVEL_ID, levelById, loadChoice, playFrom, playPosition } from '../../play'
 import { colorLabel, moveNumberLabel } from '../format'
 import { useMoveEntry } from '../play/MoveInput'
@@ -13,6 +13,7 @@ import { San } from '../san'
 import { useServices } from '../services'
 import { useMediaQuery } from '../useMediaQuery'
 import { continuationText, engineText, factsText, lineName, moveText, placeText, suggestionsText, theoryText } from './coachText'
+import { readPlayed, savePlayed } from './coachPlayed'
 import { Trouble } from './OpeningScreen'
 import { usePositionEvals } from './usePositionEvals'
 
@@ -20,7 +21,7 @@ import { usePositionEvals } from './usePositionEvals'
 const SETUP_MS = 700
 const REPLY_MS = 450
 
-/** A family played against the coach with one color. Nothing is stored: the drill keeps the schedule. */
+/** A family played against the coach with one color. The drill keeps the schedule; only what the coach played is stored. */
 export function CoachScreen({ family: name, color }: { family: string; color: Color }) {
   const services = useServices()
   const [tree, setTree] = useState<OpeningTree | 'failed' | null>(null)
@@ -64,8 +65,8 @@ function Round({ tree, coach }: { tree: OpeningTree; coach: Coach }) {
   const family = book.family
   const engine = usePositionEvals()
   const [state, setState] = useState<CoachState>(COACH_START)
-  /** Where earlier rounds ended, so the coach heads elsewhere next. */
-  const [seen, setSeen] = useState<ReadonlySet<BookPosition>>(() => new Set())
+  /** What the coach played from each position in earlier rounds, kept on this browser, so it rotates among its moves. */
+  const [played, setPlayed] = useState<PlayedCounts>(() => readPlayed(family.name, color))
   /** The ply whose explanation the move list opened; null shows the latest moves. */
   const [picked, setPicked] = useState<number | null>(null)
   /** The ply at which "Mostrar a teoria" was opened, so it closes with the next move. */
@@ -85,11 +86,16 @@ function Round({ tree, coach }: { tree: OpeningTree; coach: Coach }) {
   useEffect(() => {
     if (turn !== 'theirs') return
     const t = setTimeout(() => {
+      const next = stepCoach(coach, state, { kind: 'reply', roll: Math.random(), played })
+      const move = next.plies[plies]
+      const nextPlayed = withPlayed(played, at, move.uci)
+      savePlayed(family.name, color, nextPlayed)
+      setPlayed(nextPlayed)
       setPicked(null)
-      setState((s) => stepCoach(coach, s, { kind: 'reply', roll: Math.random(), seen }))
+      setState(next)
     }, plies === 0 ? SETUP_MS : REPLY_MS)
     return () => clearTimeout(t)
-  }, [coach, turn, plies, seen])
+  }, [coach, family, color, turn, plies, state, at, played])
 
   const moves = useMemo(() => [...state.plies.map((p) => p.uci), ...(state.departure ? [state.departure.uci] : [])], [state])
   const board = useMemo(() => playPosition(moves), [moves])
@@ -120,7 +126,6 @@ function Round({ tree, coach }: { tree: OpeningTree; coach: Coach }) {
   const summary = turn === 'done' ? coachSummary(coach, state) : null
   const drill = summary && tree.variation(summary.reached.id, color)
   const other = () => {
-    setSeen((s) => new Set(s).add(at))
     setPicked(null)
     setTheoryAt(null)
     setState(COACH_START)

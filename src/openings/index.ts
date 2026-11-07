@@ -26,5 +26,5 @@ export {
   type StudyStep,
   type VariationGroup,
 } from './study'
-export { COACH_START, coachAt, coachSummary, coachTurn, pickReply, SEEN_WEIGHT, stepCoach, type CoachEvent, type CoachPly, type CoachState, type CoachSummary, type CoachTurn, type Departure } from './coach'
+export { COACH_START, coachAt, coachSummary, coachTurn, pickReply, playedKey, stepCoach, withPlayed, type CoachEvent, type CoachPly, type CoachState, type CoachSummary, type CoachTurn, type Departure, type PlayedCounts } from './coach'
 export { bandOf, explain, type After, type Band, type EngineView, type EvalsOf, type EvalStatus, type Explained, type Explanation, type Reply, type Suggestion, type Theory } from './explain'

@@ -1,11 +1,11 @@
 import { Chess } from 'chess.js'
 import { describe, expect, it } from 'vitest'
-import type { BookPosition, Coach, NonEmpty, SearchedEval, Uci } from '../../domain'
+import type { Coach, NonEmpty, SearchedEval, Uci } from '../../domain'
 import { COACH_START, explain, loadTree, stepCoach, type CoachEvent, type CoachState, type EvalsOf, type Explanation } from '../../openings'
 import { engineText, factsText, placeText, suggestionsText, theoryText } from './coachText'
 
-const NONE: ReadonlySet<BookPosition> = new Set()
-const reply = (roll: number): CoachEvent => ({ kind: 'reply', roll, seen: NONE })
+const NONE = new Map<string, number>()
+const reply = (roll: number): CoachEvent => ({ kind: 'reply', roll, played: NONE })
 const move = (uci: string): CoachEvent => ({ kind: 'move', uci: uci as Uci })
 const run = (coach: Coach, ...events: CoachEvent[]) => events.reduce<CoachState>((s, e) => stepCoach(coach, s, e), COACH_START)
 const line = (cp: number, pv: string) => ({ score: { kind: 'cp', white: cp } as const, pv: pv.split(' ') as unknown as NonEmpty<Uci> })
